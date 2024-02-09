@@ -1,5 +1,7 @@
 if __name__ == "__main__":
     import numpy as np
+    import openmm as mm
+    import openmm.unit as unit
 
     from fes_ml.fes import FES
 
@@ -21,9 +23,12 @@ if __name__ == "__main__":
         top_file="../data/benzene/benzene_sol.prmtop",
         crd_format="AMBER",
         crd_file="../data/benzene/benzene_sol.inpcrd",
-        platform_name="Reference",
+        platform_name="CUDA",
     )
     fes.create_alchemical_states(lambda_dict, alchemical_atoms=list(range(12)))
+    for alc in fes._alchemical_states:
+        alc.system.addForce(mm.MonteCarloBarostat(1.0*unit.bar, 300*unit.kelvin))
+
     fes.create_simulation_batch()
     # Minimize the system and equilibrate it during 1 ns
     fes.run_equilibration_batch(1000000, minimize=True)
