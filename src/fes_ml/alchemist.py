@@ -77,7 +77,12 @@ class Alchemist:
         soft_core_force.setCutoffDistance(nb_force.getCutoffDistance())
         soft_core_force.setUseSwitchingFunction(nb_force.getUseSwitchingFunction())
         soft_core_force.setSwitchingDistance(nb_force.getSwitchingDistance())
-        soft_core_force.setUseLongRangeCorrection(nb_force.getUseDispersionCorrection())
+
+        if abs(lambda_lj) < 1e-8:
+            # Cannot use long range correction with a force that does not depend on r
+            soft_core_force.setUseLongRangeCorrection(False)
+        else:
+            soft_core_force.setUseLongRangeCorrection(nb_force.getUseDispersionCorrection())
 
         # https://github.com/openmm/openmm/issues/1877
         # Set the values of sigma and epsilon by copying them from the existing NonBondedForce
