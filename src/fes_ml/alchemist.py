@@ -7,6 +7,14 @@ import openmm.unit as unit
 
 
 class Alchemist:
+    _NON_BONDED_METHODS = {
+        0: app.NoCutoff,
+        1: app.CutoffNonPeriodic,
+        2: app.CutoffPeriodic,
+        3: app.Ewald,
+        4: app.PME,
+    }
+
     def __init__(self, system: mm.System, alchemical_atoms: Iterable[int]):
         """
         Create a new Alchemist object to manage the creation of alchemical Systems.
@@ -59,28 +67,29 @@ class Alchemist:
         # Create a CustomNonbondedForce to compute the softcore Lennard-Jones and Coulomb interactions
         soft_core_force = mm.CustomNonbondedForce(energy_function)
 
-        # TODO: generalise this to work with any nonbonded method
-        soft_core_force.setNonbondedMethod(mm.CustomNonbondedForce.CutoffPeriodic)
-        soft_core_force.setCutoffDistance(1.2 * unit.nanometers)
-        soft_core_force.setSwitchingDistance(1.1 * unit.nanometers)
-        soft_core_force.setUseSwitchingFunction(True)
-        # soft_core_force.setUseLongRangeCorrection(nb_force.getUseDispersionCorrection())
+        if self._NON_BONDED_METHODS[nb_force.getNonbondedMethod()] in [self._NON_BONDED_METHODS[3], self._NON_BONDED_METHODS[4]]:
+            print("The softcore Lennard-Jones interactions are not implemented for Ewald or PME")
+            print("The nonbonded method will be set to CutoffPeriodic")
+            soft_core_force.setNonbondedMethod(2)
+        else:
+            soft_core_force.setNonbondedMethod(nb_force.getNonbondedMethod())
+
+        soft_core_force.setCutoffDistance(nb_force.getCutoffDistance())
+        soft_core_force.setUseSwitchingFunction(nb_force.getUseSwitchingFunction())
+        soft_core_force.setSwitchingDistance(nb_force.getSwitchingDistance())
+        soft_core_force.setUseLongRangeCorrection(nb_force.getUseDispersionCorrection())
 
         # https://github.com/openmm/openmm/issues/1877
         # Set the values of sigma and epsilon by copying them from the existing NonBondedForce
         # Epsilon will always be 0 for the ML atoms as the LJ 12-6 interaction is removed
         soft_core_force.addPerParticleParameter("sigma")
         soft_core_force.addPerParticleParameter("epsilon")
-
         for index in range(system.getNumParticles()):
             [charge, sigma, epsilon] = nb_force.getParticleParameters(index)
             soft_core_force.addParticle([sigma, epsilon])
             if index in alchemical_atoms:
                 # Scale the charge and remove the LJ 12-6 interaction
                 nb_force.setParticleParameters(index, charge, sigma, 0.0)
-
-        # TODO: check if this is necessary
-        nb_force.setExceptionsUsePeriodicBoundaryConditions(True)
 
         # Set the custom force to occur between just the alchemical particle and the other particles
         mm_atoms = set(range(system.getNumParticles())) - set(alchemical_atoms)
@@ -176,31 +185,61 @@ class Alchemist:
         return system
 
     def _add_intramolecular_nonbonded_exceptions(self, system, alchemical_atoms):
-        atomList = list(alchemical_atoms)
+        """
+        Add exceptions to the NonbondedForce and CustomNonbondedForces
+        to prevent the alchemical atoms from interacting as these interactions
+        are already taken into account by the CustomBondForce.
+
+        Parameters
+        ----------
+        system : openmm.System
+            The System to modify.
+        alchemical_atoms : list of int
+            The indices of the alchemical atoms.
+
+        Returns
+        -------
+        system : openmm.System
+            The modified System.
+        """
+        atom_list = list(alchemical_atoms)
         for force in system.getForces():
             if isinstance(force, mm.NonbondedForce):
-                for i in range(len(atomList)):
+                for i in range(len(atom_list)):
                     for j in range(i):
-                        force.addException(atomList[i], atomList[j], 0, 1, 0, True)
+                        force.addException(atom_list[i], atom_list[j], 0, 1, 0, True)
             elif isinstance(force, mm.CustomNonbondedForce):
                 existing = set(
                     tuple(force.getExclusionParticles(i))
                     for i in range(force.getNumExclusions())
                 )
-                for i in range(len(atomList)):
-                    a1 = atomList[i]
+                for i in range(len(atom_list)):
+                    a1 = atom_list[i]
                     for j in range(i):
-                        a2 = atomList[j]
+                        a2 = atom_list[j]
                         if (a1, a2) not in existing and (a2, a1) not in existing:
                             force.addExclusion(a1, a2, True)
         return system
 
-    def _add_intramolecular_nonbonded_forces(self, system, alchemical_atoms):
+    def _add_intramolecular_nonbonded_forces(self, system, alchemical_atoms, reaction_field=False):
         forces = {force.__class__.__name__: force for force in system.getForces()}
         nb_force = forces["NonbondedForce"]
 
+        if reaction_field:
+            # Read: https://github.com/openmm/openmm/issues/3281
+            # Read: http://docs.openmm.org/latest/userguide/theory/02_standard_forces.html?highlight=cutoffperiodic
+            cutoff = nb_force.getCutoffDistance()
+            eps_solvent = nb_force.getReactionFieldDielectric()
+            krf = (1/ (cutoff**3)) * (eps_solvent - 1) / (2*eps_solvent + 1)
+            crf = (1/ cutoff) * (3* eps_solvent) / (2*eps_solvent + 1)
+            energy_expression = "138.9354558466661*chargeProd*(1/r + krf*r*r - crf) + 4*epsilon*((sigma/r)^12-(sigma/r)^6);"
+            energy_expression += f"krf = {krf.value_in_unit(unit.nanometer**-3)};"
+            energy_expression += f"crf = {crf.value_in_unit(unit.nanometer**-1)}"
+        else:
+            energy_expression = "138.9354558466661*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)"
+
         internalNonbonded = mm.CustomBondForce(
-            "138.935456*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)"
+            energy_expression
         )
         internalNonbonded.addPerBondParameter("chargeProd")
         internalNonbonded.addPerBondParameter("sigma")
