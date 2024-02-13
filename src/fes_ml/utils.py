@@ -1,7 +1,7 @@
-import openmm as mm
+import openmm as _mm
 
 
-def write_system_to_xml(system: mm.System, filename: str) -> None:
+def write_system_to_xml(system: _mm.System, filename: str) -> None:
     """
     Write the System to an XML file.
 
@@ -13,4 +13,4 @@ def write_system_to_xml(system: mm.System, filename: str) -> None:
         The name of the file to write.
     """
     with open(filename, "w") as outfile:
-        outfile.write(mm.XmlSerializer.serialize(system))
+        outfile.write(_mm.XmlSerializer.serialize(system))
