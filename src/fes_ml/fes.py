@@ -1,8 +1,6 @@
 from typing import Any, Dict, List
 
 import numpy as np
-import openmm as mm
-import openmm.app as app
 import openmm.unit as unit
 
 from .alchemical import AlchemicalState
@@ -107,40 +105,37 @@ class FES:
 
     def run_equilibration_batch(self, nsteps, minimize=True):
         """
-        Run a batch of equilibration simulations.
+        Run a batch of equilibrations.
 
         Parameters
         ----------
         nsteps : int
-            Number of steps to run the simulations.
+            Number of steps to run each equilibration.
         minimize : bool, optional, default=True
-            If True, the energy will be minimized before running the simulation.
+            If True, the energy will be minimized before running the equilibration.
 
         Returns
         -------
-        simulations : list of openmm.app.Simulation
-            List of equilibrated simulations.
+        alchemical_states : list of AlchemicalState
+            List of alchemical states.
         """
-        if len(self._alchemical_states) == 0:
+        if len(self.alchemical_states) == 0:
             raise ValueError("No alchemical states were found.")
 
-        for alc in self._alchemical_states:
+        for alc in self.alchemical_states:
             print(f"Equilibrating {alc}")
-            sim = alc.simulation
 
-            sim.context.setPositions(
-                self.context.getState(getPositions=True).getPositions()
-            )
+            print(alc.context.getState(getPositions=True).getPositions())
 
-            sim.context.setVelocitiesToTemperature(self.integrator.getTemperature())
+            alc.context.setVelocitiesToTemperature(self.integrator.getTemperature())
 
             if minimize:
-                sim.minimizeEnergy()
+                alc.minimizeEnergy()
 
-            sim.step(nsteps)
+            alc.integrator.step(nsteps)
 
         print("Finished all equilibrations!")
-        return self._alchemical_states
+        return self.alchemical_states
 
     def run_simulation_batch(self, niterations, nsteps):
         """
@@ -159,34 +154,37 @@ class FES:
         u_kln : np.ndarray
             Array with the potential energies of the simulations.
         """
-        if len(self._alchemical_states) == 0:
+        if len(self.alchemical_states) == 0:
             raise ValueError("No alchemical states were found.")
 
-        nstates = len(self._alchemical_states)
+        nstates = len(self.alchemical_states)
         u_kln = np.zeros([nstates, nstates, niterations], np.float64)
+
         kT = (
             unit.AVOGADRO_CONSTANT_NA
             * unit.BOLTZMANN_CONSTANT_kB
-            * self.integrator.getTemperature()
+            * nstates[0].integrator.getTemperature()
         )
 
         U_kn = [[] for k in range(nstates)]
-        for k, alc in enumerate(self._alchemical_states):
-            sim = alc.simulation
+        for k, alc in enumerate(self.alchemical_states):
+            if not isinstance(alc, AlchemicalState):
+                raise ValueError(
+                    f"Expected alchemical state, but got {type(alc)} instead."
+                )
 
             for iteration in range(niterations):
                 print(f"{alc} iteration {iteration} / {niterations}")
-                sim.step(nsteps)
-                positions = sim.context.getState(getPositions=True).getPositions()
-                pbc = sim.context.getState().getPeriodicBoxVectors()
+                alc.integrator.step(nsteps)
+                positions = alc.context.getState(getPositions=True).getPositions()
+                pbc = alc.context.getState().getPeriodicBoxVectors()
 
                 # Compute energies at all alchemical states
-                for l, alc_ in enumerate(self._alchemical_states):
-                    sim_ = alc_.simulation
-                    sim_.context.setPositions(positions)
-                    sim_.context.setPeriodicBoxVectors(*pbc)
+                for l, alc_ in enumerate(self.alchemical_states):
+                    alc_.context.setPositions(positions)
+                    alc_.context.setPeriodicBoxVectors(*pbc)
                     u_kln[k, l, iteration] = (
-                        sim_.context.getState(getEnergy=True).getPotentialEnergy() / kT
+                        alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT
                     )
 
         np.save("u_kln.npy", u_kln)

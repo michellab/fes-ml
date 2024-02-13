@@ -33,4 +33,5 @@ class AlchemicalState:
     lambda_interpolate: float = field(repr=True, default=None)
     lambda_emle: float = field(repr=True, default=None)
     system: mm.System = field(repr=False, default=None)
+    integrator: mm.Integrator = field(repr=False, default=None)
     context: mm.Context = field(repr=False, default=None)

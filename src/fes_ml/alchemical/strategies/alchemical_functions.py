@@ -173,7 +173,7 @@ def add_alchemical_ML_region(
     return system
 
 
-def _add_intramolecular_nonbonded_exceptions(self, system, alchemical_atoms):
+def _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms):
     """
     Add exceptions to the NonbondedForce and CustomNonbondedForces
     to prevent the alchemical atoms from interacting as these interactions
@@ -291,11 +291,11 @@ def _add_intramolecular_nonbonded_forces(
 
 
 def alchemify(
-    self,
+    system,
     alchemical_atoms,
-    lambda_i=None,
-    lambda_u=None,
-    lambda_x=None,
+    lambda_lj=None,
+    lambda_q=None,
+    lambda_interpolate=None,
     ml_potential=None,
     topology=None,
 ):
@@ -304,6 +304,8 @@ def alchemify(
 
     Parameters
     ----------
+    system : openmm.System
+        The System to modify.
     alchemical_atoms : list of int
         The indices of the atoms to model with the ML potential.
     lambda_i : float, optional, default=None
@@ -322,7 +324,7 @@ def alchemify(
     system : openmm.System
         The alchemified System.
     """
-    if lambda_i is not None:
+    if lambda_interpolate is not None:
         try:
             from openmmml.mlpotential import MLPotential
         except ImportError:
@@ -348,16 +350,15 @@ def alchemify(
             system,
             alchemical_atoms,
             interpolate=True,
-            lambda_interpolate=lambda_i,
+            lambda_interpolate=lambda_interpolate,
         )
 
-    if (lambda_u is not None or lambda_x is not None) and lambda_i is None:
+    if (lambda_lj is not None or lambda_q is not None) and lambda_interpolate is None:
         system = _add_intramolecular_nonbonded_forces(system, alchemical_atoms)
-        _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms)
-    if lambda_u is not None:
-        system = add_LJ_softcore(system, alchemical_atoms, lambda_u)
-
-    if lambda_x is not None:
-        system = scale_charges(system, alchemical_atoms, lambda_x)
+        system = _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms)
+    if lambda_lj is not None:
+        system = add_LJ_softcore(system, alchemical_atoms, lambda_lj)
+    if lambda_q is not None:
+        system = scale_charges(system, alchemical_atoms, lambda_q)
 
     return system

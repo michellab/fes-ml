@@ -3,10 +3,10 @@ from typing import Any, Dict, List, Optional, Union
 
 import openmm as _mm
 import sire as _sr
-from emle import _EMLECalculator
+from emle.calculator import EMLECalculator as _EMLECalculator
 
 from ..alchemical_state import AlchemicalState
-from .alchemical_functions import alchemify as _alchemify
+from .alchemical_functions import alchemify as alchemify
 from .base_strategy import AlchemicalStateCreationStrategy
 
 
@@ -66,6 +66,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 "timestep": "1fs",
                 "constraint": "none",
                 "cutoff_type": "pme",
+                "cutoff": "12A",
                 "integrator": "langevin_middle",
                 "temperature": "298.15K",
             }
@@ -87,11 +88,11 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
             # Create an EMLEEngine bound to the calculator
             mols, engine = _sr.qm.emle(mols, mols[0], calculator)
-        else:
-            engine = None
 
-        # Create a QM/MM dynamics object.
-        d = mols.dynamics(engine=engine, **dynamics_kwargs)
+            # Create a ML/MM dynamics object
+            d = mols.dynamics(engine=engine, **dynamics_kwargs)
+        else:
+            d = mols.dynamics(**dynamics_kwargs)
 
         # Get the underlying OpenMM context.
         omm = d._d._omm_mols
@@ -100,12 +101,14 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         system = omm.getSystem()
 
         # Alchemify the system
-        _alchemify(
-            lambda_interpolate,
-            lambda_lj,
-            lambda_q,
-            ml_potential="ani2x",
-            topology=mols.topology,
+        alchemify(
+            system=system,
+            alchemical_atoms=alchemical_atoms,
+            lambda_lj=lambda_lj,
+            lambda_q=lambda_q,
+            lambda_interpolate=lambda_interpolate,
+            ml_potential=None,
+            topology=None,
         )
 
         # Create a new context.
