@@ -3,7 +3,6 @@ import openmm as _mm
 import openmm.app as _app
 import openmm.unit as _unit
 
-
 _NON_BONDED_METHODS = {
     0: _app.NoCutoff,
     1: _app.CutoffNonPeriodic,
@@ -11,6 +10,7 @@ _NON_BONDED_METHODS = {
     3: _app.Ewald,
     4: _app.PME,
 }
+
 
 def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
     """
@@ -35,21 +35,22 @@ def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
     nb_force = forces["NonbondedForce"]
 
     # Define the softcore Lennard-Jones energy function
-    energy_function = (
-        f"{lambda_lj}*4*epsilon*x*(x-1.0); x = (sigma/reff_sterics)^6;"
-    )
+    energy_function = f"{lambda_lj}*4*epsilon*x*(x-1.0); x = (sigma/reff_sterics)^6;"
     energy_function += (
         f"reff_sterics = sigma*(0.5*(1.0-{lambda_lj}) + (r/sigma)^6)^(1/6);"
     )
-    energy_function += (
-        "sigma = 0.5*(sigma1+sigma2); epsilon = sqrt(epsilon1*epsilon2);"
-    )
+    energy_function += "sigma = 0.5*(sigma1+sigma2); epsilon = sqrt(epsilon1*epsilon2);"
 
     # Create a CustomNonbondedForce to compute the softcore Lennard-Jones and Coulomb interactions
     soft_core_force = _mm.CustomNonbondedForce(energy_function)
 
-    if _NON_BONDED_METHODS[nb_force.getNonbondedMethod()] in [_NON_BONDED_METHODS[3], _NON_BONDED_METHODS[4]]:
-        print("The softcore Lennard-Jones interactions are not implemented for Ewald or PME")
+    if _NON_BONDED_METHODS[nb_force.getNonbondedMethod()] in [
+        _NON_BONDED_METHODS[3],
+        _NON_BONDED_METHODS[4],
+    ]:
+        print(
+            "The softcore Lennard-Jones interactions are not implemented for Ewald or PME"
+        )
         print("The nonbonded method will be set to CutoffPeriodic")
         soft_core_force.setNonbondedMethod(2)
     else:
@@ -86,6 +87,7 @@ def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
 
     return system
 
+
 def scale_charges(system, alchemical_atoms, lambda_q=1.0):
     """
     Scale the charges of the alchemical atoms in the System.
@@ -114,6 +116,7 @@ def scale_charges(system, alchemical_atoms, lambda_q=1.0):
             nb_force.setParticleParameters(index, charge * lambda_q, sigma, epsilon)
 
     return system
+
 
 def add_alchemical_ML_region(
     ml_potential,
@@ -169,6 +172,7 @@ def add_alchemical_ML_region(
 
     return system
 
+
 def _add_intramolecular_nonbonded_exceptions(self, system, alchemical_atoms):
     """
     Add exceptions to the NonbondedForce and CustomNonbondedForces
@@ -206,7 +210,10 @@ def _add_intramolecular_nonbonded_exceptions(self, system, alchemical_atoms):
                         force.addExclusion(a1, a2, True)
     return system
 
-def _add_intramolecular_nonbonded_forces(system, alchemical_atoms, reaction_field=False):
+
+def _add_intramolecular_nonbonded_forces(
+    system, alchemical_atoms, reaction_field=False
+):
     """
     Add the intramolecular nonbonded forces as a CustomBondForce to the System.
 
@@ -218,7 +225,7 @@ def _add_intramolecular_nonbonded_forces(system, alchemical_atoms, reaction_fiel
         The indices of the alchemical atoms.
     reaction_field : bool, optional, default=False
         If True, the energy expression will include a reaction field term.
-    
+
     Returns
     -------
     system : openmm.System
@@ -236,17 +243,17 @@ def _add_intramolecular_nonbonded_forces(system, alchemical_atoms, reaction_fiel
         # Read: http://docs.openmm.org/latest/userguide/theory/02_standard_forces.html?highlight=cutoffperiodic
         cutoff = nb_force.getCutoffDistance()
         eps_solvent = nb_force.getReactionFieldDielectric()
-        krf = (1/ (cutoff**3)) * (eps_solvent - 1) / (2*eps_solvent + 1)
-        crf = (1/ cutoff) * (3* eps_solvent) / (2*eps_solvent + 1)
+        krf = (1 / (cutoff**3)) * (eps_solvent - 1) / (2 * eps_solvent + 1)
+        crf = (1 / cutoff) * (3 * eps_solvent) / (2 * eps_solvent + 1)
         energy_expression = "138.9354558466661*chargeProd*(1/r + krf*r*r - crf) + 4*epsilon*((sigma/r)^12-(sigma/r)^6);"
         energy_expression += f"krf = {krf.value_in_unit(_unit.nanometer**-3)};"
         energy_expression += f"crf = {crf.value_in_unit(_unit.nanometer**-1)}"
     else:
-        energy_expression = "138.9354558466661*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)"
+        energy_expression = (
+            "138.9354558466661*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)"
+        )
 
-    internal_nonbonded = _mm.CustomBondForce(
-        energy_expression
-    )
+    internal_nonbonded = _mm.CustomBondForce(energy_expression)
     internal_nonbonded.addPerBondParameter("chargeProd")
     internal_nonbonded.addPerBondParameter("sigma")
     internal_nonbonded.addPerBondParameter("epsilon")
@@ -281,6 +288,7 @@ def _add_intramolecular_nonbonded_forces(system, alchemical_atoms, reaction_fiel
     system.addForce(internal_nonbonded)
 
     return system
+
 
 def alchemify(
     self,
@@ -328,9 +336,7 @@ def alchemify(
             )
 
         if not isinstance(topology, _app.Topology):
-            raise ValueError(
-                "The topology must be an instance of openmm.app.Topology"
-            )
+            raise ValueError("The topology must be an instance of openmm.app.Topology")
 
         if ml_potential is None:
             ml_potential = "ani2x"
@@ -346,19 +352,12 @@ def alchemify(
         )
 
     if (lambda_u is not None or lambda_x is not None) and lambda_i is None:
-        system = _add_intramolecular_nonbonded_forces(
-            system, alchemical_atoms
-        )
-        _add_intramolecular_nonbonded_exceptions(
-            system, alchemical_atoms
-        )
+        system = _add_intramolecular_nonbonded_forces(system, alchemical_atoms)
+        _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms)
     if lambda_u is not None:
         system = add_LJ_softcore(system, alchemical_atoms, lambda_u)
 
     if lambda_x is not None:
         system = scale_charges(system, alchemical_atoms, lambda_x)
-        
+
     return system
-
-
-

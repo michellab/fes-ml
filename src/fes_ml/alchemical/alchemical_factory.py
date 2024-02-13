@@ -1,21 +1,25 @@
-from .strategies import AlchemicalStateCreationStrategy, SireCreationStrategy
 from .alchemical_state import AlchemicalState
+from .strategies import AlchemicalStateCreationStrategy, SireCreationStrategy
+
 
 class AlchemicalStateFactory:
     """
     Factory to create alchemical states using different strategies.
-    
+
     Attributes
     ----------
     strategies : dict
         A dictionary with the available strategies to create alchemical states.
         Currently, the available strategies are: "sire".
     """
+
     def __init__(self) -> None:
         """AlchemicalStateFactory constructor."""
-        self.strategies : dict = {}
+        self.strategies: dict = {}
 
-    def register_strategy(self, name: str, strategy: AlchemicalStateCreationStrategy) -> None:
+    def register_strategy(
+        self, name: str, strategy: AlchemicalStateCreationStrategy
+    ) -> None:
         """
         Register a new strategy to create alchemical states.
 
@@ -28,7 +32,9 @@ class AlchemicalStateFactory:
         """
         self.strategies[name] = strategy
 
-    def create_alchemical_state(self, strategy_name='sire', *args, **kwargs) -> AlchemicalState:
+    def create_alchemical_state(
+        self, strategy_name="sire", *args, **kwargs
+    ) -> AlchemicalState:
         """
         Create an alchemical state for the given lambda values.
 
@@ -47,7 +53,9 @@ class AlchemicalStateFactory:
             alchemical_state = strategy.create_alchemical_state(*args, **kwargs)
             return alchemical_state
         else:
-            raise ValueError(f"No strategy found with name {strategy_name}. Available strategies are {list(self.strategies.keys())}.")
+            raise ValueError(
+                f"No strategy found with name {strategy_name}. Available strategies are {list(self.strategies.keys())}."
+            )
 
 
 # Create the alchemical factory and register the available strategies

@@ -1,26 +1,30 @@
 """Sire alchemical state creation strategy."""
-from .base_strategy import AlchemicalStateCreationStrategy
-from .alchemical_functions import alchemify as _alchemify
-from ..alchemical_state import AlchemicalState
+from typing import Any, Dict, List, Optional, Union
 
 import openmm as _mm
 import sire as _sr
 from emle import _EMLECalculator
 
-from typing import List, Dict, Any, Union, Optional
+from ..alchemical_state import AlchemicalState
+from .alchemical_functions import alchemify as _alchemify
+from .base_strategy import AlchemicalStateCreationStrategy
+
 
 class SireCreationStrategy(AlchemicalStateCreationStrategy):
     """Strategy for creating alchemical states using Sire."""
-    def create_alchemical_state(self,
-                                top_file: str, 
-                                crd_file: str,
-                                alchemical_atoms: List[int], 
-                                lambda_lj: Union[float, None],
-                                lambda_q: Union[float, None],
-                                lambda_interpolate: Union[float, None], lambda_emle: Union[float, None], 
-                                dynamics_kwargs : Optional[Dict[str, Any]] = None,
-                                emle_kwargs:Optional[Dict[str, Any]]=None
-                                ) -> AlchemicalState:
+
+    def create_alchemical_state(
+        self,
+        top_file: str,
+        crd_file: str,
+        alchemical_atoms: List[int],
+        lambda_lj: Union[float, None],
+        lambda_q: Union[float, None],
+        lambda_interpolate: Union[float, None],
+        lambda_emle: Union[float, None],
+        dynamics_kwargs: Optional[Dict[str, Any]] = None,
+        emle_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> AlchemicalState:
         """
         Create an alchemical state for the given lambda values using OpenMM Systems created with Sire.
 
@@ -53,8 +57,10 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             The alchemical state.
         """
         if lambda_interpolate is not None and lambda_emle is not None:
-            raise ValueError("Only one of lambda_interpolate and lambda_emle can be not None at the same time.")
-        
+            raise ValueError(
+                "Only one of lambda_interpolate and lambda_emle can be not None at the same time."
+            )
+
         if dynamics_kwargs is None:
             dynamics_kwargs = {
                 "timestep": "1fs",
@@ -73,11 +79,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             }
 
         # Load the molecular system.
-        mols = _sr.load(
-            top_file,
-            crd_file,
-            show_warnings=True
-        )
+        mols = _sr.load(top_file, crd_file, show_warnings=True)
 
         if lambda_emle is not None:
             # Set up the emle-engine calculator
@@ -99,17 +101,23 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Alchemify the system
         _alchemify(
-            lambda_interpolate, lambda_lj, lambda_q, ml_potential="ani2x", topology=mols.topology
+            lambda_interpolate,
+            lambda_lj,
+            lambda_q,
+            ml_potential="ani2x",
+            topology=mols.topology,
         )
 
         # Create a new context.
         context = _mm.Context(system, omm.getIntegrator().__copy__(), omm.getPlatform())
-        
-        alchemical_state = AlchemicalState(lambda_lj=lambda_lj,
-                                             lambda_q=lambda_q,
-                                                lambda_interpolate=lambda_interpolate,
-                                                lambda_emle=lambda_emle,
-                                                system=system,
-                                                context=context)
+
+        alchemical_state = AlchemicalState(
+            lambda_lj=lambda_lj,
+            lambda_q=lambda_q,
+            lambda_interpolate=lambda_interpolate,
+            lambda_emle=lambda_emle,
+            system=system,
+            context=context,
+        )
 
         return alchemical_state

@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 import openmm as mm
 
+
 @dataclass
 class AlchemicalState:
     """
@@ -9,7 +10,7 @@ class AlchemicalState:
 
     Attributes
     ----------
-    lambda_lj : float   
+    lambda_lj : float
         The lambda value for the softcore Lennard-Jones potential.
     lambda_q : float
         The lambda value to scale the charges.
@@ -26,6 +27,7 @@ class AlchemicalState:
     context : openmm.Context
         The OpenMM context associated with the alchemical state.
     """
+
     lambda_lj: float = field(repr=True, default=None)
     lambda_q: float = field(repr=True, default=None)
     lambda_interpolate: float = field(repr=True, default=None)
