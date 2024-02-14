@@ -1,6 +1,7 @@
 """Sire alchemical state creation strategy."""
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as _np
 import openmm as _mm
 import sire as _sr
 from emle.calculator import EMLECalculator as _EMLECalculator
@@ -72,25 +73,40 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             }
 
         if emle_kwargs is None:
-            emle_kwargs = {
-                "lambda_interpolate": 1,
-                "parm7": "/home/joaomorado/workspace/diala.prm7",
-                "mm_charges": "/home/joaomorado/workspace/EdinburghMainProject/workspace/alanine_dipeptide/parameterisation/charges",
-                "qm_indices": alchemical_atoms,
-            }
+            emle_kwargs = {"method": "electrostatic", "backend": "torchani"}
 
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
 
         if lambda_emle is not None:
+            # Select the QM subsystem
+            qm_subsystem = mols.atoms(alchemical_atoms)
+
+            # Write QM subsystem parm7 to a temporary file
+            parm7 = _sr.save(
+                qm_subsystem,
+                directory="cache",
+                filename="qm_subsystem.pdb",
+                format=["prm7"],
+            )
+
+            # MM Charges of the QM subsystem
+            mm_charges = _np.asarray([atom.charge().value() for atom in qm_subsystem])
+
             # Set up the emle-engine calculator
-            calculator = _EMLECalculator(**emle_kwargs)
+            calculator = _EMLECalculator(
+                lambda_interpolate=lambda_emle,
+                qm_indices=alchemical_atoms,
+                mm_charges=mm_charges,
+                parm7=parm7[0],
+                **emle_kwargs,
+            )
 
             # Create an EMLEEngine bound to the calculator
-            mols, engine = _sr.qm.emle(mols, mols[0], calculator)
+            mols, engine = _sr.qm.emle(mols, qm_subsystem, calculator)
 
             # Create a ML/MM dynamics object
-            d = mols.dynamics(engine=engine, **dynamics_kwargs)
+            d = mols.dynamics(qm_engine=engine, **dynamics_kwargs)
         else:
             d = mols.dynamics(**dynamics_kwargs)
 
@@ -98,10 +114,19 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         omm = d._d._omm_mols
 
         # Get the OpenMM system.
-        system = omm.getSystem()
+        system = omm._system
+
+        if lambda_emle is not None:
+            # Remove unnecessary forces from the system that are set by Sire
+            forces = system.getForces()
+            for i, force in reversed(list(enumerate(forces))):
+                if isinstance(force, _mm.CustomBondForce) or isinstance(
+                    force, _mm.CustomNonbondedForce
+                ):
+                    system.removeForce(i)
 
         # Alchemify the system
-        alchemify(
+        system = alchemify(
             system=system,
             alchemical_atoms=alchemical_atoms,
             lambda_lj=lambda_lj,
@@ -111,16 +136,23 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             topology=None,
         )
 
-        # Create a new context.
-        context = _mm.Context(system, omm.getIntegrator().__copy__(), omm.getPlatform())
+        # Create a new integrator
+        integrator = omm.getIntegrator().__copy__()
 
-        alchemical_state = AlchemicalState(
+        # Create a new context and set positions and velocities
+        context = _mm.Context(system, integrator, omm.getPlatform())
+        context.setPositions(omm.getState(getPositions=True).getPositions())
+        context.setVelocitiesToTemperature(integrator.getTemperature())
+
+        # Create the AlchemicalState
+        alc_state = AlchemicalState(
+            system=system,
+            context=context,
+            integrator=integrator,
             lambda_lj=lambda_lj,
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
             lambda_emle=lambda_emle,
-            system=system,
-            context=context,
         )
 
-        return alchemical_state
+        return alc_state

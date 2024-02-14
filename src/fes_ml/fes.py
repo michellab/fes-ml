@@ -99,6 +99,7 @@ class FES:
                 *args,
                 **kwargs,
             )
+
             self.alchemical_states.append(alchemical_state)
 
         return self.alchemical_states
@@ -125,12 +126,8 @@ class FES:
         for alc in self.alchemical_states:
             print(f"Equilibrating {alc}")
 
-            print(alc.context.getState(getPositions=True).getPositions())
-
-            alc.context.setVelocitiesToTemperature(self.integrator.getTemperature())
-
             if minimize:
-                alc.minimizeEnergy()
+                alc.context.minimizeEnergy()
 
             alc.integrator.step(nsteps)
 

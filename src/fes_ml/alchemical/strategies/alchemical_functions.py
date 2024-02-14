@@ -207,7 +207,7 @@ def _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms):
                 for j in range(i):
                     a2 = atom_list[j]
                     if (a1, a2) not in existing and (a2, a1) not in existing:
-                        force.addExclusion(a1, a2, True)
+                        force.addExclusion(a1, a2)
     return system
 
 
