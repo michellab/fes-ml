@@ -59,4 +59,5 @@ if __name__ == "__main__":
     # Minimize the system and equilibrate it during 1 ns
     fes.run_equilibration_batch(1000000, minimize=False)
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
-    fes.run_simulation_batch(1000, 1000)
+    U_kln = fes.run_production_batch(1000, 1000)
+    np.save("U_kln.npy", np.asarray(U_kln))
