@@ -23,6 +23,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_q: Union[float, None],
         lambda_interpolate: Union[float, None],
         lambda_emle: Union[float, None],
+        ml_potential: str = "ani2x",
+        topology: _mm.app.Topology = None,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
     ) -> AlchemicalState:
@@ -45,6 +47,10 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             The lambda value to interpolate between the ML and MM potentials in a mechanical embedding scheme.
         lambda_emle : float or None
             The lambda value to interpolate between the ML and MM potentials in a electrostatic embedding scheme.
+        ml_potential : str, optional, default='ani2x'
+            The machine learning potential to use in the mechanical embedding scheme.
+        topology : openmm.app.Topology, optional, default=None
+            The OpenMM topology object.
         dynamics_kwargs : dict
             Additional keyword arguments to be passed to sire.mol.Dynamics.
             See https://sire.openbiosim.org/api/mol.html#sire.mol.Dynamics.
@@ -85,8 +91,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             # Write QM subsystem parm7 to a temporary file
             parm7 = _sr.save(
                 qm_subsystem,
-                directory="cache",
-                filename="qm_subsystem.pdb",
+                directory="tmp",
+                filename="qm_subsystem.prm7",
                 format=["prm7"],
             )
 
@@ -132,8 +138,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             lambda_lj=lambda_lj,
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
-            ml_potential=None,
-            topology=None,
+            ml_potential=ml_potential,
+            topology=topology,
         )
 
         # Create a new integrator
