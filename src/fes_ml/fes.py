@@ -134,9 +134,70 @@ class FES:
         print("Finished all equilibrations!")
         return self.alchemical_states
 
-    def run_simulation_batch(self, niterations, nsteps):
+    def run_single_state(
+        self,
+        niterations: int,
+        nsteps: int,
+        alchemical_state: AlchemicalState = None,
+        window: int = None,
+    ):
         """
-        Run a batch of simulations.
+        Run a simulation for a given alchemical state or window index.
+
+        Parameters
+        ----------
+        niterations : int
+            Number of iterations to run the simulations.
+        nsteps : int
+            Number of steps per iteration.
+        alchemical_state : AlchemicalState
+            Alchemical state to run the simulation.
+        window : int
+            Window index. alchemical_state takes precedence over window.
+
+        Returns
+        -------
+        U_kn : list of float
+            Potential energies of the sampled configurations evaluated for the various alchemical states.
+        """
+        if alchemical_state is None:
+            if window is None:
+                raise ValueError("Either alchemical_state or window must be provided.")
+            else:
+                alchemical_state = self.alchemical_states[window]
+
+        if not isinstance(alchemical_state, AlchemicalState):
+            raise ValueError("alchemical_state must be an instance of AlchemicalState.")
+
+        U_kn = []
+
+        kT = (
+            unit.AVOGADRO_CONSTANT_NA
+            * unit.BOLTZMANN_CONSTANT_kB
+            * alchemical_state.integrator.getTemperature()
+        )
+
+        for iteration in range(niterations):
+            print(f"{alchemical_state} iteration {iteration} / {niterations}")
+            alchemical_state.integrator.step(nsteps)
+            positions = alchemical_state.context.getState(
+                getPositions=True
+            ).getPositions()
+            pbc = alchemical_state.context.getState().getPeriodicBoxVectors()
+
+            # Compute energies at all alchemical states
+            for alc_ in self.alchemical_states:
+                alc_.context.setPositions(positions)
+                alc_.context.setPeriodicBoxVectors(*pbc)
+                U_kn.append(
+                    alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT
+                )
+
+        return U_kn
+
+    def run_production_batch(self, niterations, nsteps):
+        """
+        Run simulations for all alchemical states.
 
         Parameters
         ----------
@@ -144,7 +205,7 @@ class FES:
             Number of iterations to run the simulations.
 
         nsteps : int
-            Number of steps to run the simulations.
+            Number of steps per iteration.
 
         Returns
         -------
@@ -154,36 +215,8 @@ class FES:
         if len(self.alchemical_states) == 0:
             raise ValueError("No alchemical states were found.")
 
-        nstates = len(self.alchemical_states)
-        u_kln = np.zeros([nstates, nstates, niterations], np.float64)
+        U_kln = []
+        for alc in self.alchemical_states:
+            U_kln.append(self.run_single_state(niterations, nsteps, alc))
 
-        kT = (
-            unit.AVOGADRO_CONSTANT_NA
-            * unit.BOLTZMANN_CONSTANT_kB
-            * nstates[0].integrator.getTemperature()
-        )
-
-        U_kn = [[] for k in range(nstates)]
-        for k, alc in enumerate(self.alchemical_states):
-            if not isinstance(alc, AlchemicalState):
-                raise ValueError(
-                    f"Expected alchemical state, but got {type(alc)} instead."
-                )
-
-            for iteration in range(niterations):
-                print(f"{alc} iteration {iteration} / {niterations}")
-                alc.integrator.step(nsteps)
-                positions = alc.context.getState(getPositions=True).getPositions()
-                pbc = alc.context.getState().getPeriodicBoxVectors()
-
-                # Compute energies at all alchemical states
-                for l, alc_ in enumerate(self.alchemical_states):
-                    alc_.context.setPositions(positions)
-                    alc_.context.setPeriodicBoxVectors(*pbc)
-                    u_kln[k, l, iteration] = (
-                        alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT
-                    )
-
-        np.save("u_kln.npy", u_kln)
-
-        return U_kn
+        return U_kln
