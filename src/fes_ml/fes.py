@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 
-import numpy as np
-import openmm.unit as unit
+import openmm as _mm
+import openmm.unit as _unit
 
 from .alchemical import AlchemicalState
 from .alchemical import alchemical_factory as _alchemical_factory
@@ -104,7 +104,41 @@ class FES:
 
         return self.alchemical_states
 
-    def run_equilibration_batch(self, nsteps, minimize=True):
+    def run_minimization_batch(
+        self,
+        tolerance: _unit.Quantity = 10 * _unit.kilojoules_per_mole / _unit.nanometer,
+        max_iterations: int = 0,
+        reporter=None,
+    ):
+        """
+        Run a batch of minimizations.
+
+        Parameters
+        ----------
+        tolerance : openmm.unit.Quantity
+            The energy tolerance to which the system should be minimized.
+        max_iterations : int, optional, default=0
+            The maximum number of iterations to run the minimization.
+        reporter : object, optional, default=None
+            A reporter object to report the minimization progress.
+
+        Returns
+        -------
+        alchemical_states : list of AlchemicalState
+            List of alchemical states.
+        """
+        if len(self.alchemical_states) == 0:
+            raise ValueError("No alchemical states were found.")
+
+        for alc in self.alchemical_states:
+            print(f"Minimizing {alc}")
+            _mm.LocalEnergyMinimizer.minimize(
+                alc.context, tolerance, max_iterations, reporter
+            )
+
+        return self.alchemical_states
+
+    def run_equilibration_batch(self, nsteps):
         """
         Run a batch of equilibrations.
 
@@ -112,8 +146,6 @@ class FES:
         ----------
         nsteps : int
             Number of steps to run each equilibration.
-        minimize : bool, optional, default=True
-            If True, the energy will be minimized before running the equilibration.
 
         Returns
         -------
@@ -125,10 +157,6 @@ class FES:
 
         for alc in self.alchemical_states:
             print(f"Equilibrating {alc}")
-
-            if minimize:
-                alc.context.minimizeEnergy()
-
             alc.integrator.step(nsteps)
 
         print("Finished all equilibrations!")
@@ -172,8 +200,8 @@ class FES:
         U_kn = []
 
         kT = (
-            unit.AVOGADRO_CONSTANT_NA
-            * unit.BOLTZMANN_CONSTANT_kB
+            _unit.AVOGADRO_CONSTANT_NA
+            * _unit.BOLTZMANN_CONSTANT_kB
             * alchemical_state.integrator.getTemperature()
         )
 
