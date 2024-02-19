@@ -33,11 +33,10 @@ if __name__ == "__main__":
     dynamics_kwargs = {
         "timestep": "1fs",
         "cutoff_type": "pme",
-        "cutoff": "12A",
+        "cutoff": "9A",
         "integrator": "langevin_middle",
         "temperature": "298.15K",
-        "platform": "reference",
-        "constraint": "h-bonds",
+        "platform": "cuda",
     }
 
     emle_kwargs = None
