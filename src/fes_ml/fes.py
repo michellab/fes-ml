@@ -185,7 +185,7 @@ class FES:
 
         Returns
         -------
-        U_kn : list of float
+        U_kl : list of list float
             Potential energies of the sampled configurations evaluated for the various alchemical states.
         """
         if alchemical_state is None:
@@ -197,7 +197,7 @@ class FES:
         if not isinstance(alchemical_state, AlchemicalState):
             raise ValueError("alchemical_state must be an instance of AlchemicalState.")
 
-        U_kn = []
+        U_kl = [[] for _ in range(len(self.alchemical_states))]
 
         kT = (
             _unit.AVOGADRO_CONSTANT_NA
@@ -212,16 +212,15 @@ class FES:
                 getPositions=True
             ).getPositions()
             pbc = alchemical_state.context.getState().getPeriodicBoxVectors()
-
             # Compute energies at all alchemical states
-            for alc_ in self.alchemical_states:
+            for l, alc_ in enumerate(self.alchemical_states):
                 alc_.context.setPositions(positions)
                 alc_.context.setPeriodicBoxVectors(*pbc)
-                U_kn.append(
+                U_kl[l].append(
                     alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT
                 )
 
-        return U_kn
+        return U_kl
 
     def run_production_batch(self, niterations, nsteps):
         """

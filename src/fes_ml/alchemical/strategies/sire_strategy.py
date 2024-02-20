@@ -139,6 +139,13 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 ):
                     system.removeForce(i)
 
+        # Remove contraints from the alchemical atoms
+        # TODO: Make this optional
+        for i in range(system.getNumConstraints() - 1, - 1, -1):
+            p1, p2, _ = system.getConstraintParameters(i)
+            if p1 in alchemical_atoms or p2 in alchemical_atoms:
+                system.removeConstraint(i)
+       
         # Alchemify the system
         system = alchemify(
             system=system,
