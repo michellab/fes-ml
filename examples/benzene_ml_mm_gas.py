@@ -27,7 +27,8 @@ if __name__ == "__main__":
     dynamics_kwargs = {
         "timestep": "1fs",
         "cutoff_type": "NO_CUTOFF",
-        "cutoff": "9A",
+        "cutoff": "12A",
+        "constraint": "h_bonds",
         "integrator": "langevin_middle",
         "temperature": "298.15K",
         "platform": "cuda",
