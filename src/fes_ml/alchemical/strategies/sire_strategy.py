@@ -125,7 +125,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             # the use_dispersion_correction should be set to False to avoid errors such as:
             # CustomNonbondedForce: Long range correction did not converge.  Does the energy go to 0 faster than 1/r^2?
             # Once these forces are removed, the use_dispersion_correction can be set to True for the NonbondedForce
-            disp_correction = dynamics_kwargs.get("map", {}).get("use_dispersion_correction", False)
+            disp_correction = dynamics_kwargs.get("map", {}).get(
+                "use_dispersion_correction", False
+            )
             if disp_correction:
                 dynamics_kwargs["map"]["use_dispersion_correction"] = False
 
@@ -147,7 +149,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 ):
                     system.removeForce(i)
 
-            # Once the CustomNonbondedForce are removed,
+            # Once the CustomNonbondedForce are removed,
             # we go back to the original use_dispersion_correction value
             if disp_correction:
                 forces = system.getForces()
@@ -157,11 +159,11 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Remove contraints from the alchemical atoms
         # TODO: Make this optional
-        for i in range(system.getNumConstraints() - 1, - 1, -1):
+        for i in range(system.getNumConstraints() - 1, -1, -1):
             p1, p2, _ = system.getConstraintParameters(i)
             if p1 in alchemical_atoms or p2 in alchemical_atoms:
                 system.removeConstraint(i)
-       
+
         # Alchemify the system
         system = alchemify(
             system=system,
