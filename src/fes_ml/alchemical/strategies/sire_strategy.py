@@ -121,6 +121,14 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             # Add the QM engine to the dynamics kwargs
             dynamics_kwargs["qm_engine"] = engine
 
+            # If CustomNonbondedForce are present in the system (e.g. created by Sire when using EMLE),
+            # the use_dispersion_correction should be set to False to avoid errors such as:
+            # CustomNonbondedForce: Long range correction did not converge.  Does the energy go to 0 faster than 1/r^2?
+            # Once these forces are removed, the use_dispersion_correction can be set to True for the NonbondedForce
+            disp_correction = dynamics_kwargs.get("map", {}).get("use_dispersion_correction", False)
+            if disp_correction:
+                dynamics_kwargs["map"]["use_dispersion_correction"] = False
+
         # Create a QM/MM dynamics object
         d = mols.dynamics(**dynamics_kwargs)
 
@@ -138,6 +146,14 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                     force, _mm.CustomNonbondedForce
                 ):
                     system.removeForce(i)
+
+            # Once the CustomNonbondedForce are removed,
+            # we go back to the original use_dispersion_correction value
+            if disp_correction:
+                forces = system.getForces()
+                for force in forces:
+                    if isinstance(force, _mm.NonbondedForce):
+                        force.setUseDispersionCorrection(True)
 
         # Remove contraints from the alchemical atoms
         # TODO: Make this optional
