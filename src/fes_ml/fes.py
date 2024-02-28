@@ -120,12 +120,7 @@ class FES:
     def __setstate__(self, state) -> None:
         """Set the state of the object."""
         for key, value in state.items():
-            print(f"Setting {key} to {value}")
             setattr(self, key, value)
-
-        print(self._create_alchemical_states_args)
-        print(self.lambda_schedule)
-        print(self.alchemical_atoms)
 
         # Recreate the alchemical states
         self.alchemical_states = []
