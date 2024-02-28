@@ -1,10 +1,12 @@
-from typing import Any, Dict, List
+import os
+import pickle
+from typing import Any, Dict, List, Optional, Tuple
 
 import openmm as _mm
 import openmm.unit as _unit
 
 from .alchemical import AlchemicalState
-from .alchemical import alchemical_factory as _alchemical_factory
+from .alchemical import alchemical_factory as alchemical_factory
 
 
 class FES:
@@ -21,14 +23,52 @@ class FES:
         Dictionary with the lambda values for the alchemical states.
     alchemical_states : list of AlchemicalState
         List of alchemical states.
+    alchemical_atoms : list of int
+        List of atom indices to be alchemically modified.
+    _iter : int
+        Current iteration.
+    _alc_id : int
+        Current alchemical state id.
+    _positions : postions vectors
+        Current positions.
+    _pbc : pbc vectors
+        Current periodic box vectors.
+    _U_kl : list of list float
+        Potential energies sampled at a single state k and evaluated at all states l.
+    _U_kln : list of list of list float
+        Potential energies sampled at a all states k and evaluated at all states l.
+    _create_alchemical_states_args : tuple
+        Arguments to recreate the alchemical states upon deserialization.
+    _create_alchemical_states_kwargs : dict
+        Keyword arguments to recreate the alchemical states upon deserialization.
     """
+
+    __serializables__ = [
+        "crd_file",
+        "top_file",
+        "lambda_schedule",
+        "alchemical_atoms",
+        "_iter",
+        "_alc_id",
+        "_positions",
+        "_pbc",
+        "_U_kl",
+        "_U_kln",
+        "_create_alchemical_states_args",
+        "_create_alchemical_states_kwargs",
+    ]
+
+    _LAMBDA_PARAMS = ["lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle"]
 
     def __init__(
         self,
-        crd_file: str,
-        top_file: str,
-        lambda_schedule: dict = None,
-    ):
+        crd_file: Optional[str] = None,
+        top_file: Optional[str] = None,
+        lambda_schedule: Optional[dict] = None,
+        alchemical_atoms: Optional[List[int]] = None,
+        checkpoint_frequency: int = 100,
+        checkpoint_file="checkpoint.pickle",
+    ) -> None:
         """
         Initialize the FES object.
 
@@ -42,11 +82,90 @@ class FES:
             Dictionary with the lambda values for the alchemical states.
             The keys of the dictionary are the lambda parameters and the values are lists of lambda values.
             Available lambda parameters are: "lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle".
+        alchemical_atoms : list of int, optional, default=None
+            List of atom indices to be alchemically modified.
+        checkpoint_frequency : int, optional, default=100
+            Frequency to save the state of the object.
         """
         self.crd_file = crd_file
         self.top_file = top_file
         self.lambda_schedule = lambda_schedule
-        self.alchemical_states: List[AlchemicalState] = []
+        self.alchemical_atoms = alchemical_atoms
+        self.alchemical_states: List[AlchemicalState] = None
+        self.checkpoint_frequency = checkpoint_frequency
+        self.checkpoint_file = checkpoint_file
+
+        # Checkpoint variables
+        self._iter: Optional[int] = None
+        self._alc_id: Optional[int] = None
+        self._pos: Optional[Any] = None
+        self._pbc: Optional[Any] = None
+        self._U_kl: Optional[List[List[float]]] = None
+        self._U_kln: Optional[List[List[List[float]]]] = None
+        self._create_alchemical_states_args: Optional[Tuple[Any, ...]] = None
+        self._create_alchemical_states_kwargs: Optional[Dict[str, Any]] = None
+
+        # Load state from checkpoint if exists
+        if os.path.exists(self.checkpoint_file):
+            print(f"Loading state from {self.checkpoint_file}")
+            with open(self.checkpoint_file, "rb") as f:
+                state = pickle.load(f)
+            self.__setstate__(state)
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """Get the state of the object."""
+        state = {key: getattr(self, key) for key in self.__serializables__}
+        return state
+
+    def __setstate__(self, state) -> None:
+        """Set the state of the object."""
+        for key, value in state.items():
+            setattr(self, key, value)
+
+        # Recreate the alchemical states
+        self.alchemical_states = []
+        self.create_alchemical_states(
+            self.alchemical_atoms,
+            self.lambda_schedule,
+            *self._create_alchemical_states_args,
+            **self._create_alchemical_states_kwargs,
+        )
+
+        for alc in self.alchemical_states:
+            self._check_alchemical_state_integrity(alc)
+            alc.context.setPositions(self._positions)
+            alc.context.setPeriodicBoxVectors(*self._pbc)
+
+    @staticmethod
+    def _check_alchemical_state_integrity(alchemical_state: AlchemicalState) -> None:
+        """
+        Check the integrity of the alchemical state.
+
+        Parameters
+        ----------
+        alchemical_state : AlchemicalState
+            Alchemical state to check.
+        """
+        assert isinstance(
+            alchemical_state, AlchemicalState
+        ), f"{alchemical_state} must be an instance of AlchemicalState."
+        assert (
+            alchemical_state.context is not None
+        ), f"{alchemical_state} context is `None`."
+        assert (
+            alchemical_state.integrator is not None
+        ), f"{alchemical_state} integrator is `None`."
+        assert (
+            alchemical_state.system is not None
+        ), f"{alchemical_state} system is `None`."
+
+    def _save_state(self) -> None:
+        """Save the state of the object."""
+        state = self.__getstate__()
+        with open("checkpoint.pickle", "wb") as f:
+            pickle.dump(state, f)
+
+        print(f"Saved state to {self.checkpoint_file}")
 
     def create_alchemical_states(
         self,
@@ -70,6 +189,19 @@ class FES:
         alchemical_states : list of AlchemicalState
             List of alchemical states.
         """
+        # Store the arguments and keyword arguments to recreate the alchemical states
+        # when the object is deserialized
+        self._create_alchemical_states_args = args
+        self._create_alchemical_states_kwargs = kwargs
+        self.lambda_schedule = lambda_schedule
+        self.alchemical_atoms = alchemical_atoms
+
+        # Assert all keys in lambda_schedule are valid
+        for key in lambda_schedule:
+            assert (
+                key in self._LAMBDA_PARAMS
+            ), f"Invalid lambda parameter {key} in `lambda_schedule`. Valid lambdas are {self._LAMBDA_PARAMS}."
+
         # Check that that each parameter has the same number of lambda values
         nstates_param = [
             len(lambda_schedule.get(lambda_param, []))
@@ -87,8 +219,10 @@ class FES:
         lambda_interpolate = lambda_schedule.get("lambda_interpolate", [None] * nstates)
         lambda_emle = lambda_schedule.get("lambda_emle", [None] * nstates)
 
+        self.alchemical_states = []
+
         for i in range(nstates):
-            alchemical_state = _alchemical_factory.create_alchemical_state(
+            alchemical_state = alchemical_factory.create_alchemical_state(
                 top_file=self.top_file,
                 crd_file=self.crd_file,
                 alchemical_atoms=alchemical_atoms,
@@ -109,7 +243,7 @@ class FES:
         tolerance: _unit.Quantity = 10 * _unit.kilojoules_per_mole / _unit.nanometer,
         max_iterations: int = 0,
         reporter=None,
-    ):
+    ) -> List[AlchemicalState]:
         """
         Run a batch of minimizations.
 
@@ -127,18 +261,20 @@ class FES:
         alchemical_states : list of AlchemicalState
             List of alchemical states.
         """
-        if len(self.alchemical_states) == 0:
-            raise ValueError("No alchemical states were found.")
+        assert (
+            self.alchemical_states is not None
+        ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
         for alc in self.alchemical_states:
             print(f"Minimizing {alc}")
+            self._check_alchemical_state_integrity(alc)
             _mm.LocalEnergyMinimizer.minimize(
                 alc.context, tolerance, max_iterations, reporter
             )
 
         return self.alchemical_states
 
-    def run_equilibration_batch(self, nsteps):
+    def run_equilibration_batch(self, nsteps: int) -> List[AlchemicalState]:
         """
         Run a batch of equilibrations.
 
@@ -152,14 +288,15 @@ class FES:
         alchemical_states : list of AlchemicalState
             List of alchemical states.
         """
-        if len(self.alchemical_states) == 0:
-            raise ValueError("No alchemical states were found.")
+        assert (
+            self.alchemical_states is not None
+        ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
         for alc in self.alchemical_states:
             print(f"Equilibrating {alc}")
+            self._check_alchemical_state_integrity(alc)
             alc.integrator.step(nsteps)
 
-        print("Finished all equilibrations!")
         return self.alchemical_states
 
     def run_single_state(
@@ -168,7 +305,7 @@ class FES:
         nsteps: int,
         alchemical_state: AlchemicalState = None,
         window: int = None,
-    ):
+    ) -> List[List[float]]:
         """
         Run a simulation for a given alchemical state or window index.
 
@@ -194,10 +331,17 @@ class FES:
             else:
                 alchemical_state = self.alchemical_states[window]
 
-        if not isinstance(alchemical_state, AlchemicalState):
-            raise ValueError("alchemical_state must be an instance of AlchemicalState.")
+        # Check the integrity of the alchemical state
+        self._check_alchemical_state_integrity(alchemical_state)
 
-        U_kl = [[] for _ in range(len(self.alchemical_states))]
+        # Resume from the last checkpoint
+        if not self._U_kl:
+            self._iter = 0
+            self._U_kl = [[] for _ in range(len(self.alchemical_states))]
+
+        print(
+            f"Starting {alchemical_state} from iteration {self._iter} / {niterations}"
+        )
 
         kT = (
             _unit.AVOGADRO_CONSTANT_NA
@@ -205,24 +349,31 @@ class FES:
             * alchemical_state.integrator.getTemperature()
         )
 
-        for iteration in range(niterations):
+        for iteration in range(self._iter, niterations):
             print(f"{alchemical_state} iteration {iteration} / {niterations}")
+
             alchemical_state.integrator.step(nsteps)
-            positions = alchemical_state.context.getState(
+            self._positions = alchemical_state.context.getState(
                 getPositions=True
             ).getPositions()
-            pbc = alchemical_state.context.getState().getPeriodicBoxVectors()
+            self._pbc = alchemical_state.context.getState().getPeriodicBoxVectors()
+
             # Compute energies at all alchemical states
             for l, alc_ in enumerate(self.alchemical_states):
-                alc_.context.setPositions(positions)
-                alc_.context.setPeriodicBoxVectors(*pbc)
-                U_kl[l].append(
+                alc_.context.setPositions(self._positions)
+                alc_.context.setPeriodicBoxVectors(*self._pbc)
+                self._U_kl[l].append(
                     alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT
                 )
 
-        return U_kl
+            # Save the checkpoint
+            if iteration % self.checkpoint_frequency == 0 and iteration > 0:
+                self._iter = iteration + 1
+                self._save_state()
 
-    def run_production_batch(self, niterations, nsteps):
+        return self._U_kl
+
+    def run_production_batch(self, niterations, nsteps) -> List[List[List[float]]]:
         """
         Run simulations for all alchemical states.
 
@@ -239,11 +390,23 @@ class FES:
         u_kln : np.ndarray
             Array with the potential energies of the simulations.
         """
-        if len(self.alchemical_states) == 0:
-            raise ValueError("No alchemical states were found.")
+        assert (
+            self.alchemical_states is not None
+        ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
-        U_kln = []
-        for alc in self.alchemical_states:
-            U_kln.append(self.run_single_state(niterations, nsteps, alc))
+        # Resume from the last checkpoint
+        if not self._U_kln:
+            self._alc_id = 0
+            self._U_kln = []
 
-        return U_kln
+        print(
+            f"Starting production run with {self.alchemical_states[self._alc_id]} with id {self._alc_id}"
+        )
+        for alc_id in range(self._alc_id, len(self.alchemical_states)):
+            alc = self.alchemical_states[alc_id]
+            self._U_kln.append(self.run_single_state(niterations, nsteps, alc))
+            self._alc_id = alc_id + 1
+            self._iter = 0
+            self._save_state()
+
+        return self._U_kln

@@ -39,7 +39,7 @@ if __name__ == "__main__":
         "temperature": "298.15K",
         "pressure": "1atm",
         "platform": "cuda",
-        "map": {"use_dispersion_correction": True, "tolerance": .0005},
+        "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
     }
 
     emle_kwargs = None
