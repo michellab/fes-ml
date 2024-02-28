@@ -73,7 +73,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 "timestep": "1fs",
                 "constraint": "none",
                 "cutoff_type": "pme",
-                "cutoff": "12A",
+                "cutoff": "9A",
                 "integrator": "langevin_middle",
                 "temperature": "298.15K",
             }
@@ -87,6 +87,11 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         if lambda_emle is not None:
             # Select the QM subsystem
             qm_subsystem = mols.atoms(alchemical_atoms)
+
+            if len(qm_subsystem) == len(mols.atoms()):
+                raise ValueError(
+                    "The QM subsystem cannot contain all atoms in the system. Please select a subset of atoms to be treated with the QM method or use 'lambda_interpolate' instead of 'lambda_emle'."
+                )
 
             # Write QM subsystem parm7 to a temporary file
             parm7 = _sr.save(
@@ -108,13 +113,16 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 **emle_kwargs,
             )
 
-            # Create an EMLEEngine bound to the calculator
-            mols, engine = _sr.qm.emle(mols, qm_subsystem, calculator)
+            # Create an EMLEEngine bound to the calculator using the same cutoff as the dynamics
+            mols, engine = _sr.qm.emle(
+                mols, qm_subsystem, calculator, dynamics_kwargs["cutoff"], 20
+            )
 
-            # Create a ML/MM dynamics object
-            d = mols.dynamics(qm_engine=engine, **dynamics_kwargs)
-        else:
-            d = mols.dynamics(**dynamics_kwargs)
+            # Add the QM engine to the dynamics kwargs
+            dynamics_kwargs["qm_engine"] = engine
+
+        # Create a QM/MM dynamics object
+        d = mols.dynamics(**dynamics_kwargs)
 
         # Get the underlying OpenMM context.
         omm = d._d._omm_mols
@@ -131,6 +139,13 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 ):
                     system.removeForce(i)
 
+        # Remove contraints from the alchemical atoms
+        # TODO: Make this optional
+        for i in range(system.getNumConstraints() - 1, - 1, -1):
+            p1, p2, _ = system.getConstraintParameters(i)
+            if p1 in alchemical_atoms or p2 in alchemical_atoms:
+                system.removeConstraint(i)
+       
         # Alchemify the system
         system = alchemify(
             system=system,

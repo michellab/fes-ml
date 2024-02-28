@@ -32,12 +32,14 @@ if __name__ == "__main__":
     # Define the dynamics and EMLE parameters
     dynamics_kwargs = {
         "timestep": "1fs",
-        "cutoff_type": "pme",
+        "cutoff_type": "PME",
         "cutoff": "12A",
+        "constraint": "h_bonds",
         "integrator": "langevin_middle",
         "temperature": "298.15K",
-        "platform": "reference",
-        "constraint": "h-bonds",
+        "pressure": "1atm",
+        "platform": "cuda",
+        "map": {"use_dispersion_correction": True, "tolerance": .0005},
     }
 
     emle_kwargs = None
