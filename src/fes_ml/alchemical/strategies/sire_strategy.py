@@ -119,7 +119,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             )
 
             # Add the QM engine to the dynamics kwargs
+            # Set the perturbable constraint to none to avoid having bond lenghts close to zero
             dynamics_kwargs["qm_engine"] = engine
+            dynamics_kwargs["perturbable_constraint"] = "none"
 
             # If CustomNonbondedForce are present in the system (e.g. created by Sire when using EMLE),
             # the use_dispersion_correction should be set to False to avoid errors such as:
