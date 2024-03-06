@@ -1,4 +1,6 @@
 """Sire alchemical state creation strategy."""
+
+from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as _np
@@ -77,9 +79,13 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 "integrator": "langevin_middle",
                 "temperature": "298.15K",
             }
+        else:
+            dynamics_kwargs = _deepcopy(dynamics_kwargs)
 
         if emle_kwargs is None:
             emle_kwargs = {"method": "electrostatic", "backend": "torchani"}
+        else:
+            emle_kwargs = _deepcopy(emle_kwargs)
 
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
@@ -158,6 +164,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 for force in forces:
                     if isinstance(force, _mm.NonbondedForce):
                         force.setUseDispersionCorrection(True)
+                        dynamics_kwargs["map"]["use_dispersion_correction"] = True
 
         # Remove contraints from the alchemical atoms
         # TODO: Make this optional
