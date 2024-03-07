@@ -214,9 +214,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug(
             f"Potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}"
         )
-        logger.debug(
-            f"Energy decomposition: {json.dumps(energy_decomposition(system, context), indent=4)}"
-        )
+        energy_decomp = energy_decomposition(system, context)
+        for force, energy in energy_decomp.items():
+            logger.debug(f"{force}: {energy}")
         logger.debug("Alchemical state created successfully.")
         logger.debug("*" * 40)
 
