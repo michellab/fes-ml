@@ -28,14 +28,11 @@ if __name__ == "__main__":
     lj_windows = np.linspace(1.0, 0.0, n_lambda_lj)
 
     lambda_schedule = {
-        "lambda_emle": list(emle_windows) + [None] * (n_lambda_q + n_lambda_lj - 1),
-        "lambda_q": [None] * (n_lambda_emle - 1)
-        + list(q_windows)
-        + [0.0] * n_lambda_lj,
-        "lambda_lj": [None] * (n_lambda_emle - 1)
-        + [1.0] * n_lambda_q
-        + list(lj_windows),
+        "lambda_emle": list(emle_windows) + [None] * (n_lambda_q + n_lambda_lj),
+        "lambda_q": [None] * n_lambda_emle + list(q_windows) + [0.0] * n_lambda_lj,
+        "lambda_lj": [None] * n_lambda_emle + [1.0] * n_lambda_q + list(lj_windows),
     }
+
     plot_lambda_schedule(lambda_schedule)
 
     # Define the dynamics and EMLE parameters
