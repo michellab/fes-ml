@@ -90,7 +90,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         else:
             emle_kwargs = _deepcopy(emle_kwargs)
 
-        logger.debug("*" * 40)
+        logger.debug("-" * 50)
         logger.debug("Creating alchemical state using SireCreationStrategy.")
         logger.debug(f"top_file: {top_file}")
         logger.debug(f"crd_file: {crd_file}")
@@ -101,8 +101,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug(f"lambda_emle: {lambda_emle}")
         logger.debug(f"ml_potential: {ml_potential}")
         logger.debug(f"topology: {topology}")
-        logger.debug(f"dynamics_kwargs: {json.dumps(dynamics_kwargs, indent=4)}")
-        logger.debug(f"emle_kwargs: {json.dumps(emle_kwargs, indent=4)}")
+        logger.debug(f"dynamics_kwargs:\n {json.dumps(dynamics_kwargs, indent=4)}")
+        logger.debug(f"emle_kwargs:\n {json.dumps(emle_kwargs, indent=4)}")
 
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
@@ -177,7 +177,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                     system.removeForce(i)
 
             # Once the CustomNonbondedForce are removed,
-            # we go back to the original use_dispersion_correction value
+            # go back to the original use_dispersion_correction value
             if disp_correction:
                 forces = system.getForces()
                 for force in forces:
@@ -211,8 +211,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         context.setPositions(omm.getState(getPositions=True).getPositions())
         context.setVelocitiesToTemperature(integrator.getTemperature())
 
+        logger.debug("Energy decomposition of the system:")
         logger.debug(
-            f"Potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}"
+            f"Total potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}"
         )
         energy_decomp = energy_decomposition(system, context)
         for force, energy in energy_decomp.items():
