@@ -1,5 +1,6 @@
 """Sire alchemical state creation strategy."""
 
+import json
 from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
 
@@ -8,6 +9,8 @@ import openmm as _mm
 import sire as _sr
 from emle.calculator import EMLECalculator as _EMLECalculator
 
+from ...log import logger
+from ...utils import energy_decomposition as energy_decomposition
 from ..alchemical_state import AlchemicalState
 from .alchemical_functions import alchemify as alchemify
 from .base_strategy import AlchemicalStateCreationStrategy
@@ -87,6 +90,20 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         else:
             emle_kwargs = _deepcopy(emle_kwargs)
 
+        logger.debug("*" * 40)
+        logger.debug("Creating alchemical state using SireCreationStrategy.")
+        logger.debug(f"top_file: {top_file}")
+        logger.debug(f"crd_file: {crd_file}")
+        logger.debug(f"alchemical_atoms: {alchemical_atoms}")
+        logger.debug(f"lambda_lj: {lambda_lj}")
+        logger.debug(f"lambda_q: {lambda_q}")
+        logger.debug(f"lambda_interpolate: {lambda_interpolate}")
+        logger.debug(f"lambda_emle: {lambda_emle}")
+        logger.debug(f"ml_potential: {ml_potential}")
+        logger.debug(f"topology: {topology}")
+        logger.debug(f"dynamics_kwargs: {json.dumps(dynamics_kwargs, indent=4)}")
+        logger.debug(f"emle_kwargs: {json.dumps(emle_kwargs, indent=4)}")
+
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
 
@@ -96,7 +113,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
             if len(qm_subsystem) == len(mols.atoms()):
                 raise ValueError(
-                    "The QM subsystem cannot contain all atoms in the system. Please select a subset of atoms to be treated with the QM method or use 'lambda_interpolate' instead of 'lambda_emle'."
+                    "The QM subsystem cannot contain all atoms in the system. "
+                    "Please select a subset of atoms to be treated with the QM method "
+                    "or use 'lambda_interpolate' instead of 'lambda_emle'."
                 )
 
             # Write QM subsystem parm7 to a temporary file
@@ -191,6 +210,15 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         context = _mm.Context(system, integrator, omm.getPlatform())
         context.setPositions(omm.getState(getPositions=True).getPositions())
         context.setVelocitiesToTemperature(integrator.getTemperature())
+
+        logger.debug(
+            f"Potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}"
+        )
+        logger.debug(
+            f"Energy decomposition: {json.dumps(energy_decomposition(system, context), indent=4)}"
+        )
+        logger.debug("Alchemical state created successfully.")
+        logger.debug("*" * 40)
 
         # Create the AlchemicalState
         alc_state = AlchemicalState(
