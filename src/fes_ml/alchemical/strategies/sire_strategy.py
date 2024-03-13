@@ -29,6 +29,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_interpolate: Union[float, None],
         lambda_emle: Union[float, None],
         ml_potential: str = "ani2x",
+        ml_potential_kwargs: Optional[Dict[str, Any]] = None,
         topology: _mm.app.Topology = None,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
@@ -54,6 +55,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             The lambda value to interpolate between the ML and MM potentials in a electrostatic embedding scheme.
         ml_potential : str, optional, default='ani2x'
             The machine learning potential to use in the mechanical embedding scheme.
+        ml_potential_kwargs : dict, optional, default=None
+            Additional keyword arguments to be passed to MLPotential when creating the ML potential in OpenMM-ML.
+            See: https://openmm.github.io/openmm-ml/dev/generated/openmmml.MLPotential.html
         topology : openmm.app.Topology, optional, default=None
             The OpenMM topology object.
         dynamics_kwargs : dict
@@ -200,6 +204,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
             ml_potential=ml_potential,
+            ml_potential_kwargs=ml_potential_kwargs,
             topology=topology,
         )
 

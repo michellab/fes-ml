@@ -297,6 +297,7 @@ def alchemify(
     lambda_q=None,
     lambda_interpolate=None,
     ml_potential=None,
+    ml_potential_kwargs=None,
     topology=None,
 ):
     """
@@ -316,6 +317,8 @@ def alchemify(
         The value of the parameter "lambda_q" to use for the softened Coulomb interactions.
     ml_potential : str, optional, default=None
         The name of the ML potential to use.  If None, "ani2x" will be used.
+    ml_potential_kwargs : dict, optional, default=None
+        Additional keyword arguments to pass to the ML potential.
     topology : openmm.app.Topology
         The Topology of the System.
 
@@ -343,7 +346,10 @@ def alchemify(
         if ml_potential is None:
             ml_potential = "ani2x"
 
-        ml_potential = MLPotential(ml_potential)
+        if ml_potential_kwargs is None:
+            ml_potential_kwargs = {}
+
+        ml_potential = MLPotential(ml_potential, **ml_potential_kwargs)
         system = add_alchemical_ML_region(
             ml_potential,
             topology,
