@@ -1,4 +1,5 @@
 """Module with functions to manage the creation of alchemical systems."""
+
 import openmm as _mm
 import openmm.app as _app
 import openmm.unit as _unit
@@ -76,7 +77,7 @@ def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
         soft_core_force.addParticle([sigma, epsilon])
         if index in alchemical_atoms:
             # Remove the LJ 12-6 interaction
-            nb_force.setParticleParameters(index, charge, sigma, 0.0)
+            nb_force.setParticleParameters(index, charge, sigma, 1e-9)
 
     # Set the custom force to occur between just the alchemical particle and the other particles
     mm_atoms = set(range(system.getNumParticles())) - set(alchemical_atoms)
@@ -378,10 +379,11 @@ def alchemify(
 
     if (lambda_lj is not None or lambda_q is not None) and lambda_interpolate is None:
         system = _add_intramolecular_nonbonded_forces(system, alchemical_atoms)
-        system = _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms)
     if lambda_lj is not None:
         system = add_LJ_softcore(system, alchemical_atoms, lambda_lj)
     if lambda_q is not None:
         system = scale_charges(system, alchemical_atoms, lambda_q)
+    if (lambda_lj is not None or lambda_q is not None) and lambda_interpolate is None:
+        system = _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms)
 
     return system
