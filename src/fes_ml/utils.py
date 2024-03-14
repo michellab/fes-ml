@@ -2,6 +2,41 @@
 import openmm as _mm
 
 
+def energy_decomposition(system: _mm.System, context: _mm.Context) -> dict:
+    """
+    Compute the energy decomposition of the system.
+
+    Notes
+    -----
+    This function changes the force group of each force in the system
+    to compute the energy decomposition.
+
+    Parameters
+    ----------
+    system : openmm.System
+        The OpenMM System.
+    context : openmm.Context
+        The OpenMM Context.
+
+    Returns
+    -------
+    energy_decomposition : dict
+        Dictionary with the energy decomposition.
+    """
+    for i, force in enumerate(system.getForces()):
+        force.setForceGroup(i)
+
+    context.reinitialize(preserveState=True)
+
+    energy_decomposition = {}
+    for i in range(system.getNumForces()):
+        force_name = system.getForce(i).getName()
+        energy = context.getState(getEnergy=True, groups={i}).getPotentialEnergy()
+        energy_decomposition[force_name] = energy
+
+    return energy_decomposition
+
+
 def write_system_to_xml(system: _mm.System, filename: str) -> None:
     """
     Write the System to an XML file.

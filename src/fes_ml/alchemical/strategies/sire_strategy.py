@@ -1,4 +1,7 @@
 """Sire alchemical state creation strategy."""
+
+import json
+from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as _np
@@ -6,6 +9,8 @@ import openmm as _mm
 import sire as _sr
 from emle.calculator import EMLECalculator as _EMLECalculator
 
+from ...log import logger
+from ...utils import energy_decomposition as energy_decomposition
 from ..alchemical_state import AlchemicalState
 from .alchemical_functions import alchemify as alchemify
 from .base_strategy import AlchemicalStateCreationStrategy
@@ -24,6 +29,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_interpolate: Union[float, None],
         lambda_emle: Union[float, None],
         ml_potential: str = "ani2x",
+        ml_potential_kwargs: Optional[Dict[str, Any]] = None,
+        create_system_kwargs: Optional[Dict[str, Any]] = None,
         topology: _mm.app.Topology = None,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
@@ -49,6 +56,12 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             The lambda value to interpolate between the ML and MM potentials in a electrostatic embedding scheme.
         ml_potential : str, optional, default='ani2x'
             The machine learning potential to use in the mechanical embedding scheme.
+        ml_potential_kwargs : dict, optional, default=None
+            Additional keyword arguments to be passed to MLPotential when creating the ML potential in OpenMM-ML.
+            See: https://openmm.github.io/openmm-ml/dev/generated/openmmml.MLPotential.html
+        create_system_kwargs : dict, optional, default=None
+            Additional keyword arguments to be passed to the createSystem or createMixedSystem methods of the
+            OpenMM-ML package. See: https://openmm.github.io/openmm-ml/dev/generated/openmmml.models.macepotential.MACEPotentialImpl.html
         topology : openmm.app.Topology, optional, default=None
             The OpenMM topology object.
         dynamics_kwargs : dict
@@ -77,9 +90,27 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 "integrator": "langevin_middle",
                 "temperature": "298.15K",
             }
+        else:
+            dynamics_kwargs = _deepcopy(dynamics_kwargs)
 
         if emle_kwargs is None:
             emle_kwargs = {"method": "electrostatic", "backend": "torchani"}
+        else:
+            emle_kwargs = _deepcopy(emle_kwargs)
+
+        logger.debug("-" * 50)
+        logger.debug("Creating alchemical state using SireCreationStrategy.")
+        logger.debug(f"top_file: {top_file}")
+        logger.debug(f"crd_file: {crd_file}")
+        logger.debug(f"alchemical_atoms: {alchemical_atoms}")
+        logger.debug(f"lambda_lj: {lambda_lj}")
+        logger.debug(f"lambda_q: {lambda_q}")
+        logger.debug(f"lambda_interpolate: {lambda_interpolate}")
+        logger.debug(f"lambda_emle: {lambda_emle}")
+        logger.debug(f"ml_potential: {ml_potential}")
+        logger.debug(f"topology: {topology}")
+        logger.debug(f"dynamics_kwargs:\n {json.dumps(dynamics_kwargs, indent=4)}")
+        logger.debug(f"emle_kwargs:\n {json.dumps(emle_kwargs, indent=4)}")
 
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
@@ -90,7 +121,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
             if len(qm_subsystem) == len(mols.atoms()):
                 raise ValueError(
-                    "The QM subsystem cannot contain all atoms in the system. Please select a subset of atoms to be treated with the QM method or use 'lambda_interpolate' instead of 'lambda_emle'."
+                    "The QM subsystem cannot contain all atoms in the system. "
+                    "Please select a subset of atoms to be treated with the QM method "
+                    "or use 'lambda_interpolate' instead of 'lambda_emle'."
                 )
 
             # Write QM subsystem parm7 to a temporary file
@@ -119,7 +152,19 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             )
 
             # Add the QM engine to the dynamics kwargs
+            # Set the perturbable constraint to none to avoid having bond lenghts close to zero
             dynamics_kwargs["qm_engine"] = engine
+            dynamics_kwargs["perturbable_constraint"] = "none"
+
+            # If CustomNonbondedForce are present in the system (e.g. created by Sire when using EMLE),
+            # the use_dispersion_correction should be set to False to avoid errors such as:
+            # CustomNonbondedForce: Long range correction did not converge.  Does the energy go to 0 faster than 1/r^2?
+            # Once these forces are removed, the use_dispersion_correction can be set to True for the NonbondedForce
+            disp_correction = dynamics_kwargs.get("map", {}).get(
+                "use_dispersion_correction", False
+            )
+            if disp_correction:
+                dynamics_kwargs["map"]["use_dispersion_correction"] = False
 
             # If CustomNonbondedForce are present in the system (e.g. created by Sire when using EMLE),
             # the use_dispersion_correction should be set to False to avoid errors such as:
@@ -150,12 +195,15 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                     system.removeForce(i)
 
             # Once the CustomNonbondedForce are removed,
-            # we go back to the original use_dispersion_correction value
+            # go back to the original use_dispersion_correction value
+
             if disp_correction:
                 forces = system.getForces()
                 for force in forces:
                     if isinstance(force, _mm.NonbondedForce):
                         force.setUseDispersionCorrection(True)
+                        dynamics_kwargs["map"]["use_dispersion_correction"] = True
+
 
         # Remove contraints from the alchemical atoms
         # TODO: Make this optional
@@ -172,6 +220,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
             ml_potential=ml_potential,
+            ml_potential_kwargs=ml_potential_kwargs,
+            create_system_kwargs=create_system_kwargs,
             topology=topology,
         )
 
@@ -182,6 +232,16 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         context = _mm.Context(system, integrator, omm.getPlatform())
         context.setPositions(omm.getState(getPositions=True).getPositions())
         context.setVelocitiesToTemperature(integrator.getTemperature())
+
+        logger.debug("Energy decomposition of the system:")
+        logger.debug(
+            f"Total potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}"
+        )
+        energy_decomp = energy_decomposition(system, context)
+        for force, energy in energy_decomp.items():
+            logger.debug(f"{force}: {energy}")
+        logger.debug("Alchemical state created successfully.")
+        logger.debug("*" * 40)
 
         # Create the AlchemicalState
         alc_state = AlchemicalState(
