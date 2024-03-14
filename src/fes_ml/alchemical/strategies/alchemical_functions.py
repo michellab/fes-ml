@@ -125,6 +125,7 @@ def add_alchemical_ML_region(
     alchemical_atoms,
     interpolate=True,
     lambda_interpolate=1.0,
+    create_system_kwargs=None,
 ):
     """
     Create an alchemical System that is partly modeled with a ML potential and partly
@@ -147,6 +148,8 @@ def add_alchemical_ML_region(
         the energy with this potential.
     lambda_interpolate : float, optional, default=1.0
         The value of the global parameter "lambda_interpolate" to use for the ML potential.
+    create_system_kwargs : dict, optional, default=None
+        Additional keyword arguments to pass to the createMixedSystem method of the ML potential.
 
     Returns
     -------
@@ -160,8 +163,15 @@ def add_alchemical_ML_region(
     the conventional force field.  When lambda_interpolate=1, the energy is computed entirely with
     the ML potential.  You can set its value by calling setParameter() on the Context.
     """
+    if create_system_kwargs is None:
+        create_system_kwargs = {}
+
     system = ml_potential.createMixedSystem(
-        topology, system, alchemical_atoms, interpolate=interpolate
+        topology,
+        system,
+        alchemical_atoms,
+        interpolate=interpolate,
+        **create_system_kwargs,
     )
 
     # Get the CustomCVForce that interpolates between the two potentials and set its global parameter
@@ -298,6 +308,7 @@ def alchemify(
     lambda_interpolate=None,
     ml_potential=None,
     ml_potential_kwargs=None,
+    create_system_kwargs=None,
     topology=None,
 ):
     """
@@ -319,6 +330,8 @@ def alchemify(
         The name of the ML potential to use.  If None, "ani2x" will be used.
     ml_potential_kwargs : dict, optional, default=None
         Additional keyword arguments to pass to the ML potential.
+    create_system_kwargs : dict, optional, default=None
+        Additional keyword arguments to pass to the createSystem or createMixedSystem methods of the ML potential.
     topology : openmm.app.Topology
         The Topology of the System.
 
@@ -349,6 +362,9 @@ def alchemify(
         if ml_potential_kwargs is None:
             ml_potential_kwargs = {}
 
+        if create_system_kwargs is None:
+            create_system_kwargs = {}
+
         ml_potential = MLPotential(ml_potential, **ml_potential_kwargs)
         system = add_alchemical_ML_region(
             ml_potential,
@@ -357,6 +373,7 @@ def alchemify(
             alchemical_atoms,
             interpolate=True,
             lambda_interpolate=lambda_interpolate,
+            create_system_kwargs=create_system_kwargs,
         )
 
     if (lambda_lj is not None or lambda_q is not None) and lambda_interpolate is None:
