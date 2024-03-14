@@ -28,6 +28,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_q: Union[float, None],
         lambda_interpolate: Union[float, None],
         lambda_emle: Union[float, None],
+        minimise_iterations: int = 1,
         ml_potential: str = "ani2x",
         ml_potential_kwargs: Optional[Dict[str, Any]] = None,
         create_system_kwargs: Optional[Dict[str, Any]] = None,
@@ -54,6 +55,10 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             The lambda value to interpolate between the ML and MM potentials in a mechanical embedding scheme.
         lambda_emle : float or None
             The lambda value to interpolate between the ML and MM potentials in a electrostatic embedding scheme.
+        minimise_iterations : int, optional, default=1
+            The number of minimisation iterations to perform before creating the alchemical state.
+            1 step is enough to bring the geometry to the distances imposed by the restraints.
+            If None, no minimisation is performed.
         ml_potential : str, optional, default='ani2x'
             The machine learning potential to use in the mechanical embedding scheme.
         ml_potential_kwargs : dict, optional, default=None
@@ -178,6 +183,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Create a QM/MM dynamics object
         d = mols.dynamics(**dynamics_kwargs)
+
+        if minimise_iterations:
+            d.minimise(minimise_iterations)
 
         # Get the underlying OpenMM context.
         omm = d._d._omm_mols
