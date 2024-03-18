@@ -67,7 +67,8 @@ class FES:
         lambda_schedule: Optional[dict] = None,
         alchemical_atoms: Optional[List[int]] = None,
         checkpoint_frequency: int = 100,
-        checkpoint_file="checkpoint.pickle",
+        checkpoint_file: str = "checkpoint.pickle",
+        restart: bool = False,
     ) -> None:
         """
         Initialize the FES object.
@@ -86,6 +87,10 @@ class FES:
             List of atom indices to be alchemically modified.
         checkpoint_frequency : int, optional, default=100
             Frequency to save the state of the object.
+        checkpoint_file : str, optional, default="checkpoint.pickle"
+            Path to the checkpoint file.
+        restart : bool, optional, default=False
+            Whether to restart from the last checkpoint.
         """
         self.crd_file = crd_file
         self.top_file = top_file
@@ -104,9 +109,12 @@ class FES:
         self._U_kln: Optional[List[List[List[float]]]] = None
         self._create_alchemical_states_args: Optional[Tuple[Any, ...]] = None
         self._create_alchemical_states_kwargs: Optional[Dict[str, Any]] = None
+        self._force_groups: Optional[Dict[_mm.Force, int]] = None
 
-        # Load state from checkpoint if exists
-        if os.path.exists(self.checkpoint_file):
+        if restart:
+            assert os.path.exists(
+                self.checkpoint_file
+            ), f"Checkpoint file {self.checkpoint_file} does not exist."
             print(f"Loading state from {self.checkpoint_file}")
             with open(self.checkpoint_file, "rb") as f:
                 state = pickle.load(f)
@@ -135,6 +143,10 @@ class FES:
             self._check_alchemical_state_integrity(alc)
             alc.context.setPositions(self._positions)
             alc.context.setPeriodicBoxVectors(*self._pbc)
+
+        # Set the force groups
+        if self._force_groups is not None:
+            self.set_force_groups(force_group_dict=self._force_groups)
 
     @staticmethod
     def _check_alchemical_state_integrity(alchemical_state: AlchemicalState) -> None:
@@ -450,7 +462,6 @@ class FES:
                     force.setForceGroup(force_group_dict[force])
 
             state.context.reinitialize(preserveState=True)
-
         else:
             if slow_forces is not None:
                 assert all(
@@ -470,3 +481,10 @@ class FES:
                         force.setForceGroup(fast_force_group)
 
                     state.context.reinitialize(preserveState=True)
+
+        # Store the force groups
+        self._force_groups = {
+            force: force.getForceGroup()
+            for state in self.alchemical_states
+            for force in state.system.getForces()
+        }
