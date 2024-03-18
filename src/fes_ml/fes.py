@@ -410,3 +410,63 @@ class FES:
             self._save_state()
 
         return self._U_kln
+
+    def set_force_groups(
+        self,
+        slow_forces: Optional[List[_mm.Force]] = None,
+        fast_force_group: int = 0,
+        slow_force_group: int = 1,
+        force_group_dict: Optional[Dict[_mm.Force, int]] = None,
+    ) -> None:
+        """
+        Set the force groups for the alchemical states.
+
+        Parameters
+        ----------
+        slow_forces : list of openmm.Force
+            List of forces to be considered slow.
+        fast_force_group : int
+            Force group for the fast forces.
+        slow_force_group : int, optional, default=1
+            Force group for the slow forces.
+        force_group_dict : dict, optional, default=None
+            Dictionary with the force group for each force.
+            If provided, it takes precedence over the other arguments and the force groups are set according to the dictionary.
+            Otherwise, the force groups are set according to the other arguments.
+
+        Notes
+        -----
+        The force groups are set as follows:
+        - If `force_group_dict` is provided, the force groups are set according to the dictionary.
+        - If `slow_forces` is provided, the forces in `slow_forces` are set to `slow_force_group` and the others to `fast_force_group`.
+        - If `slow_forces` is not provided, all forces are set to `fast_force_group`.
+        """
+        if force_group_dict is not None:
+            assert all(
+                [isinstance(force, _mm.Force) for force in force_group_dict]
+            ), "All keys in `force_group_dict` must be instances of `openmm.Force`."
+            for state in self.alchemical_states:
+                for force in state.system.getForces():
+                    force.setForceGroup(force_group_dict[force])
+
+            state.context.reinitialize(preserveState=True)
+
+        else:
+            if slow_forces is not None:
+                assert all(
+                    [isinstance(force, _mm.Force) for force in slow_forces]
+                ), "All forces in `slow_forces` must be instances of `openmm.Force`."
+                for state in self.alchemical_states:
+                    for force in state.system.getForces():
+                        if force in slow_forces:
+                            force.setForceGroup(slow_force_group)
+                        else:
+                            force.setForceGroup(fast_force_group)
+
+                    state.context.reinitialize(preserveState=True)
+            else:
+                for state in self.alchemical_states:
+                    for force in state.system.getForces():
+                        force.setForceGroup(fast_force_group)
+
+                    state.context.reinitialize(preserveState=True)
