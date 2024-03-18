@@ -35,6 +35,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         topology: _mm.app.Topology = None,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
+        integrator: Optional[Any] = None,
     ) -> AlchemicalState:
         """
         Create an alchemical state for the given lambda values using OpenMM Systems created with Sire.
@@ -75,6 +76,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         emle_kwargs : dict
             Additional keyword arguments to be passed to the EMLECalculator.
             See TODO.
+        integrator : Any, optional, default=None
+            The OpenMM integrator to use. If None, the integrator is the one used in the dynamics_kwargs, if provided.
+            Otherwise, the default is a LangevinMiddle integrator with a 1 fs timestep and a 298.15 K temperature.
 
         Returns
         -------
@@ -233,8 +237,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             topology=topology,
         )
 
-        # Create a new integrator
-        integrator = omm.getIntegrator().__copy__()
+        if integrator is None:
+            # Create a new integrator
+            integrator = omm.getIntegrator().__copy__()
 
         # Create a new context and set positions and velocities
         context = _mm.Context(system, integrator, omm.getPlatform())
