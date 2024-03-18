@@ -28,12 +28,14 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_q: Union[float, None],
         lambda_interpolate: Union[float, None],
         lambda_emle: Union[float, None],
+        minimise_iterations: int = 1,
         ml_potential: str = "ani2x",
         ml_potential_kwargs: Optional[Dict[str, Any]] = None,
         create_system_kwargs: Optional[Dict[str, Any]] = None,
         topology: _mm.app.Topology = None,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
+        integrator: Optional[Any] = None,
     ) -> AlchemicalState:
         """
         Create an alchemical state for the given lambda values using OpenMM Systems created with Sire.
@@ -54,6 +56,10 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             The lambda value to interpolate between the ML and MM potentials in a mechanical embedding scheme.
         lambda_emle : float or None
             The lambda value to interpolate between the ML and MM potentials in a electrostatic embedding scheme.
+        minimise_iterations : int, optional, default=1
+            The number of minimisation iterations to perform before creating the alchemical state.
+            1 step is enough to bring the geometry to the distances imposed by the restraints.
+            If None, no minimisation is performed.
         ml_potential : str, optional, default='ani2x'
             The machine learning potential to use in the mechanical embedding scheme.
         ml_potential_kwargs : dict, optional, default=None
@@ -70,6 +76,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         emle_kwargs : dict
             Additional keyword arguments to be passed to the EMLECalculator.
             See TODO.
+        integrator : Any, optional, default=None
+            The OpenMM integrator to use. If None, the integrator is the one used in the dynamics_kwargs, if provided.
+            Otherwise, the default is a LangevinMiddle integrator with a 1 fs timestep and a 298.15 K temperature.
 
         Returns
         -------
@@ -179,6 +188,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Create a QM/MM dynamics object
         d = mols.dynamics(**dynamics_kwargs)
 
+        if minimise_iterations:
+            d.minimise(minimise_iterations)
+
         # Get the underlying OpenMM context.
         omm = d._d._omm_mols
 
@@ -225,8 +237,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             topology=topology,
         )
 
-        # Create a new integrator
-        integrator = omm.getIntegrator().__copy__()
+        if integrator is None:
+            # Create a new integrator
+            integrator = omm.getIntegrator().__copy__()
 
         # Create a new context and set positions and velocities
         context = _mm.Context(system, integrator, omm.getPlatform())

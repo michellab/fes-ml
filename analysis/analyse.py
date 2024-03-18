@@ -21,7 +21,7 @@ U_kn = np.load(sys.argv[1])
 # where l (superscript) is the alchemical state at which the potential energy is evaluated
 # and k (subscript) the alchemical state at which it is sampled
 nstates, nstates, nsamples = U_kn.shape
-U_kn = U_kn.transpose(1, 0, 2)
+U_kn = U_kn.transpose(1, 0, 2)[::-1, :, :]
 U_kn = U_kn.reshape(nstates, nstates * nsamples)
 
 # Keep it in here to contemplate case where number of samples per alchemical state differs
