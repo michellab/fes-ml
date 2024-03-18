@@ -240,11 +240,17 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         if integrator is None:
             # Create a new integrator
             integrator = omm.getIntegrator().__copy__()
+        else:
+            integrator = _deepcopy(integrator)
 
         # Create a new context and set positions and velocities
         context = _mm.Context(system, integrator, omm.getPlatform())
         context.setPositions(omm.getState(getPositions=True).getPositions())
-        context.setVelocitiesToTemperature(integrator.getTemperature())
+
+        try:
+            context.setVelocitiesToTemperature(integrator.getTemperature())
+        except AttributeError:
+            context.setVelocitiesToTemperature(float(dynamics_kwargs["temperature"][:-1]))
 
         logger.debug("Energy decomposition of the system:")
         logger.debug(

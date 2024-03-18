@@ -449,27 +449,24 @@ class FES:
         Notes
         -----
         The force groups are set as follows:
-        - If `force_group_dict` is provided, the force groups are set according to the dictionary.
+        - If `force_group_dict` is provided, the force groups are set according to the dictionary. All forces not in the dictionary are set to `fast_force_group`.
         - If `slow_forces` is provided, the forces in `slow_forces` are set to `slow_force_group` and the others to `fast_force_group`.
         - If `slow_forces` is not provided, all forces are set to `fast_force_group`.
         """
         if force_group_dict is not None:
-            assert all(
-                [isinstance(force, _mm.Force) for force in force_group_dict]
-            ), "All keys in `force_group_dict` must be instances of `openmm.Force`."
             for state in self.alchemical_states:
                 for force in state.system.getForces():
-                    force.setForceGroup(force_group_dict[force])
-
+                    try:
+                        force.setForceGroup(force_group_dict[force.getName()])
+                    except KeyError:
+                        force.setForceGroup(fast_force_group)
+                        
             state.context.reinitialize(preserveState=True)
         else:
             if slow_forces is not None:
-                assert all(
-                    [isinstance(force, _mm.Force) for force in slow_forces]
-                ), "All forces in `slow_forces` must be instances of `openmm.Force`."
                 for state in self.alchemical_states:
                     for force in state.system.getForces():
-                        if force in slow_forces:
+                        if force.getName() in slow_forces:
                             force.setForceGroup(slow_force_group)
                         else:
                             force.setForceGroup(fast_force_group)
@@ -484,7 +481,6 @@ class FES:
 
         # Store the force groups
         self._force_groups = {
-            force: force.getForceGroup()
-            for state in self.alchemical_states
-            for force in state.system.getForces()
+            force.getName(): force.getForceGroup()
+            for force in self.alchemical_states[0].system.getForces()
         }
