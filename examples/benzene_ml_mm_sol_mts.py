@@ -72,11 +72,6 @@ if __name__ == "__main__":
         slow_force_group=1,
     )
 
-    print(fes._force_groups)
-    exit()
-
-    # Minimize
-    fes.run_minimization_batch(1000)
     # Equilibrate during 1 ns
     fes.run_equilibration_batch(1000000)
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
