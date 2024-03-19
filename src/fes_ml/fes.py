@@ -1,9 +1,10 @@
 import logging
 import os
 import pickle
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import openmm as _mm
+import openmm.app as _app
 import openmm.unit as _unit
 
 from .alchemical import AlchemicalState
@@ -28,6 +29,16 @@ class FES:
         List of alchemical states.
     alchemical_atoms : list of int
         List of atom indices to be alchemically modified.
+    topology : openmm.app.topology.Topology
+        The OpenMM Topology.
+    output_prefix : str
+        Prefix for the output files.
+    checkpoint_frequency : int
+        Frequency to save the state of the object.
+    checkpoint_file : str
+        Path to the checkpoint file.
+    write_frame_frequency : int
+        Frequency (in number of iterations) to write the frames to a DCD file.
     _iter : int
         Current iteration.
     _alc_id : int
@@ -72,8 +83,11 @@ class FES:
         top_file: Optional[str] = None,
         lambda_schedule: Optional[dict] = None,
         alchemical_atoms: Optional[List[int]] = None,
+        topology: Optional[_app.topology.Topology] = None,
+        output_prefix: str = "fes",
         checkpoint_frequency: int = 100,
-        checkpoint_file: str = "checkpoint.pickle",
+        checkpoint_file: Optional[str] = None,
+        write_frame_frequency: int = 0,
         restart: bool = False,
     ) -> None:
         """
@@ -91,10 +105,17 @@ class FES:
             Available lambda parameters are: "lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle".
         alchemical_atoms : list of int, optional, default=None
             List of atom indices to be alchemically modified.
+        topology : openmm.app.topology.Topology, optional, default=None
+            The OpenMM Topology.
+        output_prefix : str, optional, default="fes"
+            Prefix for the output files.
         checkpoint_frequency : int, optional, default=100
             Frequency to save the state of the object.
-        checkpoint_file : str, optional, default="checkpoint.pickle"
+        checkpoint_file : str, optional, default=f"{output_prefix}.pickle"
             Path to the checkpoint file.
+        write_frame_frequency : int, optional, default=0
+            Frequency (in number of iterations) to write the frames to a DCD file.
+            If 0, the frames are not written.
         restart : bool, optional, default=False
             Whether to restart from the last checkpoint.
         """
@@ -103,8 +124,11 @@ class FES:
         self.lambda_schedule = lambda_schedule
         self.alchemical_atoms = alchemical_atoms
         self.alchemical_states: List[AlchemicalState] = None
+        self.topology = topology
+        self.output_prefix = output_prefix
         self.checkpoint_frequency = checkpoint_frequency
-        self.checkpoint_file = checkpoint_file
+        self.checkpoint_file = checkpoint_file or f"{output_prefix}.pickle"
+        self.write_frame_frequency = write_frame_frequency
 
         # Checkpoint variables
         self._iter: Optional[int] = None
@@ -180,7 +204,7 @@ class FES:
     def _save_state(self) -> None:
         """Save the state of the object."""
         state = self.__getstate__()
-        with open("checkpoint.pickle", "wb") as f:
+        with open(self.checkpoint_file, "wb") as f:
             pickle.dump(state, f)
 
         logger.info(f"Saved state to {self.checkpoint_file}")
@@ -248,6 +272,7 @@ class FES:
                 lambda_q=lambda_q[i],
                 lambda_interpolate=lambda_interpolate[i],
                 lambda_emle=lambda_emle[i],
+                topology=self.topology,
                 *args,
                 **kwargs,
             )
@@ -355,10 +380,22 @@ class FES:
         # Check the integrity of the alchemical state
         self._check_alchemical_state_integrity(alchemical_state)
 
-        # Resume from the last checkpoint
         if not self._U_kl:
             self._iter = 0
             self._U_kl = [[] for _ in range(len(self.alchemical_states))]
+            dcd_file_append = False
+        else:
+            dcd_file_append = True
+
+        if self.write_frame_frequency > 0:
+            alchemical_state_id = self.alchemical_states.index(alchemical_state)
+            dcd_file = self._create_dcd_file(
+                f"{self.output_prefix}_{alchemical_state_id}.dcd",
+                self.topology,
+                alchemical_state.integrator.getStepSize(),
+                nsteps,
+                append=dcd_file_append,
+            )
 
         logger.info(
             f"Starting {alchemical_state} from iteration {self._iter} / {niterations}"
@@ -371,13 +408,21 @@ class FES:
         )
 
         for iteration in range(self._iter, niterations):
-            logger.info(f"{alchemical_state} iteration {iteration} / {niterations}")
+            logger.info(f"{alchemical_state} iteration {iteration + 1} / {niterations}")
 
             alchemical_state.integrator.step(nsteps)
             self._positions = alchemical_state.context.getState(
                 getPositions=True
             ).getPositions()
             self._pbc = alchemical_state.context.getState().getPeriodicBoxVectors()
+
+            if (
+                self.write_frame_frequency > 0
+                and iteration % self.write_frame_frequency == 0
+            ):
+                dcd_file.writeModel(
+                    positions=self._positions, periodicBoxVectors=self._pbc
+                )
 
             # Compute energies at all alchemical states
             for l, alc_ in enumerate(self.alchemical_states):
@@ -522,3 +567,58 @@ class FES:
             logger.info(f"{force}: {group}")
 
         return self._force_groups
+
+    def _get_file_handle(self, filename: str, mode: str = "wb") -> Any:
+        """
+        Get a file handle.
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file.
+        mode : str, default='wb'
+            Mode to open the file.
+
+        Returns
+        -------
+        file_handle : file handle
+            File handle.
+        """
+        return open(filename, mode)
+
+    def _create_dcd_file(
+        self, filename: str, topology, dt, interval, append=False, firstStep=0
+    ) -> _app.dcdfile.DCDFile:
+        """
+        Create a DCD file.
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file.
+        topology : openmm.app.topology.Topology
+            The OpenMM Topology.
+        dt : float
+            The time step used in the trajectory
+        interval : int
+            The frequency (measured in time steps) at which states are written to the trajectory
+        append : bool, optional, default=False
+             If True, open an existing DCD file to append to. If False, create a new file.
+        firstStep : int, optional, default=0
+            The index of the first step in the trajectory.
+
+        Returns
+        -------
+        dcdfile : openmm.app.dcdfile.DCDFile
+            DCD file.
+        """
+        mode = "ab" if append else "wb"
+
+        return _app.dcdfile.DCDFile(
+            self._get_file_handle(filename, mode=mode),
+            topology,
+            dt,
+            firstStep,
+            interval,
+            append,
+        )
