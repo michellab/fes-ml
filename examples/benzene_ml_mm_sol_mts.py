@@ -11,8 +11,9 @@ Authors: Joao Morado
 if __name__ == "__main__":
     import numpy as np
     import openmm as mm
-    import openmm.unit as unit
     import openmm.app as app
+    import openmm.unit as unit
+
     from fes_ml.fes import FES
     from fes_ml.utils import plot_lambda_schedule
 
