@@ -15,12 +15,13 @@ if __name__ == "__main__":
     import numpy as np
     import openmm as mm
     import openmm.unit as unit
+
     from fes_ml.fes import FES
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
-    n_lambda_q = 2
-    n_lambda_lj = 2
+    n_lambda_q = 5
+    n_lambda_lj = 11
     q_windows = np.linspace(1.0, 0.0, n_lambda_q, endpoint=False)
     lj_windows = np.linspace(1.0, 0.0, n_lambda_lj)
 
@@ -29,7 +30,7 @@ if __name__ == "__main__":
         "lambda_lj": [1.0] * n_lambda_q + list(lj_windows),
     }
 
-    # plot_lambda_schedule(lambda_schedule)
+    plot_lambda_schedule(lambda_schedule)
 
     # Define the dynamics and EMLE parameters
     dynamics_kwargs = {
@@ -40,7 +41,7 @@ if __name__ == "__main__":
         "integrator": "langevin_middle",
         "temperature": "298.15K",
         "pressure": "1atm",
-        "platform": "cpu",
+        "platform": "cuda",
         "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
     }
 
@@ -56,8 +57,8 @@ if __name__ == "__main__":
 
     # Create the FES object to run the simulations
     fes = FES(
-        top_file="../data/benzene/benzene_sol_sage.prmtop",
-        crd_file="../data/benzene/benzene_sol_sage.inpcrd",
+        top_file="../data/benzene/benzene_sage_water.prm7",
+        crd_file="../data/benzene/benzene_sage_water.rst7",
     )
 
     # Create the alchemical states
@@ -71,13 +72,11 @@ if __name__ == "__main__":
 
     # Set the force groups
     fes.set_force_groups(
-        slow_forces=[mm.NonbondedForce, mm.CustomNonbondedForce],
+        slow_forces=["NonbondedForce", "CustomNonbondedForce"],
         fast_force_group=0,
         slow_force_group=1,
     )
 
-    # Minimize
-    fes.run_minimization_batch(1000)
     # Equilibrate during 1 ns
     fes.run_equilibration_batch(1000000)
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)

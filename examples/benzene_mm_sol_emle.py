@@ -44,7 +44,7 @@ if __name__ == "__main__":
         "integrator": "langevin_middle",
         "temperature": "298.15K",
         "pressure": "1atm",
-        "platform": "Reference",
+        "platform": "cuda",
         "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
     }
 
@@ -52,8 +52,8 @@ if __name__ == "__main__":
 
     # Create the FES object to run the simulations
     fes = FES(
-        top_file="../data/benzene/benzene_sol_sage.prmtop",
-        crd_file="../data/benzene/benzene_sol_sage.inpcrd",
+        top_file="../data/benzene/benzene_sage_water.prm7",
+        crd_file="../data/benzene/benzene_sage_water.rst7",
     )
 
     # Create the alchemical states

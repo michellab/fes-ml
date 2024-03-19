@@ -10,19 +10,21 @@ Authors: Joao Morado
 
 if __name__ == "__main__":
     import numpy as np
+    import openmm as mm
     import openmm.app as app
+    import openmm.unit as unit
 
     from fes_ml.fes import FES
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
-    n_lambda_interpolate = 11
+    n_lambda_interpolate = 3
 
     lambda_schedule = {
         "lambda_interpolate": np.linspace(1.0, 0.0, n_lambda_interpolate),
     }
 
-    plot_lambda_schedule(lambda_schedule, "lambda_schedule_mm_sol.png")
+    plot_lambda_schedule(lambda_schedule, "lambda_schedule_mm_sol_mts.png")
 
     # Define the dynamics and EMLE parameters
     dynamics_kwargs = {
@@ -38,6 +40,14 @@ if __name__ == "__main__":
     }
 
     emle_kwargs = None
+
+    # Multiple time step Langevin integrator
+    # Force group 0, 2 steps (fast forces)
+    # Force group 1, 1 step (slow forces)
+    groups = [(0, 2), (1, 1)]
+    integrator = mm.MTSLangevinIntegrator(
+        298.15 * unit.kelvin, 1.0 / unit.picosecond, 1 * unit.femtosecond, groups
+    )
 
     # Create the FES object to run the simulations
     fes = FES(
@@ -58,8 +68,13 @@ if __name__ == "__main__":
         ml_potential="ani2x",
     )
 
-    # Minimize
-    fes.run_minimization_batch(1000)
+    # Set the force groups
+    fes.set_force_groups(
+        slow_forces=["CustomCVForce"],
+        fast_force_group=0,
+        slow_force_group=1,
+    )
+
     # Equilibrate during 1 ns
     fes.run_equilibration_batch(1000000)
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
