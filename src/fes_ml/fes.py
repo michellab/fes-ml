@@ -60,10 +60,17 @@ class FES:
     """
 
     __serializables__ = [
+        # Public variables
         "crd_file",
         "top_file",
         "lambda_schedule",
         "alchemical_atoms",
+        "topology",
+        "output_prefix",
+        "checkpoint_frequency",
+        "checkpoint_file",
+        "write_frame_frequency",
+        # Private variables
         "_iter",
         "_alc_id",
         "_positions",
