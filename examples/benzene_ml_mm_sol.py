@@ -43,6 +43,7 @@ if __name__ == "__main__":
     fes = FES(
         top_file="../data/benzene/benzene_sage_water.prm7",
         crd_file="../data/benzene/benzene_sage_water.rst7",
+        topology=app.AmberPrmtopFile("../data/benzene/benzene_sage_gas.prm7").topology,
     )
 
     # Create the alchemical states
@@ -52,7 +53,6 @@ if __name__ == "__main__":
         lambda_schedule=lambda_schedule,
         dynamics_kwargs=dynamics_kwargs,
         emle_kwargs=emle_kwargs,
-        topology=app.AmberPrmtopFile("../data/benzene/benzene_sage_gas.prm7").topology,
         ml_potential="ani2x",
     )
 
