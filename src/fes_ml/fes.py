@@ -398,13 +398,20 @@ class FES:
             )
 
         logger.info(
-            f"Starting {alchemical_state} from iteration {self._iter} / {niterations}"
+            f"Running production for {alchemical_state} with {niterations} iterations and {nsteps} steps per iteration"
         )
+
+        try:
+            integrator_temperature = alchemical_state.integrator.getTemperature()
+        except AttributeError:
+            integrator_temperature = (
+                alchemical_state.integrator.temperature * _unit.kelvin
+            )
 
         kT = (
             _unit.AVOGADRO_CONSTANT_NA
             * _unit.BOLTZMANN_CONSTANT_kB
-            * alchemical_state.integrator.getTemperature()
+            * integrator_temperature
         )
 
         for iteration in range(self._iter, niterations):
@@ -612,7 +619,12 @@ class FES:
         dcdfile : openmm.app.dcdfile.DCDFile
             DCD file.
         """
-        mode = "ab" if append else "wb"
+        mode = "r+b" if append else "w+b"
+
+        if topology is None:
+            raise ValueError("Topology must be provided to create a DCD file.")
+
+        logger.info(f"Opening DCD file {filename} in mode {mode}")
 
         return _app.dcdfile.DCDFile(
             self._get_file_handle(filename, mode=mode),
