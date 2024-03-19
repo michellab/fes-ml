@@ -1,6 +1,5 @@
 """Sire alchemical state creation strategy."""
 
-import json
 import logging
 from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
@@ -34,7 +33,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         ml_potential: str = "ani2x",
         ml_potential_kwargs: Optional[Dict[str, Any]] = None,
         create_system_kwargs: Optional[Dict[str, Any]] = None,
-        topology: _mm.app.Topology = None,
+        topology: Optional[_mm.app.topology.Topology] = None,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
         integrator: Optional[Any] = None,
@@ -109,7 +108,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         else:
             emle_kwargs = _deepcopy(emle_kwargs)
 
-        logger.debug("-" * 50)
+        logger.debug("-" * 100)
         logger.debug("Creating alchemical state using SireCreationStrategy.")
         logger.debug(f"top_file: {top_file}")
         logger.debug(f"crd_file: {crd_file}")
@@ -120,8 +119,12 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug(f"lambda_emle: {lambda_emle}")
         logger.debug(f"ml_potential: {ml_potential}")
         logger.debug(f"topology: {topology}")
-        logger.debug(f"dynamics_kwargs:\n {json.dumps(dynamics_kwargs, indent=4)}")
-        logger.debug(f"emle_kwargs:\n {json.dumps(emle_kwargs, indent=4)}")
+        logger.debug("dynamics_kwargs:")
+        for key, value in dynamics_kwargs.items():
+            logger.debug(f"{key}: {value}")
+        logger.debug("emle_kwargs:")
+        for key, value in emle_kwargs.items():
+            logger.debug(f"{key}: {value}")
 
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
@@ -263,7 +266,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         for force, energy in energy_decomp.items():
             logger.debug(f"{force}: {energy}")
         logger.debug("Alchemical state created successfully.")
-        logger.debug("*" * 40)
+        logger.debug("-" * 100)
 
         # Create the AlchemicalState
         alc_state = AlchemicalState(
