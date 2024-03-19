@@ -18,7 +18,7 @@ if __name__ == "__main__":
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
-    n_lambda_interpolate = 3
+    n_lambda_interpolate = 6
 
     lambda_schedule = {
         "lambda_interpolate": np.linspace(1.0, 0.0, n_lambda_interpolate),
@@ -65,6 +65,7 @@ if __name__ == "__main__":
         lambda_schedule=lambda_schedule,
         dynamics_kwargs=dynamics_kwargs,
         emle_kwargs=emle_kwargs,
+        integrator=integrator,
         ml_potential="ani2x",
     )
 
