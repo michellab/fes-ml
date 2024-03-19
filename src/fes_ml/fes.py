@@ -1,12 +1,15 @@
+import logging
 import os
 import pickle
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import openmm as _mm
 import openmm.unit as _unit
 
 from .alchemical import AlchemicalState
 from .alchemical import alchemical_factory as alchemical_factory
+
+logger = logging.getLogger(__name__)
 
 
 class FES:
@@ -41,6 +44,8 @@ class FES:
         Arguments to recreate the alchemical states upon deserialization.
     _create_alchemical_states_kwargs : dict
         Keyword arguments to recreate the alchemical states upon deserialization.
+    _force_groups : dict
+        Dictionary with the force group for each force.
     """
 
     __serializables__ = [
@@ -56,6 +61,7 @@ class FES:
         "_U_kln",
         "_create_alchemical_states_args",
         "_create_alchemical_states_kwargs",
+        "_force_groups",
     ]
 
     _LAMBDA_PARAMS = ["lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle"]
@@ -109,13 +115,13 @@ class FES:
         self._U_kln: Optional[List[List[List[float]]]] = None
         self._create_alchemical_states_args: Optional[Tuple[Any, ...]] = None
         self._create_alchemical_states_kwargs: Optional[Dict[str, Any]] = None
-        self._force_groups: Optional[Dict[_mm.Force, int]] = None
+        self._force_groups: Optional[Dict[Any, int]] = None
 
         if restart:
             assert os.path.exists(
                 self.checkpoint_file
             ), f"Checkpoint file {self.checkpoint_file} does not exist."
-            print(f"Loading state from {self.checkpoint_file}")
+            logger.info(f"Simulation will restart from {self.checkpoint_file}")
             with open(self.checkpoint_file, "rb") as f:
                 state = pickle.load(f)
             self.__setstate__(state)
@@ -125,7 +131,7 @@ class FES:
         state = {key: getattr(self, key) for key in self.__serializables__}
         return state
 
-    def __setstate__(self, state) -> None:
+    def __setstate__(self, state: Dict[str, Any]) -> None:
         """Set the state of the object."""
         for key, value in state.items():
             setattr(self, key, value)
@@ -177,12 +183,12 @@ class FES:
         with open("checkpoint.pickle", "wb") as f:
             pickle.dump(state, f)
 
-        print(f"Saved state to {self.checkpoint_file}")
+        logger.info(f"Saved state to {self.checkpoint_file}")
 
     def create_alchemical_states(
         self,
-        alchemical_atoms,
-        lambda_schedule,
+        alchemical_atoms: List[int],
+        lambda_schedule: Dict[str, List[Optional[float]]],
         *args,
         **kwargs,
     ) -> List[AlchemicalState]:
@@ -254,7 +260,7 @@ class FES:
         self,
         tolerance: _unit.Quantity = 10 * _unit.kilojoules_per_mole / _unit.nanometer,
         max_iterations: int = 0,
-        reporter=None,
+        reporter: Any = None,
     ) -> List[AlchemicalState]:
         """
         Run a batch of minimizations.
@@ -265,8 +271,9 @@ class FES:
             The energy tolerance to which the system should be minimized.
         max_iterations : int, optional, default=0
             The maximum number of iterations to run the minimization.
-        reporter : object, optional, default=None
+        reporter : OpenMM Minimization Report, optional, default=None
             A reporter object to report the minimization progress.
+            See http://docs.openmm.org/latest/api-python/generated/openmm.openmm.MinimizationReporter.html
 
         Returns
         -------
@@ -278,7 +285,9 @@ class FES:
         ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
         for alc in self.alchemical_states:
-            print(f"Minimizing {alc}")
+            logger.info(
+                f"Minimizing {alc} with tolerance {tolerance} and max_iterations {max_iterations}"
+            )
             self._check_alchemical_state_integrity(alc)
             _mm.LocalEnergyMinimizer.minimize(
                 alc.context, tolerance, max_iterations, reporter
@@ -305,7 +314,7 @@ class FES:
         ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
         for alc in self.alchemical_states:
-            print(f"Equilibrating {alc}")
+            logger.info(f"Equilibrating {alc}")
             self._check_alchemical_state_integrity(alc)
             alc.integrator.step(nsteps)
 
@@ -351,7 +360,7 @@ class FES:
             self._iter = 0
             self._U_kl = [[] for _ in range(len(self.alchemical_states))]
 
-        print(
+        logger.info(
             f"Starting {alchemical_state} from iteration {self._iter} / {niterations}"
         )
 
@@ -362,7 +371,7 @@ class FES:
         )
 
         for iteration in range(self._iter, niterations):
-            print(f"{alchemical_state} iteration {iteration} / {niterations}")
+            logger.info(f"{alchemical_state} iteration {iteration} / {niterations}")
 
             alchemical_state.integrator.step(nsteps)
             self._positions = alchemical_state.context.getState(
@@ -385,7 +394,9 @@ class FES:
 
         return self._U_kl
 
-    def run_production_batch(self, niterations, nsteps) -> List[List[List[float]]]:
+    def run_production_batch(
+        self, niterations: int, nsteps: int
+    ) -> List[List[List[float]]]:
         """
         Run simulations for all alchemical states.
 
@@ -411,7 +422,7 @@ class FES:
             self._alc_id = 0
             self._U_kln = []
 
-        print(
+        logger.info(
             f"Starting production run with {self.alchemical_states[self._alc_id]} with id {self._alc_id}"
         )
         for alc_id in range(self._alc_id, len(self.alchemical_states)):
@@ -425,17 +436,17 @@ class FES:
 
     def set_force_groups(
         self,
-        slow_forces: Optional[List[_mm.Force]] = None,
+        slow_forces: Optional[List[Any]] = None,
         fast_force_group: int = 0,
         slow_force_group: int = 1,
-        force_group_dict: Optional[Dict[_mm.Force, int]] = None,
-    ) -> None:
+        force_group_dict: Optional[Dict[Any, int]] = None,
+    ) -> Dict[Any, int]:
         """
         Set the force groups for the alchemical states.
 
         Parameters
         ----------
-        slow_forces : list of openmm.Force
+        slow_forces : list of names of OpenMM forces, optional, default=None
             List of forces to be considered slow.
         fast_force_group : int
             Force group for the fast forces.
@@ -446,6 +457,11 @@ class FES:
             If provided, it takes precedence over the other arguments and the force groups are set according to the dictionary.
             Otherwise, the force groups are set according to the other arguments.
 
+        Returns
+        -------
+        force_groups : dict
+            Dictionary with the force group for each force.
+
         Notes
         -----
         The force groups are set as follows:
@@ -455,21 +471,37 @@ class FES:
         """
         if force_group_dict is not None:
             for state in self.alchemical_states:
+                unassigned_slow_forces = list(force_group_dict.keys())
+
                 for force in state.system.getForces():
                     try:
                         force.setForceGroup(force_group_dict[force.getName()])
+                        unassigned_slow_forces.remove(force.getName())
                     except KeyError:
                         force.setForceGroup(fast_force_group)
-                        
-            state.context.reinitialize(preserveState=True)
+
+                if unassigned_slow_forces:
+                    logger.warning(
+                        f"Warning: the following forces {unassigned_slow_forces} were not found in {state}."
+                    )
+
+                state.context.reinitialize(preserveState=True)
         else:
             if slow_forces is not None:
                 for state in self.alchemical_states:
+                    unassigned_slow_forces = list(slow_forces)
+
                     for force in state.system.getForces():
                         if force.getName() in slow_forces:
                             force.setForceGroup(slow_force_group)
+                            unassigned_slow_forces.remove(force.getName())
                         else:
                             force.setForceGroup(fast_force_group)
+
+                    if unassigned_slow_forces:
+                        logger.warning(
+                            f"Warning: the following forces {unassigned_slow_forces} were not found in {state}."
+                        )
 
                     state.context.reinitialize(preserveState=True)
             else:
@@ -484,3 +516,9 @@ class FES:
             force.getName(): force.getForceGroup()
             for force in self.alchemical_states[0].system.getForces()
         }
+
+        logger.info("Force groups set to:")
+        for force, group in self._force_groups.items():
+            logger.info(f"{force}: {group}")
+
+        return self._force_groups

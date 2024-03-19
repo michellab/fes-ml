@@ -33,14 +33,14 @@ class AlchemicalStateFactory:
         self.strategies[name] = strategy
 
     def create_alchemical_state(
-        self, strategy_name="sire", *args, **kwargs
+        self, strategy_name: str = "sire", *args, **kwargs
     ) -> AlchemicalState:
         """
         Create an alchemical state for the given lambda values.
 
         Parameters
         ----------
-        strategy_name : str, optional, default='sire'
+        strategy_name : str, default='sire'
             The name of the strategy to create the alchemical state.
 
         Returns

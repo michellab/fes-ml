@@ -12,8 +12,15 @@ _NON_BONDED_METHODS = {
     4: _app.PME,
 }
 
+import logging
+from typing import Any, Dict, Iterable, Optional
 
-def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
+logger = logging.getLogger(__name__)
+
+
+def add_LJ_softcore(
+    system: _mm.System, alchemical_atoms: Iterable[int], lambda_lj: float = 1.0
+) -> _mm.System:
     """
     Add a CustomNonbondedForce to the System to compute the softcore
     Lennard-Jones and Coulomb interactions between the ML and MM region.
@@ -24,7 +31,7 @@ def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
         The System to modify.
     alchemical_atoms : list of int
         The indices of the atoms to model with the ML potential.
-    lambda_lj : float, optional, default=1.0
+    lambda_lj : float, default=1.0
         The softcore parameter for the Lennard-Jones interactions.
 
     Returns
@@ -32,6 +39,8 @@ def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
     system : openmm.System
         The modified System with the softcore potentials added.
     """
+    logger.debug("Adding softcore LJ")
+
     forces = {force.__class__.__name__: force for force in system.getForces()}
     nb_force = forces["NonbondedForce"]
 
@@ -42,6 +51,7 @@ def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
     )
     energy_function += "sigma = 0.5*(sigma1+sigma2); epsilon = sqrt(epsilon1*epsilon2);"
 
+    logger.debug(f"LJ softcore function: {energy_function}")
     # Create a CustomNonbondedForce to compute the softcore Lennard-Jones and Coulomb interactions
     soft_core_force = _mm.CustomNonbondedForce(energy_function)
 
@@ -49,10 +59,10 @@ def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
         _NON_BONDED_METHODS[3],
         _NON_BONDED_METHODS[4],
     ]:
-        print(
+        logger.warning(
             "The softcore Lennard-Jones interactions are not implemented for Ewald or PME"
         )
-        print("The nonbonded method will be set to CutoffPeriodic")
+        logger.warning("The nonbonded method will be set to CutoffPeriodic")
         soft_core_force.setNonbondedMethod(2)
     else:
         soft_core_force.setNonbondedMethod(nb_force.getNonbondedMethod())
@@ -89,7 +99,9 @@ def add_LJ_softcore(system, alchemical_atoms, lambda_lj=1.0):
     return system
 
 
-def scale_charges(system, alchemical_atoms, lambda_q=1.0):
+def scale_charges(
+    system: _mm.System, alchemical_atoms: Iterable[int], lambda_q: float = 1.0
+) -> _mm.System:
     """
     Scale the charges of the alchemical atoms in the System.
 
@@ -120,14 +132,14 @@ def scale_charges(system, alchemical_atoms, lambda_q=1.0):
 
 
 def add_alchemical_ML_region(
-    ml_potential,
-    topology,
-    system,
-    alchemical_atoms,
-    interpolate=True,
-    lambda_interpolate=1.0,
-    create_system_kwargs=None,
-):
+    ml_potential: Any,
+    topology: _app.topology.Topology,
+    system: _mm.System,
+    alchemical_atoms: Iterable[int],
+    interpolate: bool = True,
+    lambda_interpolate: float = 1.0,
+    create_system_kwargs: Optional[Dict[str, Any]] = None,
+) -> _mm.System:
     """
     Create an alchemical System that is partly modeled with a ML potential and partly
     with a conventional force field.
@@ -136,7 +148,7 @@ def add_alchemical_ML_region(
     ----------
     ml_potential : openmmml.mlpotential.MLPotential
         The ML potential to use.
-    topology : openmm.app.Topology
+    topology : openmm.app.topology.Topology
         The Topology of the System.
     system : openmm.System
         The System to modify. A copy of the System will be returned.
@@ -184,7 +196,9 @@ def add_alchemical_ML_region(
     return system
 
 
-def _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms):
+def _add_intramolecular_nonbonded_exceptions(
+    system: _mm.System, alchemical_atoms: Iterable[int]
+) -> _mm.System:
     """
     Add exceptions to the NonbondedForce and CustomNonbondedForces
     to prevent the alchemical atoms from interacting as these interactions
@@ -223,8 +237,8 @@ def _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms):
 
 
 def _add_intramolecular_nonbonded_forces(
-    system, alchemical_atoms, reaction_field=False
-):
+    system: _mm.System, alchemical_atoms: Iterable[int], reaction_field: bool = False
+) -> _mm.System:
     """
     Add the intramolecular nonbonded forces as a CustomBondForce to the System.
 
@@ -302,16 +316,16 @@ def _add_intramolecular_nonbonded_forces(
 
 
 def alchemify(
-    system,
-    alchemical_atoms,
-    lambda_lj=None,
-    lambda_q=None,
-    lambda_interpolate=None,
-    ml_potential=None,
-    ml_potential_kwargs=None,
-    create_system_kwargs=None,
-    topology=None,
-):
+    system: _mm.System,
+    alchemical_atoms: Iterable[int],
+    lambda_lj: Optional[float] = None,
+    lambda_q: Optional[float] = None,
+    lambda_interpolate: Optional[float] = None,
+    ml_potential: Optional[str] = None,
+    ml_potential_kwargs: Optional[Dict[str, Any]] = None,
+    create_system_kwargs: Optional[Dict[str, Any]] = None,
+    topology: Optional[_app.topology.Topology] = None,
+) -> _mm.System:
     """
     Alchemify the system.
 
@@ -333,7 +347,7 @@ def alchemify(
         Additional keyword arguments to pass to the ML potential.
     create_system_kwargs : dict, optional, default=None
         Additional keyword arguments to pass to the createSystem or createMixedSystem methods of the ML potential.
-    topology : openmm.app.Topology
+    topology : openmm.app.topology.Topology
         The Topology of the System.
 
     Returns
@@ -355,7 +369,9 @@ def alchemify(
             )
 
         if not isinstance(topology, _app.Topology):
-            raise ValueError("The topology must be an instance of openmm.app.Topology")
+            raise ValueError(
+                "The topology must be an instance of openmm.app.topology.Topology"
+            )
 
         if ml_potential is None:
             ml_potential = "ani2x"

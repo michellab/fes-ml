@@ -1,6 +1,7 @@
 """Sire alchemical state creation strategy."""
 
 import json
+import logging
 from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
 
@@ -9,11 +10,12 @@ import openmm as _mm
 import sire as _sr
 from emle.calculator import EMLECalculator as _EMLECalculator
 
-from ...log import logger
 from ...utils import energy_decomposition as energy_decomposition
 from ..alchemical_state import AlchemicalState
 from .alchemical_functions import alchemify as alchemify
 from .base_strategy import AlchemicalStateCreationStrategy
+
+logger = logging.getLogger(__name__)
 
 
 class SireCreationStrategy(AlchemicalStateCreationStrategy):
@@ -216,7 +218,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                         force.setUseDispersionCorrection(True)
                         dynamics_kwargs["map"]["use_dispersion_correction"] = True
 
-
         # Remove contraints from the alchemical atoms
         # TODO: Make this optional
         for i in range(system.getNumConstraints() - 1, -1, -1):
@@ -250,7 +251,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         try:
             context.setVelocitiesToTemperature(integrator.getTemperature())
         except AttributeError:
-            context.setVelocitiesToTemperature(float(dynamics_kwargs["temperature"][:-1]))
+            context.setVelocitiesToTemperature(
+                float(dynamics_kwargs["temperature"][:-1])
+            )
 
         logger.debug("Energy decomposition of the system:")
         logger.debug(
