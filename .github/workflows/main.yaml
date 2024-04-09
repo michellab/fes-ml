@@ -43,7 +43,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up environment
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: environment.yaml
@@ -51,6 +51,9 @@ jobs:
           cache-environment: true
           create-args: >-
             python=${{ matrix.python-version }}
+
+      - name: Activate environment
+        run: micromamba activate gha-test-env
 
       - name: Install fes-ml
         run: |
