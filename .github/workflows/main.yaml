@@ -81,7 +81,7 @@ jobs:
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: 4e01061daef80d7212844cc9cd272a01
-          filename: fes_ml_pytest_coverage_report_main.json 
+          filename: fes_ml_pytest_coverage_report_main.json
           label: Coverage Report
           message: ${{ steps.coverage-comment.outputs.coverage }}
           color: ${{ steps.coverage-comment.outputs.color }}
