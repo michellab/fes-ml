@@ -1,89 +1,130 @@
 # fes-ml
 
+![Continuous Integration](https://github.com/michellab/fes-ml/actions/workflows/main.yml/badge.svg)
+[![codecov](https://codecov.io/gh/michellab/fes-ml/graph/badge.svg?token=1G9OIAH5JU)](https://codecov.io/gh/michellab/fes-ml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 A package to run hybrid ML/MM free energy simulations.
 
 ## Table of Contents
 
-
 1. [Installation](#installation)
-2. [Examples](#examples)
-    1. [Alchemical Modification of Hybrid ML/MM Systems (OpenMM-ML)](#alchemical-modification-of-hybrid-mlmm-systems-openmm-ml)
-    2. [Alchemical Modification of Hybrid ML/MM Systems (Sire-EMLE)](#alchemical-modification-of-hybrid-mlmm-systems-sire-emle)
-
+2. [Alchemical Modifications](#alchemical-modifications)
+3. [Running a Multistate Equilibrium Free Energy Simulation](#running-a-multistate-equilibrium-free-energy-simulation)
+4. [Dynamics and EMLE settings](#dynamics-and-emle-settings)
 
 ## Installation
 
 First, create a conda environment with all of the required dependencies:
 
-```
+```bash
 conda env create -f environment.yaml
 conda activate fes-ml
 ```
 
-Finally, install `fes-ml` within the activated environment:
+Finally, install `fes-ml` in interactive mode within the activated environment:
 
 ```bash
 pip install -e .
 ```
 
-## Examples
+## Alchemical Modifications
 
-### Alchemical Modification of Hybrid ML/MM Systems - OpenMM-ML
+The following alchemical transformations can be performed in fes-ml:
 
-The following alchemical transformations can be performed:
+- `lambda_lj`: Turn on (`lambda_lj=1`) and off (`lambda_lj=0`) the Lennard-Jones 12-6 interactions by using a softcore potential.
+- `lambda_q`: Turn on (`lambda_q=1`) and off (`lambda_q=0`) the electrostatic interactions by scaling the charges.
+- `lambda_interpolate`: Interpolate between ML (`lambda_interpolate=1`) and MM (`lambda_interpolate=0`) potentials.
+- `lambda_emle`: Interpolate EMLE (`lambda_emle=1`) and MM (`lambda_emle=0`) potentials.
 
-- Interpolating between the ML and MM potentials ($\lambda_i$).
-- Turning on/off the van der Waals interaction between the ML and MM atoms using a softcore Lennard-Jones potential controlled by $\lambda_u$.
-- Turning on/off the electrostatic interaction between the ML and MM atoms by scaling the ML charges by $\lambda_x$.
-
-`Alchemist` is a factory of OpenMM systems that generates fixed-lambda systems suitable for perform FE simulations. For instance, to create a system with $\lambda_i=1.0$, $\lambda_u=0.5$, and $\lambda_x=0.2$, execute the following:
-
+The lambda schedule to follow during the simulation is set in a dictionary. For example, to turn off the LJ 12-6 interactions in steps of 0.2 and subsequently turn off the charge in steps of 0.33, the following lambda schedule can be defined:
 
 ```python
-alchemist = Alchemist(system, alchemical_atoms)
-system = alchemist.alchemify(lambda_i=1.0, lambda_u=0.5, lambda_x=0.5, ml_potential="ani2x")
+lambda_schedule = {
+    "lambda_lj": [1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "lambda_q": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.66, 0.33, 0.00]
+}
 ```
 
-What the `alchemify` method is doing under the hood is depicted in the diagram below:
+## Running a Multistate Equilibrium Free Energy Simulation
 
-```mermaid
-sequenceDiagram
-    participant openmmml as OpenMM-ML
-    participant alchemist as Alchemist
+Currently, only equilibrium free energy simulations are supported, meaning that non-equilibrium methods are not implemented yet.
 
-    alchemist-->>openmmml: Alchemist.add_alchemical_ML_region()
-    openmmml-->>openmmml: openmmml.MLPotential.createMixedSystem()
+Once a lambda schedule has been defined, the free energy calculation can be run using a script like this, which runs all intermediate states in serial:
 
-    rect rgb(255, 255, 255)
-    Note over openmmml: 1. Remove all bonds, angles, and torsions <br> for which all atoms are in the ML subset
+```python
+from fes_ml.fes import FES
+import numpy as np
 
-    Note over openmmml: 2. For every NonbondedForce and CustomNonbondedForce, <br> add exceptions/exclusions to prevent atoms in the ML <br> subset from interacting with each other
+# Create the FES object to run the simulations
+fes = FES(
+    top_file="path_to_topology_file",
+    crd_file="path_to_coordinates_file",
+)
 
-    Note over openmmml: 3. Add a CustomCVForce controlled by λᵢ to <br> compute the internal energy of the ML region at the ML level
+# List indexes of atoms to alchemify
+alchemical_atoms = [1, 2, 3]
 
-    Note over openmmml: 4. Add CustomCVForce(s) controlled by (1-λᵢ) to <br> compute the internal energy of the ML region at the MM level
+# Create the alchemical states
+fes.create_alchemical_states(
+    alchemical_atoms=alchemical_atoms,
+    lambda_schedule=lambda_schedule,
+)
 
-    Note over openmmml: 5. Add a CustomBondForce controlled by (1-λᵢ) to compute <br> all nonbonded interactions in the ML subset using <br> Coulomb and LJ 12-6 potentials
-    end
-
-    alchemist-->>alchemist: Alchemist.add_alchemical_softcore()
-
-    rect rgb(255, 255, 255)
-
-    Note over alchemist: 1. Add a CustomNonbondedForce to all particles defining <br> a softcore LJ 12-6 potential controlled by λᵤ.<br> The interaction group is defined between atoms in the <br> ML and MM regions
-
-    Note over alchemist: 2. For the ML atoms, soften the charges in the <br> NonbondedForce by a factor of λₓ and set ε=0
-
-    Note over alchemist: 3. Add exclusions to the softcore CustomNonbondedForce <br> such that they match the exclusions of the NonbondedForce,  <br> which occur whenever ε=0 for a given pair of particles.
-
-    end
+# Minimize all intermediate states
+fes.run_minimization_batch(1000)
+# Equilibrate all intermediate states for 1 ns
+fes.run_equilibration_batch(1000000)
+# Sample 1000 times every ps (i.e., 1 ns of simulation per state)
+U_kln = fes.run_production_batch(1000, 1000)
+# Save the data to be analysed
+np.save("U_kln_mm_sol.npy", np.asarray(U_kln))
 ```
 
+Alternatively, only one intermediate can be run at a time, allowing for easy parallelisation of the calculations by concurrently running multiple scripts. For example, to run window 6, use the following:
 
-The energy of an alchemical system created in such a way reads:
+```python
+# Sample 1000 times every ps (i.e., 1 ns of simulation per state)
+U_kln = fes.run_single_state(1000, 1000, 6)
 
-```math
-E(\vec{R}_{lig}, \vec{R}_{sol};\lambda_i,\lambda_u,\lambda_j)=  \lambda_i E_{lig}^{ML,vac}(\vec{R}_{lig}) + (1-\lambda_i )E_{lig}^{MM,vac}(\vec{R}_{lig}) \\ + \lambda_u E^{MM,vdw}_{lig-sol}(\vec{R}_{lig}, \vec{R}_{sol}) + \lambda_x E^{MM,Coulomb}_{lig-sol}(\vec{R}_{lig}, \vec{R}_{sol}) + E_{sol}^{MM}(\vec{R}_{sol})
+# Save the data to be analyzed
+np.save("U_kln_mm_sol_6.npy", np.asarray(U_kln))
 ```
 
-### Alchemical Modification of Hybrid ML/MM Systems - EMLE-Sire
+## Dynamics and EMLE settings
+
+In fes-ml, the default strategy to create OpenMM systems is through Sire. Therefore, the options of the dynamics are modifiable and are the same as [those available for Sire](https://sire.openbiosim.org/cheatsheet/openmm.html#choosing-options). Typically, these are set in a `dynamics_kwargs` dictionary:
+
+```python
+# Define the dynamics parameters
+dynamics_kwargs = {
+    "timestep": "1fs",
+    "cutoff_type": "PME",
+    "cutoff": "12A",
+    "constraint": "h_bonds",
+    "integrator": "langevin_middle",
+    "temperature": "298.15K",
+    "pressure": "1atm",
+    "platform": "cuda",
+    "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
+}
+```
+
+Likewise, the keyword arguments passed to the [`EMLECalculator`](https://github.com/chemle/emle-engine/blob/main/emle/calculator.py#L315) can also be set:
+
+```python
+# Define the parameters of the EMLE potential
+emle_kwargs = {"method": "electrostatic", "backend": "torchani", "device": "cpu"}
+```
+
+These dictionaries can then be passed upon creation of the alchemical states, i.e.:
+
+```python
+# Create the alchemical states
+fes.create_alchemical_states(
+    alchemical_atoms=alchemical_atoms,
+    lambda_schedule=lambda_schedule,
+    dynamics_kwargs=dynamics_kwargs,
+    emle_kwargs=emle_kwargs
+)
+```
