@@ -54,7 +54,8 @@ jobs:
 
       - name: Install fes-ml
         run: |
-          python3 -m pip install -e .
+          python3 -m pip install --upgrade pip
+          python3 -m pip install .
 
       - name: Install test suite
         run: |
