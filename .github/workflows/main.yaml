@@ -38,6 +38,10 @@ jobs:
         os: [ubuntu-latest] #, macos-latest, windows-latest]
         python-version: ["3.10"]
 
+    defaults:
+      run:
+        shell: bash -l {0}
+
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -51,9 +55,6 @@ jobs:
           cache-environment: true
           create-args: >-
             python=${{ matrix.python-version }}
-
-      - name: Activate environment
-        run: micromamba activate gha-test-env
 
       - name: Install fes-ml
         run: |
