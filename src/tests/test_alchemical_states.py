@@ -33,7 +33,7 @@ class TestAlchemicalStates:
         "constraint": "h_bonds",
         "integrator": "langevin_middle",
         "temperature": "298.15K",
-        "platform": "cuda",
+        "platform": "Reference",
         "perturbable_constraint": "none",
         "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
     }
@@ -101,7 +101,7 @@ class TestAlchemicalStates:
             The lambda schedule for the alchemical states.
         """
         # Create the FES object to run the simulations
-        fes = FES(top_file=top_file, crd_file=crd_file)
+        fes = FES(top_file=top_file, crd_file=crd_file, topology=_app.AmberPrmtopFile(top_file).topology)
 
         # Create the alchemical state
         fes.create_alchemical_states(
@@ -163,7 +163,7 @@ class TestAlchemicalStates:
             _mm.LangevinMiddleIntegrator(
                 298.15 * _unit.kelvin, 1.0 / _unit.picosecond, 1.0 * _unit.femtosecond
             ),
-            _mm.Platform.getPlatformByName("CUDA"),
+            _mm.Platform.getPlatformByName("Reference"),
         )
 
         if ml_atoms is None and lambda_interpolate is not None:
@@ -205,7 +205,6 @@ class TestAlchemicalStates:
             crd_file=crd_file,
             alchemical_atoms=alchemical_atoms,
             lambda_schedule=lambda_schedule,
-            topology=_app.AmberPrmtopFile(top_file).topology,
         )
         alc = fes.alchemical_states[0]
 
