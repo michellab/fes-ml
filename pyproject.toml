@@ -38,9 +38,11 @@ tests = [
   "pytest-cov"
 ]
 
-# [project.urls]
-# repository = ""
+[project.urls]
+repository = "https://github.com/michellab/fes-ml"
 
+[tool.coverage.run]
+source = ['src/fes_ml']
 
 [tool.setuptools.dynamic]
 version = {attr = "fes_ml.__init__.__version__"}
