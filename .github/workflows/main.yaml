@@ -8,7 +8,7 @@ on:
     branches:
       - "*"
   release:
-    types: [published] 
+    types: [published]
 
 jobs:
   pre-commit:
@@ -62,7 +62,7 @@ jobs:
 
       - name: Build coverage file
         run: |
-          pytest --cov 
+          pytest --cov
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
