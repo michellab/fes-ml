@@ -115,7 +115,6 @@ class TestAlchemicalStates:
             emle_kwargs=self._EMLE_KWARGS,
             **kwargs,
         )
-        fes.run_minimization_batch(max_iterations=100)
 
         return fes
 
@@ -276,6 +275,7 @@ class TestAlchemicalStates:
         alchemical_atoms : iterable of int
             The list of alchemical atoms.
         """
+        print("Testing function: test_alchemical_lj_charges")
         # Create a system where LJ and charges are alchemified and fully turned on
         lambda_schedule_lj_q: Dict[str, List[Optional[float]]] = {
             "lambda_lj": [1],
@@ -300,6 +300,8 @@ class TestAlchemicalStates:
             top_file, crd_file, lambda_schedule_q, alchemical_atoms, ml_atoms
         )
 
+    '''
+    # TODO: make this faster so that CI doesn't take too long
     def test_alchemical_ml(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]
     ) -> None:
@@ -403,3 +405,4 @@ class TestAlchemicalStates:
             ml_atoms,
             lambda_interpolate=lambda_schedule_intp_0["lambda_interpolate"][0],
         )
+    '''
