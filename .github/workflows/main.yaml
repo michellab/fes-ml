@@ -67,14 +67,25 @@ jobs:
 
       - name: Build coverage file
         run: |
-          pytest --cov
+          pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=fes-ml src/tests/ | tee pytest-coverage.txt
 
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
+      - name: Pytest coverage comment
+        id: coverage-comment
+        uses: MishaKav/pytest-coverage-comment@main
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: michellab/fes-ml
+          pytest-coverage-path: ./pytest-coverage.txt
+          junitxml-path: ./pytest.xml
 
+      - name: Create the Badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 4e01061daef80d7212844cc9cd272a01
+          filename: fes_ml_pytest_coverage_report_main.json 
+          label: Coverage Report
+          message: ${{ steps.coverage-comment.outputs.coverage }}
+          color: ${{ steps.coverage-comment.outputs.color }}
+          namedLogo: python
 
   # release:
   #   needs: build
