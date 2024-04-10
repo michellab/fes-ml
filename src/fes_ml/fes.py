@@ -29,8 +29,6 @@ class FES:
         List of alchemical states.
     alchemical_atoms : list of int
         List of atom indices to be alchemically modified.
-    topology : openmm.app.topology.Topology
-        The OpenMM Topology.
     output_prefix : str
         Prefix for the output files.
     checkpoint_frequency : int
@@ -65,7 +63,6 @@ class FES:
         "top_file",
         "lambda_schedule",
         "alchemical_atoms",
-        "topology",
         "output_prefix",
         "checkpoint_frequency",
         "checkpoint_file",
@@ -96,7 +93,6 @@ class FES:
         top_file: Optional[str] = None,
         lambda_schedule: Optional[dict] = None,
         alchemical_atoms: Optional[List[int]] = None,
-        topology: Optional[_app.topology.Topology] = None,
         output_prefix: str = "fes",
         checkpoint_frequency: int = 100,
         checkpoint_file: Optional[str] = None,
@@ -118,8 +114,6 @@ class FES:
             Available lambda parameters are: "lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle".
         alchemical_atoms : list of int, optional, default=None
             List of atom indices to be alchemically modified.
-        topology : openmm.app.topology.Topology, optional, default=None
-            The OpenMM Topology.
         output_prefix : str, optional, default="fes"
             Prefix for the output files.
         checkpoint_frequency : int, optional, default=100
@@ -137,7 +131,6 @@ class FES:
         self.lambda_schedule = lambda_schedule
         self.alchemical_atoms = alchemical_atoms
         self.alchemical_states: List[AlchemicalState] = None
-        self.topology = topology
         self.output_prefix = output_prefix
         self.checkpoint_frequency = checkpoint_frequency
         self.checkpoint_file = checkpoint_file or f"{output_prefix}.pickle"
@@ -289,7 +282,6 @@ class FES:
                 lambda_interpolate=lambda_interpolate[i],
                 lambda_emle=lambda_emle[i],
                 lambda_ml_correction=lambda_ml_correction[i],
-                topology=self.topology,
                 *args,
                 **kwargs,
             )
@@ -411,7 +403,7 @@ class FES:
             alchemical_state_id = self.alchemical_states.index(alchemical_state)
             dcd_file = self._create_dcd_file(
                 f"{self.output_prefix}_{alchemical_state_id}.dcd",
-                self.topology,
+                alchemical_state.topology,
                 alchemical_state.integrator.getStepSize(),
                 nsteps,
                 append=dcd_file_append,
@@ -503,7 +495,9 @@ class FES:
         )
         for alc_id in range(self._alc_id, len(self.alchemical_states)):
             alc = self.alchemical_states[alc_id]
-            self._U_kln.append(self.run_single_state(niterations, nsteps, alc, reporters=reporters))
+            self._U_kln.append(
+                self.run_single_state(niterations, nsteps, alc, reporters=reporters)
+            )
             self._alc_id = alc_id + 1
             self._iter = 0
             self._save_state()
@@ -627,7 +621,7 @@ class FES:
         ----------
         filename : str
             Name of the file.
-        topology : openmm.app.topology.Topology
+        topology : openmm.app.Topology
             The OpenMM Topology.
         dt : float
             The time step used in the trajectory

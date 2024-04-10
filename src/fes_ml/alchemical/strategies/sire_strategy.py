@@ -1,11 +1,13 @@
 """Sire alchemical state creation strategy."""
 
 import logging
+import shutil as _shutil
 from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as _np
 import openmm as _mm
+import openmm.app as _app
 import sire as _sr
 from emle.calculator import EMLECalculator as _EMLECalculator
 
@@ -19,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 class SireCreationStrategy(AlchemicalStateCreationStrategy):
     """Strategy for creating alchemical states using Sire."""
+
+    _TMP_DIR = "tmp_fes_ml_sire"
 
     def create_alchemical_state(
         self,
@@ -136,27 +140,37 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
 
-        if lambda_emle is not None:
-            # Select the QM subsystem
-            qm_subsystem = mols.atoms(alchemical_atoms)
+        # Select the QM subsystem
+        alchemical_subsystem = mols.atoms(alchemical_atoms)
 
-            if len(qm_subsystem) == len(mols.atoms()):
+        # Write QM subsystem parm7 to a temporary file
+        alchemical_prm7 = _sr.save(
+            alchemical_subsystem,
+            directory=self._TMP_DIR,
+            filename="alchemical_subsystem.prm7",
+            format=["prm7"],
+        )
+
+        # Write the full system parm7 to a temporary file
+        parm7 = _sr.save(
+            mols,
+            directory=self._TMP_DIR,
+            filename="full_system.prm7",
+            format=["prm7"],
+        )
+
+        if lambda_emle is not None:
+            if len(alchemical_subsystem) == len(mols.atoms()):
                 raise ValueError(
                     "The QM subsystem cannot contain all atoms in the system. "
                     "Please select a subset of atoms to be treated with the QM method "
                     "or use 'lambda_interpolate' instead of 'lambda_emle'."
                 )
 
-            # Write QM subsystem parm7 to a temporary file
-            parm7 = _sr.save(
-                qm_subsystem,
-                directory="tmp",
-                filename="qm_subsystem.prm7",
-                format=["prm7"],
-            )
-
             # MM Charges of the QM subsystem
-            mm_charges = _np.asarray([atom.charge().value() for atom in qm_subsystem])
+            mm_charges = _np.asarray(
+                [atom.charge().value() for atom in alchemical_subsystem]
+            )
 
             # Set up the emle-engine calculator
             calculator = _EMLECalculator(
@@ -169,7 +183,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
             # Create an EMLEEngine bound to the calculator using the same cutoff as the dynamics
             mols, engine = _sr.qm.emle(
-                mols, qm_subsystem, calculator, dynamics_kwargs["cutoff"], 20
+                mols, alchemical_subsystem, calculator, dynamics_kwargs["cutoff"], 20
             )
 
             # Add the QM engine to the dynamics kwargs
@@ -246,7 +260,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             ml_potential=ml_potential,
             ml_potential_kwargs=ml_potential_kwargs,
             create_system_kwargs=create_system_kwargs,
-            topology=topology,
+            topology=_app.AmberPrmtopFile(alchemical_prm7[0]).topology,
         )
 
         if integrator is None:
@@ -256,6 +270,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             integrator = _deepcopy(integrator)
 
         # Create a new context and set positions and velocities
+        topology = _app.AmberPrmtopFile(parm7[0]).topology
         simulation = _mm.app.Simulation(topology, system, integrator, omm.getPlatform())
         simulation.context.setPositions(omm.getState(getPositions=True).getPositions())
 
@@ -282,11 +297,15 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             context=simulation.context,
             integrator=integrator,
             simulation=simulation,
+            topology=topology,
             lambda_lj=lambda_lj,
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
             lambda_emle=lambda_emle,
             lambda_ml_correction=lambda_ml_correction,
         )
+
+        # Clean up the temporary directory
+        _shutil.rmtree(self._TMP_DIR)
 
         return alc_state
