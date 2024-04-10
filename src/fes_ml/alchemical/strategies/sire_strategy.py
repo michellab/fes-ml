@@ -28,6 +28,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_lj: Union[float, None],
         lambda_q: Union[float, None],
         lambda_interpolate: Union[float, None],
+        lambda_ml_correction: Union[float, None],
         lambda_emle: Union[float, None],
         minimise_iterations: int = 1,
         ml_potential: str = "ani2x",
@@ -88,7 +89,12 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         """
         if lambda_interpolate is not None and lambda_emle is not None:
             raise ValueError(
-                "Only one of lambda_interpolate and lambda_emle can be not None at the same time."
+                "The lambda_interpolate and lambda_emle parameters are mutually exclusive."
+            )
+
+        if any([lambda_interpolate, lambda_emle]) and lambda_ml_correction is not None:
+            raise ValueError(
+                "The lambda_ml_correction parameter is not compatible with lambda_interpolate or lambda_emle."
             )
 
         if dynamics_kwargs is None:
@@ -116,6 +122,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug(f"lambda_lj: {lambda_lj}")
         logger.debug(f"lambda_q: {lambda_q}")
         logger.debug(f"lambda_interpolate: {lambda_interpolate}")
+        logger.debug(f"lambda_ml_correction: {lambda_ml_correction}")
         logger.debug(f"lambda_emle: {lambda_emle}")
         logger.debug(f"ml_potential: {ml_potential}")
         logger.debug(f"topology: {topology}")
@@ -235,6 +242,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             lambda_lj=lambda_lj,
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
+            lambda_ml_correction=lambda_ml_correction,
             ml_potential=ml_potential,
             ml_potential_kwargs=ml_potential_kwargs,
             create_system_kwargs=create_system_kwargs,
@@ -277,6 +285,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
             lambda_emle=lambda_emle,
+            lambda_ml_correction=lambda_ml_correction,
         )
 
         return alc_state

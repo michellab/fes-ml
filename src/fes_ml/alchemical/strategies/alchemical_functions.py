@@ -13,13 +13,15 @@ _NON_BONDED_METHODS = {
 }
 
 import logging
-from typing import Any, Dict, Iterable, Optional
+import re
+from copy import deepcopy as _deepcopy
+from typing import Any, Dict, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
 
 def add_LJ_softcore(
-    system: _mm.System, alchemical_atoms: Iterable[int], lambda_lj: float = 1.0
+    system: _mm.System, alchemical_atoms: Sequence[int], lambda_lj: float = 1.0
 ) -> _mm.System:
     """
     Add a CustomNonbondedForce to the System to compute the softcore
@@ -100,7 +102,7 @@ def add_LJ_softcore(
 
 
 def scale_charges(
-    system: _mm.System, alchemical_atoms: Iterable[int], lambda_q: float = 1.0
+    system: _mm.System, alchemical_atoms: Sequence[int], lambda_q: float = 1.0
 ) -> _mm.System:
     """
     Scale the charges of the alchemical atoms in the System.
@@ -135,7 +137,7 @@ def add_alchemical_ML_region(
     ml_potential: Any,
     topology: _app.topology.Topology,
     system: _mm.System,
-    alchemical_atoms: Iterable[int],
+    alchemical_atoms: Sequence[int],
     interpolate: bool = True,
     lambda_interpolate: float = 1.0,
     create_system_kwargs: Optional[Dict[str, Any]] = None,
@@ -197,7 +199,7 @@ def add_alchemical_ML_region(
 
 
 def _add_intramolecular_nonbonded_exceptions(
-    system: _mm.System, alchemical_atoms: Iterable[int]
+    system: _mm.System, alchemical_atoms: Sequence[int]
 ) -> _mm.System:
     """
     Add exceptions to the NonbondedForce and CustomNonbondedForces
@@ -237,7 +239,7 @@ def _add_intramolecular_nonbonded_exceptions(
 
 
 def _add_intramolecular_nonbonded_forces(
-    system: _mm.System, alchemical_atoms: Iterable[int], reaction_field: bool = False
+    system: _mm.System, alchemical_atoms: Sequence[int], reaction_field: bool = False
 ) -> _mm.System:
     """
     Add the intramolecular nonbonded forces as a CustomBondForce to the System.
@@ -315,12 +317,94 @@ def _add_intramolecular_nonbonded_forces(
     return system
 
 
+def _add_ml_correction(
+    system: _mm.System,
+    alchemical_atoms: Sequence[int],
+    lambda_value: float,
+    ml_potential: Any,
+    topology: _app.topology.Topology,
+    create_system_kwargs: Optional[Dict[str, Any]] = None,
+    *args,
+    **kwargs,
+) -> _mm.System:
+    """
+    Add an ML correction to the energy of the System.
+
+    Parameters
+    ----------
+    system : openmm.System
+        The System to modify.
+    alchemical_atoms : list of int
+        The indices of the atoms to model with the ML potential.
+    lambda_value : float
+        The value of the alchemical state parameter.
+    ml_potential : openmmml.mlpotential.MLPotential
+        The ML potential to use.
+    topology : openmm.app.topology.Topology
+        The Topology of the System.
+    create_system_kwargs : dict, optional, default=None
+        Additional keyword arguments to pass to the createMixedSystem method of the ML potential.
+
+    Returns
+    -------
+    system : openmm.System
+        The modified System.
+
+    Notes
+    -----
+    The CustomCVForce defines a global parameter called "lambda_ml_corr" that controls the
+    amount of ML correction to apply.
+    """
+
+    if create_system_kwargs is None:
+        create_system_kwargs = {}
+
+    # Create a copy of the original system
+    system = _deepcopy(system)
+
+    system_tmp = ml_potential.createMixedSystem(
+        topology,
+        system,
+        alchemical_atoms,
+        interpolate=True,
+        **create_system_kwargs,
+    )
+
+    # Get the CustomCVForce that interpolates between the two potentials and set its global parameter
+    forces = {force.__class__.__name__: force for force in system_tmp.getForces()}
+    cv_force = forces["CustomCVForce"]
+    cv_force.setName("MLCorrForce")
+    cv_force.addGlobalParameter("lambda_ml_correction", lambda_value)
+
+    # Get the ML and MM terms from the energy expression
+    energy_expression = cv_force.getEnergyFunction()
+    ml_forces = re.findall(r"\b(mlForce\w*)\b", energy_expression)
+    mm_forces = re.findall(r"\b(mmForce\w*)\b", energy_expression)
+
+    # Define the correction energy expression
+    corr_energy_expression = (
+        "lambda_ml_correction*(("
+        + "+".join(ml_forces)
+        + ") - ("
+        + "+".join(mm_forces)
+        + "))"
+    )
+    cv_force.setEnergyFunction(corr_energy_expression)
+    cv_force.setGlobalParameterDefaultValue(0, lambda_value)
+
+    # Copy back the modified force to the original system
+    system.addForce(_deepcopy(cv_force))
+
+    return system
+
+
 def alchemify(
     system: _mm.System,
-    alchemical_atoms: Iterable[int],
+    alchemical_atoms: Sequence[int],
     lambda_lj: Optional[float] = None,
     lambda_q: Optional[float] = None,
     lambda_interpolate: Optional[float] = None,
+    lambda_ml_correction: Optional[float] = None,
     ml_potential: Optional[str] = None,
     ml_potential_kwargs: Optional[Dict[str, Any]] = None,
     create_system_kwargs: Optional[Dict[str, Any]] = None,
@@ -335,12 +419,14 @@ def alchemify(
         The System to modify.
     alchemical_atoms : list of int
         The indices of the atoms to model with the ML potential.
-    lambda_i : float, optional, default=None
-        The value of the global parameter "lambda_interpolate" to use for the ML potential.
-    lambda_u : float, optional, default=None
+    lambda_lj : float, optional, default=None
         The value of the parameter "lambda_lj" to use for the softned Lennard-Jones interactions.
-    lambda_x : float, optional, default=None
+    lambda_q : float, optional, default=None
         The value of the parameter "lambda_q" to use for the softened Coulomb interactions.
+    lambda_interpolate : float, optional, default=None
+        The value of the global parameter "lambda_interpolate" to use for the ML potential.
+    lambda_ml_correction : float, optional, default=None
+        The value of the global parameter "lambda_ml_correction" to use for the ML correction.
     ml_potential : str, optional, default=None
         The name of the ML potential to use.  If None, "ani2x" will be used.
     ml_potential_kwargs : dict, optional, default=None
@@ -355,7 +441,7 @@ def alchemify(
     system : openmm.System
         The alchemified System.
     """
-    if lambda_interpolate is not None:
+    if lambda_interpolate is not None or lambda_ml_correction is not None:
         try:
             from openmmml.mlpotential import MLPotential
         except ImportError:
@@ -383,6 +469,8 @@ def alchemify(
             create_system_kwargs = {}
 
         ml_potential = MLPotential(ml_potential, **ml_potential_kwargs)
+
+    if lambda_interpolate is not None:
         system = add_alchemical_ML_region(
             ml_potential,
             topology,
@@ -390,6 +478,16 @@ def alchemify(
             alchemical_atoms,
             interpolate=True,
             lambda_interpolate=lambda_interpolate,
+            create_system_kwargs=create_system_kwargs,
+        )
+
+    if lambda_ml_correction is not None:
+        system = _add_ml_correction(
+            system,
+            alchemical_atoms,
+            lambda_ml_correction,
+            ml_potential,
+            topology,
             create_system_kwargs=create_system_kwargs,
         )
 
