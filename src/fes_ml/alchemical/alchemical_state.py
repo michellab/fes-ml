@@ -30,6 +30,10 @@ class AlchemicalState:
         The OpenMM system associated with the alchemical state.
     context : openmm.Context
         The OpenMM context associated with the alchemical state.
+    integrator : openmm.Integrator
+        The OpenMM integrator associated with the alchemical state.
+    simulation : openmm.app.Simulation
+        The OpenMM simulation associated with the alchemical state.
     """
 
     lambda_lj: float = field(repr=True, default=None)
@@ -40,3 +44,4 @@ class AlchemicalState:
     system: mm.System = field(repr=False, default=None)
     integrator: mm.Integrator = field(repr=False, default=None)
     context: mm.Context = field(repr=False, default=None)
+    simulation: mm.app.Simulation = field(repr=False, default=None)

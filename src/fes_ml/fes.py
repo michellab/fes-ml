@@ -358,7 +358,7 @@ class FES:
         for alc in self.alchemical_states:
             logger.info(f"Equilibrating {alc}")
             self._check_alchemical_state_integrity(alc)
-            alc.integrator.step(nsteps)
+            alc.simulation.step(nsteps)
 
         return self.alchemical_states
 
@@ -368,6 +368,7 @@ class FES:
         nsteps: int,
         alchemical_state: AlchemicalState = None,
         window: int = None,
+        reporters: Optional[List[Any]] = None,
     ) -> List[List[float]]:
         """
         Run a simulation for a given alchemical state or window index.
@@ -382,6 +383,8 @@ class FES:
             Alchemical state to run the simulation.
         window : int
             Window index. alchemical_state takes precedence over window.
+        reporters : list of OpenMM reporters, optional, default=None
+            List of reporters to append to the simulation.
 
         Returns
         -------
@@ -429,10 +432,15 @@ class FES:
             * integrator_temperature
         )
 
+        # Append reporters to the simulation
+        if reporters is not None:
+            for reporter in reporters:
+                alchemical_state.simulation.reporters.append(reporter)
+
         for iteration in range(self._iter, niterations):
             logger.info(f"{alchemical_state} iteration {iteration + 1} / {niterations}")
 
-            alchemical_state.integrator.step(nsteps)
+            alchemical_state.simulation.step(nsteps)
             self._positions = alchemical_state.context.getState(
                 getPositions=True
             ).getPositions()
@@ -462,7 +470,7 @@ class FES:
         return self._U_kl
 
     def run_production_batch(
-        self, niterations: int, nsteps: int
+        self, niterations: int, nsteps: int, reporters: Optional[List[Any]] = None
     ) -> List[List[List[float]]]:
         """
         Run simulations for all alchemical states.
@@ -471,9 +479,10 @@ class FES:
         ----------
         niterations : int
             Number of iterations to run the simulations.
-
         nsteps : int
             Number of steps per iteration.
+        reporters : list of OpenMM reporters, optional, default=None
+            List of reporters to append to the simulation.
 
         Returns
         -------
@@ -494,7 +503,7 @@ class FES:
         )
         for alc_id in range(self._alc_id, len(self.alchemical_states)):
             alc = self.alchemical_states[alc_id]
-            self._U_kln.append(self.run_single_state(niterations, nsteps, alc))
+            self._U_kln.append(self.run_single_state(niterations, nsteps, alc, reporters=reporters))
             self._alc_id = alc_id + 1
             self._iter = 0
             self._save_state()

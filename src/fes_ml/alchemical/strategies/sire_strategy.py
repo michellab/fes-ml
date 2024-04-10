@@ -251,26 +251,26 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
         if integrator is None:
             # Create a new integrator
-            integrator = omm.getIntegrator().__copy__()
+            integrator = _deepcopy(omm.getIntegrator())
         else:
             integrator = _deepcopy(integrator)
 
         # Create a new context and set positions and velocities
-        context = _mm.Context(system, integrator, omm.getPlatform())
-        context.setPositions(omm.getState(getPositions=True).getPositions())
+        simulation = _mm.app.Simulation(topology, system, integrator, omm.getPlatform())
+        simulation.context.setPositions(omm.getState(getPositions=True).getPositions())
 
         try:
-            context.setVelocitiesToTemperature(integrator.getTemperature())
+            simulation.context.setVelocitiesToTemperature(integrator.getTemperature())
         except AttributeError:
-            context.setVelocitiesToTemperature(
+            simulation.context.setVelocitiesToTemperature(
                 float(dynamics_kwargs["temperature"][:-1])
             )
 
         logger.debug("Energy decomposition of the system:")
         logger.debug(
-            f"Total potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}"
+            f"Total potential energy: {simulation.context.getState(getEnergy=True).getPotentialEnergy()}"
         )
-        energy_decomp = energy_decomposition(system, context)
+        energy_decomp = energy_decomposition(system, simulation.context)
         for force, energy in energy_decomp.items():
             logger.debug(f"{force}: {energy}")
         logger.debug("Alchemical state created successfully.")
@@ -279,8 +279,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Create the AlchemicalState
         alc_state = AlchemicalState(
             system=system,
-            context=context,
+            context=simulation.context,
             integrator=integrator,
+            simulation=simulation,
             lambda_lj=lambda_lj,
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
