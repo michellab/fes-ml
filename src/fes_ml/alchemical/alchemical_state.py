@@ -22,6 +22,10 @@ class AlchemicalState:
         The lambda value to interpolate between the ML and MM potentials in a electrostatic embedding scheme.
         If lambda_emle=1, the alchemical subsystem is fully described by the ML potential.
         If lambda_emle=0, the alchemical subsystem is fully described by the MM potential.
+    lambda_ml_correction : float
+        The lambda value to control the amount of ML correction to the MM potential.
+        If lambda_ml_correction=1, the alchemical subsystem is fully described by the ML potential.
+        If lambda_ml_correction=0, the alchemical subsystem is fully described by the MM potential.
     system : openmm.System
         The OpenMM system associated with the alchemical state.
     context : openmm.Context
@@ -32,6 +36,7 @@ class AlchemicalState:
     lambda_q: float = field(repr=True, default=None)
     lambda_interpolate: float = field(repr=True, default=None)
     lambda_emle: float = field(repr=True, default=None)
+    lambda_ml_correction: float = field(repr=True, default=None)
     system: mm.System = field(repr=False, default=None)
     integrator: mm.Integrator = field(repr=False, default=None)
     context: mm.Context = field(repr=False, default=None)

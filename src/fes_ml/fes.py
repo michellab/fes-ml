@@ -60,10 +60,17 @@ class FES:
     """
 
     __serializables__ = [
+        # Public variables
         "crd_file",
         "top_file",
         "lambda_schedule",
         "alchemical_atoms",
+        "topology",
+        "output_prefix",
+        "checkpoint_frequency",
+        "checkpoint_file",
+        "write_frame_frequency",
+        # Private variables
         "_iter",
         "_alc_id",
         "_positions",
@@ -75,7 +82,13 @@ class FES:
         "_force_groups",
     ]
 
-    _LAMBDA_PARAMS = ["lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle"]
+    _LAMBDA_PARAMS = [
+        "lambda_lj",
+        "lambda_q",
+        "lambda_interpolate",
+        "lambda_emle",
+        "lambda_ml_correction",
+    ]
 
     def __init__(
         self,
@@ -260,6 +273,9 @@ class FES:
         lambda_q = lambda_schedule.get("lambda_q", [None] * nstates)
         lambda_interpolate = lambda_schedule.get("lambda_interpolate", [None] * nstates)
         lambda_emle = lambda_schedule.get("lambda_emle", [None] * nstates)
+        lambda_ml_correction = lambda_schedule.get(
+            "lambda_ml_correction", [None] * nstates
+        )
 
         self.alchemical_states = []
 
@@ -272,6 +288,7 @@ class FES:
                 lambda_q=lambda_q[i],
                 lambda_interpolate=lambda_interpolate[i],
                 lambda_emle=lambda_emle[i],
+                lambda_ml_correction=lambda_ml_correction[i],
                 topology=self.topology,
                 *args,
                 **kwargs,
@@ -404,9 +421,7 @@ class FES:
         try:
             integrator_temperature = alchemical_state.integrator.getTemperature()
         except AttributeError:
-            integrator_temperature = (
-                alchemical_state.integrator.temperature * _unit.kelvin
-            )
+            integrator_temperature = alchemical_state.integrator.temperature
 
         kT = (
             _unit.AVOGADRO_CONSTANT_NA
