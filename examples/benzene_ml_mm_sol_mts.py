@@ -53,9 +53,6 @@ if __name__ == "__main__":
     fes = FES(
         top_file="../data/benzene/benzene_sage_water.prm7",
         crd_file="../data/benzene/benzene_sage_water.rst7",
-        topology=app.AmberPrmtopFile(
-            "../data/benzene/benzene_sage_water.prm7"
-        ).topology,
     )
 
     # Create the alchemical states

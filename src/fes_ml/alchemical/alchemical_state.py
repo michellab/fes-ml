@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-import openmm as mm
+import openmm as _mm
 
 
 @dataclass
@@ -30,6 +30,12 @@ class AlchemicalState:
         The OpenMM system associated with the alchemical state.
     context : openmm.Context
         The OpenMM context associated with the alchemical state.
+    integrator : openmm.Integrator
+        The OpenMM integrator associated with the alchemical state.
+    simulation : openmm.app.simulation.Simulation
+        The OpenMM simulation associated with the alchemical state.
+    topology : openmm.app.Topology
+        The OpenMM topology associated with the alchemical state.
     """
 
     lambda_lj: float = field(repr=True, default=None)
@@ -37,6 +43,8 @@ class AlchemicalState:
     lambda_interpolate: float = field(repr=True, default=None)
     lambda_emle: float = field(repr=True, default=None)
     lambda_ml_correction: float = field(repr=True, default=None)
-    system: mm.System = field(repr=False, default=None)
-    integrator: mm.Integrator = field(repr=False, default=None)
-    context: mm.Context = field(repr=False, default=None)
+    system: _mm.System = field(repr=False, default=None)
+    integrator: _mm.Integrator = field(repr=False, default=None)
+    context: _mm.Context = field(repr=False, default=None)
+    simulation: _mm.app.Simulation = field(repr=False, default=None)
+    topology: _mm.app.Topology = field(repr=False, default=None)
