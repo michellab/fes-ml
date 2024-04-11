@@ -373,7 +373,7 @@ def _add_ml_correction(
     # Get the CustomCVForce that interpolates between the two potentials and set its global parameter
     forces = {force.__class__.__name__: force for force in system_tmp.getForces()}
     cv_force = forces["CustomCVForce"]
-    cv_force.setName("MLCorrForce")
+    cv_force.setName("MLCorrectionForce")
     cv_force.addGlobalParameter("lambda_ml_correction", lambda_value)
 
     # Get the ML and MM terms from the energy expression
