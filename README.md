@@ -12,6 +12,7 @@ A package to run hybrid ML/MM free energy simulations.
 2. [Alchemical Modifications](#alchemical-modifications)
 3. [Running a Multistate Equilibrium Free Energy Simulation](#running-a-multistate-equilibrium-free-energy-simulation)
 4. [Dynamics and EMLE settings](#dynamics-and-emle-settings)
+5. [Log Level](#log-level)
 
 ## Installation
 
@@ -36,6 +37,7 @@ The following alchemical transformations can be performed in fes-ml:
 - `lambda_q`: Turn on (`lambda_q=1`) and off (`lambda_q=0`) the electrostatic interactions by scaling the charges.
 - `lambda_interpolate`: Interpolate between the ML (`lambda_interpolate=1`) and MM (`lambda_interpolate=0`) potentials.
 - `lambda_emle`: Interpolate between the EMLE (`lambda_emle=1`) and MM (`lambda_emle=0`) potentials.
+- `lambda_ml_correction`: Interpolate between the ML (`lambda_ml_correction=1`) and MM (`lambda_ml_correction=0`) potentials through a Δ correction.
 
 The lambda schedule to follow during the simulation is set in a dictionary. For example, to turn off the LJ 12-6 interactions in steps of 0.2 and subsequently turn off the charge in steps of 0.33, the following lambda schedule can be defined:
 
@@ -127,4 +129,12 @@ fes.create_alchemical_states(
     dynamics_kwargs=dynamics_kwargs,
     emle_kwargs=emle_kwargs
 )
+```
+
+## Log Level
+
+By default, fes-ml logs messages at the `INFO` level. This means you will see informative messages about the overall progress but not necessarily detailed debugging information. You can control the verbosity of the logging output by setting the `FES_ML_LOG_LEVEL` environment variable:
+
+```bash
+export FES_ML_LOG_LEVEL="DEBUG"
 ```
