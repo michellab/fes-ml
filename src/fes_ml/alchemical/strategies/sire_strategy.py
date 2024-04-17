@@ -42,6 +42,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
         integrator: Optional[Any] = None,
+        keep_tmp_files: bool = True,
     ) -> AlchemicalState:
         """
         Create an alchemical state for the given lambda values using OpenMM Systems created with Sire.
@@ -85,6 +86,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         integrator : Any, optional, default=None
             The OpenMM integrator to use. If None, the integrator is the one used in the dynamics_kwargs, if provided.
             Otherwise, the default is a LangevinMiddle integrator with a 1 fs timestep and a 298.15 K temperature.
+        keep_tmp_files : bool, optional, default=True
+            Whether to keep the temporary files created by the strategy.
 
         Returns
         -------
@@ -171,16 +174,16 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             mm_charges = _np.asarray(
                 [atom.charge().value() for atom in alchemical_subsystem]
             )
-
+      
             # Set up the emle-engine calculator
             calculator = _EMLECalculator(
                 lambda_interpolate=lambda_emle,
                 qm_indices=alchemical_atoms,
                 mm_charges=mm_charges,
-                parm7=parm7[0],
+                parm7=alchemical_prm7[0],
                 **emle_kwargs,
             )
-
+       
             # Create an EMLEEngine bound to the calculator using the same cutoff as the dynamics
             mols, engine = _sr.qm.emle(
                 mols, alchemical_subsystem, calculator, dynamics_kwargs["cutoff"], 20
@@ -250,7 +253,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             ml_potential=ml_potential,
             ml_potential_kwargs=ml_potential_kwargs,
             create_system_kwargs=create_system_kwargs,
-            topology=_app.AmberPrmtopFile(alchemical_prm7[0]).topology,
+            topology=_app.AmberPrmtopFile(parm7[0]).topology,
         )
 
         if integrator is None:
@@ -295,7 +298,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             lambda_ml_correction=lambda_ml_correction,
         )
 
-        # Clean up the temporary directory
-        _shutil.rmtree(self._TMP_DIR)
+        if not keep_tmp_files:
+            # Clean up the temporary directory
+            _shutil.rmtree(self._TMP_DIR)
 
         return alc_state
