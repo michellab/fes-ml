@@ -174,7 +174,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             mm_charges = _np.asarray(
                 [atom.charge().value() for atom in alchemical_subsystem]
             )
-      
+
             # Set up the emle-engine calculator
             calculator = _EMLECalculator(
                 lambda_interpolate=lambda_emle,
@@ -183,7 +183,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 parm7=alchemical_prm7[0],
                 **emle_kwargs,
             )
-       
+
             # Create an EMLEEngine bound to the calculator using the same cutoff as the dynamics
             mols, engine = _sr.qm.emle(
                 mols, alchemical_subsystem, calculator, dynamics_kwargs["cutoff"], 20
