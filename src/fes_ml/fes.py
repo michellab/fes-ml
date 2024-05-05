@@ -61,6 +61,7 @@ class FES:
         # Public variables
         "crd_file",
         "top_file",
+        "sdf_file",
         "lambda_schedule",
         "alchemical_atoms",
         "output_prefix",
@@ -91,6 +92,7 @@ class FES:
         self,
         crd_file: Optional[str] = None,
         top_file: Optional[str] = None,
+        sdf_file: Optional[str] = None,
         lambda_schedule: Optional[dict] = None,
         alchemical_atoms: Optional[List[int]] = None,
         output_prefix: str = "fes",
@@ -108,6 +110,8 @@ class FES:
             Path to the coordinate file.
         top_file : str
             Path to the topology file.
+        sdf_file : str
+            Path to the sdf file. Used for the OpenMM creation strategy.
         lambda_schedule : dict, optional, default=None
             Dictionary with the lambda values for the alchemical states.
             The keys of the dictionary are the lambda parameters and the values are lists of lambda values.
@@ -128,6 +132,7 @@ class FES:
         """
         self.crd_file = crd_file
         self.top_file = top_file
+        self.sdf_file = sdf_file
         self.lambda_schedule = lambda_schedule
         self.alchemical_atoms = alchemical_atoms
         self.alchemical_states: List[AlchemicalState] = None
@@ -219,6 +224,7 @@ class FES:
         self,
         alchemical_atoms: List[int],
         lambda_schedule: Dict[str, List[Optional[float]]],
+        strategy_name: str = "sire",
         *args,
         **kwargs,
     ) -> List[AlchemicalState]:
@@ -274,8 +280,10 @@ class FES:
 
         for i in range(nstates):
             alchemical_state = alchemical_factory.create_alchemical_state(
+                strategy_name=strategy_name,
                 top_file=self.top_file,
                 crd_file=self.crd_file,
+                sdf_file=self.sdf_file,
                 alchemical_atoms=alchemical_atoms,
                 lambda_lj=lambda_lj[i],
                 lambda_q=lambda_q[i],
@@ -353,6 +361,8 @@ class FES:
             alc.simulation.step(nsteps)
 
         return self.alchemical_states
+
+    # TODO run equilibration and run minimisation single state
 
     def run_single_state(
         self,

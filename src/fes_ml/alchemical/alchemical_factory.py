@@ -61,3 +61,4 @@ class AlchemicalStateFactory:
 # Create the alchemical factory and register the available strategies
 alchemical_factory = AlchemicalStateFactory()
 alchemical_factory.register_strategy("sire", SireCreationStrategy())
+alchemical_factory.register_strategy("openmm", OpenMMCreationStrategy())
