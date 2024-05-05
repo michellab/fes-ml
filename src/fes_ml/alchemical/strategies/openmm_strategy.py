@@ -1,9 +1,9 @@
 """Sire alchemical state creation strategy."""
 
 # OpenMM imports
-import openmm.app as app
+import openmm as _mm
+import openmm.app as _app
 import openmm.unit as unit
-from sys import stdout
 
 # OpenMM ForceFields imports
 from openmmforcefields.generators import SMIRNOFFTemplateGenerator, GAFFTemplateGenerator
@@ -19,25 +19,16 @@ from openff.interchange.components._packmol import UNIT_CUBE, pack_box
 # OpenMM-Torch imports
 from openmmtorch import TorchForce
 
-# PyTorch imports
-import torch
-
 # mace imports
 import openmmml.models as models
 
 # other imports
 from copy import deepcopy
-import sys
 
 import logging
 import shutil as _shutil
 from copy import deepcopy as _deepcopy
-from typing import Any, Dict, List, Optional, Union
-
-import numpy as _np
-import openmm as _mm
-import openmm.app as _app
-import sire as _sr
+from typing import Any, Dict, List, Optional, Union, Iterable
 
 from ...utils import energy_decomposition as energy_decomposition
 from ..alchemical_state import AlchemicalState
@@ -45,10 +36,6 @@ from .alchemical_functions import alchemify as alchemify
 from .base_strategy import AlchemicalStateCreationStrategy
 
 logger = logging.getLogger(__name__)
-
-import openmm
-from typing import Iterable
-
 
 
 class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
@@ -138,13 +125,13 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
 
         if water_model.upper() == "TIP3P":
             # Create an OpenMM ForceField object for water
-            ff = app.ForceField('amber14/tip3p.xml')
+            ff = _app.ForceField('amber14/tip3p.xml')
 
             # add in the SMIRNOFF template generator
             ff.registerTemplateGenerator(self.smirnoff.generator)
 
             # create an OpenMM Modeller object
-            modeller = app.Modeller(ligand_omm_topology, ligand_positions)
+            modeller = _app.Modeller(ligand_omm_topology, ligand_positions)
             # solvate
             modeller.addSolvent(ff, padding=padding*unit.nanometer, ionicStrength=ionicStrength*unit.molar)
 
@@ -159,9 +146,9 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             topology = pack_box(molecules=[self.ligand, water], number_of_copies=[1, 900], mass_density=1.0 * offunit.gram / offunit.milliliter, box_shape=UNIT_CUBE)
 
             interchange = Interchange.from_smirnoff(force_field=ff, topology=topology)
-            modeller = app.Modeller(topology.to_openmm(), interchange.positions.to_openmm())
+            modeller = _app.Modeller(topology.to_openmm(), interchange.positions.to_openmm())
             # self.system = interchange.to_openmm() 
-            ff = app.ForceField("amber14/opc.xml")
+            ff = _app.ForceField("amber14/opc.xml")
             ff.registerTemplateGenerator(self.smirnoff.generator)
             modeller.addExtraParticles(ff) # need to add extra particles for which element is None (virtual sites)
 
@@ -176,7 +163,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
     def create_vacuum(self):
 
         # Create an OpenMM ForceField object
-        ff = app.ForceField()
+        ff = _app.ForceField()
 
         # add in the SMIRNOFF template generator
         ff.registerTemplateGenerator(self.smirnoff.generator)
@@ -191,7 +178,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         ligand_positions = offquantity_to_openmm(self.ligand.conformers[0])
 
         # create an OpenMM Modeller object
-        modeller = app.Modeller(ligand_omm_topology, ligand_positions)
+        modeller = _app.Modeller(ligand_omm_topology, ligand_positions)
 
         self.modeller = modeller
         self.ff = ff
@@ -229,9 +216,9 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
 
         if "nonbondedMethod" not in kwargs.keys():
             if self.leg == "vacuum":
-                kwargs["nonbondedMethod"] = app.NoCutoff
+                kwargs["nonbondedMethod"] = _app.NoCutoff
             elif self.leg == "solvated":
-                kwargs["nonbondedMethod"] = app.PME
+                kwargs["nonbondedMethod"] = _app.PME
             else:
                 print("please create the system using create_vacuum or create_solvated. Not creating the system...")
                 return
@@ -361,38 +348,6 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         system.addForce(cv)
         # the cv includes the mmForces (ligand bonded, internal nonbonded), the ml_forces, and an energy function that incl the ml_forces-(mm forces)
 
-        # TODO set the forces as a dictionary for later?
-        # TODO set resciprocal to slow too http://docs.openmm.org/7.1.0/api-c++/generated/OpenMM.NonbondedForce.html#_CPPv2N6OpenMM14NonbondedForce20setSwitchingDistanceEd
-        # split the forces into slow and fast if MTS
-        if self.integrator_type == 'MTS':
-            print("system forces:")
-            for i, force in enumerate(system.getForces()):
-            
-                if isinstance(force, (_mm.CustomCVForce)):
-                    group = 'slow'
-                elif isinstance(force, _mm.NonbondedForce):
-                    if self.innerinnersteps:
-                        group = 'fast'
-                    else:
-                        group = 'slow'
-                else:
-                    if self.innerinnersteps:
-                        group = 'fastest'
-                    else:
-                        group = 'fast'
-                print(i, force, group)
-                force.setForceGroup( {'fastest': 2, 'fast': 1, 'slow': 0}[group])
-        else:
-            # set groups:
-            for i,force in enumerate(system.getForces()):
-                #print(i, force)
-                force.setForceGroup(i)
-
-        self.cv = cv
-        self.ligand_bonded_system = ligand_bonded_system
-        self.ligand_bonded_forces = ligand_bonded_forces
-        self.mm_ligand_force_names = mm_ligand_force_names
-
 
     def create_alchemical_state(
         self,
@@ -461,17 +416,6 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 "The lambda_ml_correction parameter is not compatible with lambda_interpolate or lambda_emle."
             )
 
-        # TODO
-        # add these to kwargs in some way
-        dt = 1.0,
-        innersteps = 2,
-        innerinnersteps = None,
-        
-        self.temperature = temperature*unit.kelvin
-        self.dt = dt*unit.femtosecond
-        self.innersteps = innersteps
-        self.innerinnersteps = innerinnersteps
-
         if create_system_kwargs is None:
             create_system_kwargs = {
                 "ligand_forcefield": "openff",
@@ -479,18 +423,20 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 "HMR": False,
             }       
         else:
-            dynamics_kwargs = _deepcopy(create_system_kwargs)
+            create_system_kwargs = _deepcopy(create_system_kwargs)
 
         if dynamics_kwargs is None:
             dynamics_kwargs = {
                 "timestep": "1fs",
                 "constraint": "none",
                 "integrator": "langevin_middle",
-                "temperature": "298.15", # Kelvin
+                "temperature": "298.15K", # Kelvin
                 "HMR": False,
             }
         else:
             dynamics_kwargs = _deepcopy(dynamics_kwargs)
+        
+        self.temperature = dynamics_kwargs["temperature"][:-1]
 
         logger.debug("-" * 100)
         logger.debug("Creating alchemical state using OpenMMCreationStrategy.")
@@ -503,6 +449,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug(f"ml_potential: {ml_potential}")
         logger.debug("dynamics_kwargs:")
         for key, value in dynamics_kwargs.items():
+            logger.debug(f"{key}: {value}")
+        for key, value in create_system_kwargs.items():
             logger.debug(f"{key}: {value}")
 
         # Load the ligand
@@ -547,7 +495,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             integrator = _deepcopy(integrator)
 
         # Create a new context and set positions and velocities
-        simulation = _mm.app.Simulation(self.modeller.topology, self.system, integrator, # omm.getPlatform() # TODO this was from the emle part?
+        simulation = _app.Simulation(self.modeller.topology, self.system, integrator, # omm.getPlatform() # TODO this was from the emle part?
                                         )
         simulation.context.setPositions(self.modeller.positions)
         try:
