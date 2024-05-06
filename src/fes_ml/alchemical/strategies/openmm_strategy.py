@@ -40,8 +40,6 @@ logger = logging.getLogger(__name__)
 
 class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
     """Strategy for creating alchemical states using OpenMM."""
-
-    _TMP_DIR = "tmp_fes_ml_openmm"
     
     @staticmethod
     def removeBonds(system: _mm.System, atoms: Iterable[int], removeInSet: bool, removeConstraints: bool) -> _mm.System:
@@ -183,27 +181,6 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         self.modeller = modeller
         self.ff = ff
         self.leg = "vacuum"
-    
-    def _create_system(self, **kwargs):
-
-        # create system with all MM forces
-        system = self.ff.createSystem(self.modeller.topology, **kwargs)
-        self.system = system
-
-        self.chains = list(self.modeller.topology.chains())
-
-        self.ligand_chain = 0
-
-        self.ml_atoms = [atom.index for atom in self.chains[self.ligand_chain].atoms()]
-        self.atomic_numbers = [atom.element.atomic_number for atom in self.modeller.topology.atoms() if atom.index in self.ml_atoms]
-
-        if self.leg == "vacuum":
-            pass
-        elif self.leg == "solvated":
-            self.system.addForce(_mm.MonteCarloBarostat(1.0*unit.bar, self.temperature))
-        else:
-            print("please create the system using create_vacuum or create_solvated. Not creating the system...")
-            return
 
     def create_system(self, ML=True, model="ani2x", leg="solvated", **kwargs):
 
@@ -222,8 +199,31 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             else:
                 print("please create the system using create_vacuum or create_solvated. Not creating the system...")
                 return
-            
-        self._create_system(**kwargs)
+
+        # create system with all MM forces
+        import inspect
+        key_list = []
+        for key in kwargs.keys():
+            if key in inspect.signature(_app.ForceField.createSystem).parameters:
+                key_list.append(key)
+        system_kwarg_dict = {key:kwargs[key] for key in key_list}
+
+        system = self.ff.createSystem(self.modeller.topology, **system_kwarg_dict)
+        self.system = system
+
+        self.chains = list(self.modeller.topology.chains())
+
+        self.ligand_chain = 0
+
+        self.ml_atoms = [atom.index for atom in self.chains[self.ligand_chain].atoms()]
+
+        if self.leg == "vacuum":
+            pass
+        elif self.leg == "solvated":
+            self.system.addForce(_mm.MonteCarloBarostat(1.0*unit.bar, float(self.temperature)))
+        else:
+            print("please create the system using create_vacuum or create_solvated. Not creating the system...")
+            return
         
         if ML == True:
             self.create_ml(model)
@@ -365,6 +365,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
         integrator: Optional[Any] = None,
+        **args
     ) -> AlchemicalState:
         """
         Create an alchemical state for the given lambda values using OpenMM.
@@ -416,13 +417,18 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 "The lambda_ml_correction parameter is not compatible with lambda_interpolate or lambda_emle."
             )
 
+        create_system_kwargs_default = {
+            "ligand_forcefield": "openff",
+            "water_model": "OPC",
+            "HMR": False,
+        }
         if create_system_kwargs is None:
-            create_system_kwargs = {
-                "ligand_forcefield": "openff",
-                "water_model": "OPC",
-                "HMR": False,
-            }       
+            create_system_kwargs = create_system_kwargs_default
         else:
+            # add any missing kwargs
+            for key in create_system_kwargs_default.keys():
+                if key not in create_system_kwargs:
+                    create_system_kwargs[key] = create_system_kwargs_default[key]
             create_system_kwargs = _deepcopy(create_system_kwargs)
 
         if dynamics_kwargs is None:
@@ -526,10 +532,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             lambda_q=lambda_q,
             lambda_interpolate=lambda_interpolate,
             lambda_emle=lambda_emle,
-            lambda_ml_correction=lambda_ml_correction, # TODO this needs to be 1 ?
+            lambda_ml_correction=lambda_ml_correction,
         )
-
-        # Clean up the temporary directory
-        _shutil.rmtree(self._TMP_DIR)
 
         return alc_state

@@ -222,8 +222,8 @@ class FES:
 
     def create_alchemical_states(
         self,
-        alchemical_atoms: List[int],
         lambda_schedule: Dict[str, List[Optional[float]]],
+        alchemical_atoms: List[int] = None,
         strategy_name: str = "sire",
         *args,
         **kwargs,

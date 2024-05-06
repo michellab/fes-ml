@@ -21,7 +21,6 @@ if __name__ == "__main__":
     import openmm.unit as unit
     import openmm.app as app
     import sys
-    import sire as sr
 
     from fes_ml.fes import FES
     from fes_ml.utils import plot_lambda_schedule
@@ -35,11 +34,12 @@ if __name__ == "__main__":
     print(f"Script : {script}")
     print(f"Window : {window}")
 
+    sdf_file = "" # path to sdf file
+
     # Set up the alchemical modifications
     n_lambda_interpolate = 6
-    interpolate_windows = np.linspace(1.0, 0.0, n_lambda_interpolate)
 
-    lambda_schedule = {"lambda_interpolate": interpolate_windows}
+    lambda_schedule = {}
 
     # this is a diff no of windows than w the batch scripts
     # Set up the alchemical modifications
@@ -48,11 +48,10 @@ if __name__ == "__main__":
     # q_windows = np.linspace(1.0, 0.0, n_lambda_q, endpoint=False)
     # lj_windows = np.linspace(1.0, 0.0, n_lambda_lj)
 
-    # lambda_schedule = {
-    #     "lambda_q": list(q_windows) + [0.0] * n_lambda_lj,
-    #     "lambda_lj": [1.0] * n_lambda_q + list(lj_windows),
-    #     "lambda_ml_correction": [1.0] * (n_lambda_q + n_lambda_lj),
-    # }
+    lambda_schedule = {
+        "lambda_interpolate": np.linspace(1.0, 0.0, n_lambda_interpolate),
+        "lambda_ml_correction": [1.0] * (n_lambda_interpolate),
+    }
 
     # Define the dynamics and EMLE parameters
     dynamics_kwargs = {
@@ -64,18 +63,20 @@ if __name__ == "__main__":
         "pressure": "1atm",
         "platform": "cuda",
         "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
-        # TODO  lambda_ml_correction ??
     }
 
     create_system_kwargs = {"ligand_forcefield": "openff",
                             "water_model": "OPC",
                             "HMR": True,
-
                             }
 
-    temperature = dynamics_kwargs["temperature"]
-    dt = dynamics_kwargs["temperature"]
-    if dynamics_kwargs["integrator"] == 'langevin':
+    temperature = float(dynamics_kwargs["temperature"][:-1])
+    dt = float(dynamics_kwargs["timestep"][:-1])
+
+    innersteps = 2
+    innerinnersteps = 4
+    
+    if dynamics_kwargs["integrator"] == 'langevin_middle':
 
         # 1. normal Langevin Middle. Just choose timestep:
         integrator = mm.LangevinMiddleIntegrator(temperature*unit.kelvin, 1/unit.picosecond, dt*unit.femtosecond)
@@ -88,8 +89,6 @@ if __name__ == "__main__":
             timestep_groups.append((2,innerinnersteps))
         integrator = mm.MTSLangevinIntegrator(temperature*unit.kelvin, 1.0/unit.picosecond, dt*unit.femtosecond, timestep_groups)
         
-    force_group_dict = {group[0]:group[1] for group in timestep_groups}
-    
     # Create the FES object to run the simulations
     fes = FES(
         sdf_file=sdf_file,
@@ -108,38 +107,40 @@ if __name__ == "__main__":
     )
     
     # TODO how get the created system?
-    # TODO choose force groups from system so can est using set_force_groups
-    # TODO set resciprocal to slow too http://docs.openmm.org/7.1.0/api-c++/generated/OpenMM.NonbondedForce.html#_CPPv2N6OpenMM14NonbondedForce20setSwitchingDistanceEd
-    # split the forces into slow and fast if MTS
-    if self.integrator_type == 'MTS':
-        print("system forces:")
-        for i, force in enumerate(system.getForces()):
-        
-            if isinstance(force, (_mm.CustomCVForce)):
-                group = 'slow'
-            elif isinstance(force, _mm.NonbondedForce):
-                if self.innerinnersteps:
-                    group = 'fast'
-                else:
-                    group = 'slow'
+    # TODO choose force groups from system so can set using set_force_groups
+
+    force_group_dict = {}
+
+    """ 
+    how the forces should set
+    print("system forces:")
+    for i, force in enumerate(system.getForces()):
+    
+        if isinstance(force, (mm.CustomCVForce)):
+            group = 'slow'
+        elif isinstance(force, mm.NonbondedForce):
+            if innerinnersteps:
+                group = 'fast'
             else:
-                if self.innerinnersteps:
-                    group = 'fastest'
-                else:
-                    group = 'fast'
-            print(i, force, group)
-            force.setForceGroup( {'fastest': 2, 'fast': 1, 'slow': 0}[group])
-    else:
-        # set groups:
-        for i,force in enumerate(system.getForces()):
-            #print(i, force)
-            force.setForceGroup(i)
+                group = 'slow'
+            force.setReciprocalSpaceForceGroup(0)
+        else:
+            if innerinnersteps:
+                group = 'fastest'
+            else:
+                group = 'fast'
+
+        print(i, force, group)
+        force.setForceGroup( {'fastest': 2, 'fast': 1, 'slow': 0}[group])
+        if isinstance(force, mm.NonbondedForce):
+            force.setReciprocalSpaceForceGroup(0)
+    
+    """
 
     # Set the force groups
     fes.set_force_groups(
         force_group_dict = force_group_dict
     )
-
 
     # # Equilibrate during 1 ns
     # fes.run_equilibration_batch(10000) # 1000000
