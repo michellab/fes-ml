@@ -75,8 +75,6 @@ class FES:
         "_force_groups",
     ]
 
-    _LAMBDA_PARAMS = ["lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle"]
-
     def __init__(
         self,
         crd_file: Optional[str] = None,
@@ -101,8 +99,8 @@ class FES:
             Path to the topology file.
         lambda_schedule : dict, optional, default=None
             Dictionary with the lambda values for the alchemical states.
-            The keys of the dictionary are the lambda parameters and the values are lists of lambda values.
-            Available lambda parameters are: "lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle".
+            The keys of the dictionary are the names of the modifications
+            and the values are lists of lambda values.
         alchemical_atoms : list of int, optional, default=None
             List of atom indices to be alchemically modified.
         topology : openmm.app.topology.Topology, optional, default=None
@@ -238,12 +236,6 @@ class FES:
         self.lambda_schedule = lambda_schedule
         self.alchemical_atoms = alchemical_atoms
 
-        # Assert all keys in lambda_schedule are valid
-        for key in lambda_schedule:
-            assert (
-                key in self._LAMBDA_PARAMS
-            ), f"Invalid lambda parameter {key} in `lambda_schedule`. Valid lambdas are {self._LAMBDA_PARAMS}."
-
         # Check that that each parameter has the same number of lambda values
         nstates_param = [
             len(lambda_schedule.get(lambda_param, []))
@@ -256,22 +248,13 @@ class FES:
                 "All lambda parameters must have the same number of lambda values."
             )
 
-        lambda_lj = lambda_schedule.get("lambda_lj", [None] * nstates)
-        lambda_q = lambda_schedule.get("lambda_q", [None] * nstates)
-        lambda_interpolate = lambda_schedule.get("lambda_interpolate", [None] * nstates)
-        lambda_emle = lambda_schedule.get("lambda_emle", [None] * nstates)
-
         self.alchemical_states = []
-
         for i in range(nstates):
             alchemical_state = alchemical_factory.create_alchemical_state(
                 top_file=self.top_file,
                 crd_file=self.crd_file,
                 alchemical_atoms=alchemical_atoms,
-                lambda_lj=lambda_lj[i],
-                lambda_q=lambda_q[i],
-                lambda_interpolate=lambda_interpolate[i],
-                lambda_emle=lambda_emle[i],
+                lambda_schedule={k: v[i] for k, v in lambda_schedule.items()},
                 topology=self.topology,
                 *args,
                 **kwargs,

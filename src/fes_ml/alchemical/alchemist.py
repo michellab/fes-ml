@@ -1,20 +1,20 @@
 """Module for the Alchemist class."""
-from typing import Dict
+import logging
+import sys
+from typing import Dict, List, Optional
 
+import networkx as nx
 import openmm as _mm
 
+from .modifications.base_modification import BaseModification, BaseModificationFactory
 
-from typing import List
-import logging 
-
-from .modifications.base_modification import BaseModificationFactory
-from .modifications.lj_modification import LJSoftCoreModification
-from .modifications.charges_modification import ChargesModification
-from .modifications.ml_modification import MLModification
-from .modifications.ml_corr_modification import MLCorrectionModification
-from .modifications.intramolecular_modification import IntraMolecularNonBondedExceptionsModification, IntraMolecularNonBondedForcesModification
+if sys.version_info < (3, 10):
+    from importlib_metadata import entry_points
+else:
+    from importlib.metadata import entry_points
 
 logger = logging.getLogger(__name__)
+
 
 class Alchemist:
     _modification_factories: Dict[str, BaseModificationFactory] = {}
@@ -27,12 +27,126 @@ class Alchemist:
 
         return Alchemist._modification_factories
 
+    def __init__(self) -> None:
+        self._graph = nx.DiGraph()
+
+    def __repr__(self) -> str:
+        return nx.to_dict_of_lists(self._graph)
+
+    @property
+    def graph(self) -> nx.DiGraph:
+        return self._graph
+
+    def add_modification(self, name: str, factory: BaseModificationFactory):
+        """
+        Add a modification to the Alchemist graph.
+
+        Parameters
+        ----------
+        name : str
+            The name of the modification.
+        factory : BaseModificationFactory
+            The factory to create the modification.
+        """
+        self._modification_factories[name] = factory
+
+    def plot_graph(self):
+        """Plot the graph of the alchemical modifications."""
+
+        import matplotlib.pyplot as plt
+
+        plt.figure(figsize=(6, 6))
+        pos = nx.spectral_layout(self._graph)
+        nx.draw(
+            self._graph,
+            pos,
+            with_labels=True,
+            node_color="skyblue",
+            node_size=5000,
+            edge_color="gray",
+        )
+        plt.title("Alchemical Graph")
+        plt.show()
+
+    def reset_alchemical_graph(self):
+        """Reset the graph of alchemical modifications."""
+        self._graph = nx.DiGraph()
+
+    def add_modification_to_graph(
+        self, modification: BaseModification, lambda_value: Optional[float] = 1.0
+    ) -> None:
+        """
+        Add a modification to the graph of alchemical modifications.
+
+        Parameters
+        ----------
+        modification : BaseModification
+            The modification to add to the graph.
+        lambda_value : float
+            The value of the alchemical state parameter.
+        """
+        self._graph.add_node(
+            modification.NAME, modification=modification, lambda_value=lambda_value
+        )
+        for pre_dependency in modification.pre_dependencies:
+            factory = self._modification_factories[pre_dependency]
+            pre_modification = factory.create_modification()
+            self._graph.add_edge(pre_modification.NAME, modification.NAME)
+            self.add_modification_to_graph(pre_modification, None)
+
+        for post_dependency in modification.post_dependencies:
+            factory = self._modification_factories[post_dependency]
+            post_modification = factory.create_modification()
+            self._graph.add_edge(modification.NAME, post_modification.NAME)
+            self.add_modification_to_graph(post_modification, None)
+
+    def create_alchemical_graph(
+        self,
+        lambda_schedule: Dict[str, float],
+        additional_modifications: Optional[List[str]] = None,
+    ):
+        """
+        Create a graph of alchemical modifications to apply.
+
+        Parameters
+        ----------
+        lambda_schedule : dict
+            A dictionary of lambda values to be applied to the system.
+        additional_modifications : list of str
+            Additional modifications to apply.
+
+        Returns
+        -------
+        nx.DiGraph
+            The graph of the modifications to apply.
+        """
+        for name, lambda_value in lambda_schedule.items():
+            if name in Alchemist._modification_factories:
+                factory = self._modification_factories[name]
+                modification = factory.create_modification()
+                self.add_modification_to_graph(modification, lambda_value=lambda_value)
+            else:
+                raise ValueError(f"Modification {name} not found in the factories.")
+
+        if additional_modifications is not None:
+            for name in additional_modifications:
+                if name in Alchemist._modification_factories:
+                    factory = self._modification_factories[name]
+                    modification = factory.create_modification()
+                    self.add_modification_to_graph(
+                        modification, lambda_value=lambda_value
+                    )
+                else:
+                    raise ValueError(f"Modification {name} not found in the factories.")
+
+        return self._graph
+
     def apply_modifications(
-        self, 
-        system: _mm.System, 
+        self,
+        system: _mm.System,
         alchemical_atoms: List[int],
-        lambda_values: Dict[str, float],
-        *args, **kwargs
+        *args,
+        **kwargs,
     ) -> _mm.System:
         """
         Apply the alchemical modifications to the system.
@@ -41,7 +155,7 @@ class Alchemist:
         ----------
         system : openmm.System
             The system to be modified.
-        lambda_values : dict
+        lambda_schedule : dict
             A dictionary of lambda values to be applied to the system.
         args : list
             Additional arguments to be passed to the modifications.
@@ -53,38 +167,22 @@ class Alchemist:
         openmm.System
             The modified system.
         """
-        if lambda_values.get(MLModification.NAME, None) and lambda_values.get(MLCorrectionModification.NAME, None):
-            # Cannot apply ML and MLCorrection at the same time
-            raise ValueError(
-                f"Cannot apply {MLModification.NAME} and {MLCorrectionModification.NAME} at the same time."
+        for mod in nx.topological_sort(self._graph):
+            lambda_value = self._graph.nodes[mod]["lambda_value"]
+            modification = self._graph.nodes[mod]["modification"]
+            if lambda_value is None:
+                logger.debug(f"Applying {mod} modification")
+            else:
+                logger.debug(
+                    f"Applying {mod} modification with lambda value {lambda_value}"
+                )
+            system = modification.apply(
+                system, alchemical_atoms, lambda_value=lambda_value, *args, **kwargs
             )
-        
-        # Create a list of modifications to apply
-        modifications_to_apply = []
-        for name, lambda_value in lambda_values.items():
-            if name in Alchemist._modification_factories:
-                factory = self._modification_factories[name]
-                modification = factory.create_modification()
-                modifications_to_apply.append((modification, lambda_value))
-        
-        # If LJSoftCore and/or Charges are applied, and ML is not applied, add intramolecular modifications
-        if any(
-            [lambda_values.get(ChargesModification.NAME, None),
-            lambda_values.get(LJSoftCoreModification.NAME, None)]
-            ) and not lambda_values.get(MLModification.NAME, None):
-            logger.info("Because LJSoftCore and/or Charges are applied and ML is not applied, adding intramolecular modifications.")
-            # Apply intramolecular non-bonded forces modification at the same time
-            factory = self._modification_factories[IntraMolecularNonBondedForcesModification.NAME]
-            modification = factory.create_modification()
-            modifications_to_apply.insert(0, (modification, None))
-
-            # Apply intramolecular non-bonded exceptions modification at the end
-            factory = self._modification_factories[IntraMolecularNonBondedExceptionsModification.NAME]
-            modification = factory.create_modification(*args, **kwargs)
-            modifications_to_apply.append((modification, None))
-
-        
-        for modification, lambda_value in modifications_to_apply:
-            system = modification.apply(system, lambda_value, alchemical_atoms, *args, **kwargs)
 
         return system
+
+
+# Register any alchemical modifications defined by entry points.
+for modification in entry_points(group="alchemical.modifications"):
+    Alchemist.register_modification_factory(modification.name, modification.load()())

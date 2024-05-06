@@ -11,7 +11,7 @@ from emle.calculator import EMLECalculator as _EMLECalculator
 
 from ...utils import energy_decomposition as energy_decomposition
 from ..alchemical_state import AlchemicalState
-from ..lambda_plugins.alchemical_functions import alchemify as alchemify
+from ..alchemist import Alchemist
 from .base_strategy import AlchemicalStateCreationStrategy
 
 logger = logging.getLogger(__name__)
@@ -25,10 +25,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         top_file: str,
         crd_file: str,
         alchemical_atoms: List[int],
-        lambda_lj: Union[float, None],
-        lambda_q: Union[float, None],
-        lambda_interpolate: Union[float, None],
-        lambda_emle: Union[float, None],
+        lambda_schedule: Dict[str, Union[float, int]],
         minimise_iterations: int = 1,
         ml_potential: str = "ani2x",
         ml_potential_kwargs: Optional[Dict[str, Any]] = None,
@@ -49,14 +46,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             Path to the coordinate file.
         alchemical_atoms : list of int
             A list of atom indices to be alchemically modified.
-        lambda_lj : float or None
-            The lambda value for the softcore Lennard-Jones potential.
-        lambda_q : float or None
-            The lambda value to scale the charges.
-        lambda_interpolate : float or None
-            The lambda value to interpolate between the ML and MM potentials in a mechanical embedding scheme.
-        lambda_emle : float or None
-            The lambda value to interpolate between the ML and MM potentials in a electrostatic embedding scheme.
+        lambda_schedule : dict
+            A dictionary mapping the name of the alchemical modification to the lambda value.
         minimise_iterations : int, optional, default=1
             The number of minimisation iterations to perform before creating the alchemical state.
             1 step is enough to bring the geometry to the distances imposed by the restraints.
@@ -86,10 +77,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         AlchemicalState
             The alchemical state.
         """
-        if lambda_interpolate is not None and lambda_emle is not None:
-            raise ValueError(
-                "Only one of lambda_interpolate and lambda_emle can be not None at the same time."
-            )
 
         if dynamics_kwargs is None:
             dynamics_kwargs = {
@@ -113,10 +100,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug(f"top_file: {top_file}")
         logger.debug(f"crd_file: {crd_file}")
         logger.debug(f"alchemical_atoms: {alchemical_atoms}")
-        logger.debug(f"lambda_lj: {lambda_lj}")
-        logger.debug(f"lambda_q: {lambda_q}")
-        logger.debug(f"lambda_interpolate: {lambda_interpolate}")
-        logger.debug(f"lambda_emle: {lambda_emle}")
+        logger.debug(f"lambda_schedule: {lambda_schedule}")
         logger.debug(f"ml_potential: {ml_potential}")
         logger.debug(f"topology: {topology}")
         logger.debug("dynamics_kwargs:")
@@ -128,67 +112,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
-
-        if lambda_emle is not None:
-            # Select the QM subsystem
-            qm_subsystem = mols.atoms(alchemical_atoms)
-
-            if len(qm_subsystem) == len(mols.atoms()):
-                raise ValueError(
-                    "The QM subsystem cannot contain all atoms in the system. "
-                    "Please select a subset of atoms to be treated with the QM method "
-                    "or use 'lambda_interpolate' instead of 'lambda_emle'."
-                )
-
-            # Write QM subsystem parm7 to a temporary file
-            parm7 = _sr.save(
-                qm_subsystem,
-                directory="tmp",
-                filename="qm_subsystem.prm7",
-                format=["prm7"],
-            )
-
-            # MM Charges of the QM subsystem
-            mm_charges = _np.asarray([atom.charge().value() for atom in qm_subsystem])
-
-            # Set up the emle-engine calculator
-            calculator = _EMLECalculator(
-                lambda_interpolate=lambda_emle,
-                qm_indices=alchemical_atoms,
-                mm_charges=mm_charges,
-                parm7=parm7[0],
-                **emle_kwargs,
-            )
-
-            # Create an EMLEEngine bound to the calculator using the same cutoff as the dynamics
-            mols, engine = _sr.qm.emle(
-                mols, qm_subsystem, calculator, dynamics_kwargs["cutoff"], 20
-            )
-
-            # Add the QM engine to the dynamics kwargs
-            # Set the perturbable constraint to none to avoid having bond lenghts close to zero
-            dynamics_kwargs["qm_engine"] = engine
-            dynamics_kwargs["perturbable_constraint"] = "none"
-
-            # If CustomNonbondedForce are present in the system (e.g. created by Sire when using EMLE),
-            # the use_dispersion_correction should be set to False to avoid errors such as:
-            # CustomNonbondedForce: Long range correction did not converge.  Does the energy go to 0 faster than 1/r^2?
-            # Once these forces are removed, the use_dispersion_correction can be set to True for the NonbondedForce
-            disp_correction = dynamics_kwargs.get("map", {}).get(
-                "use_dispersion_correction", False
-            )
-            if disp_correction:
-                dynamics_kwargs["map"]["use_dispersion_correction"] = False
-
-            # If CustomNonbondedForce are present in the system (e.g. created by Sire when using EMLE),
-            # the use_dispersion_correction should be set to False to avoid errors such as:
-            # CustomNonbondedForce: Long range correction did not converge.  Does the energy go to 0 faster than 1/r^2?
-            # Once these forces are removed, the use_dispersion_correction can be set to True for the NonbondedForce
-            disp_correction = dynamics_kwargs.get("map", {}).get(
-                "use_dispersion_correction", False
-            )
-            if disp_correction:
-                dynamics_kwargs["map"]["use_dispersion_correction"] = False
 
         # Create a QM/MM dynamics object
         d = mols.dynamics(**dynamics_kwargs)
@@ -202,43 +125,14 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Get the OpenMM system.
         system = omm._system
 
-        if lambda_emle is not None:
-            # Remove unnecessary forces from the system that are set by Sire
-            forces = system.getForces()
-            for i, force in reversed(list(enumerate(forces))):
-                if isinstance(force, _mm.CustomBondForce) or isinstance(
-                    force, _mm.CustomNonbondedForce
-                ):
-                    system.removeForce(i)
-
-            # Once the CustomNonbondedForce are removed,
-            # go back to the original use_dispersion_correction value
-
-            if disp_correction:
-                forces = system.getForces()
-                for force in forces:
-                    if isinstance(force, _mm.NonbondedForce):
-                        force.setUseDispersionCorrection(True)
-                        dynamics_kwargs["map"]["use_dispersion_correction"] = True
-
-        # Remove contraints from the alchemical atoms
-        # TODO: Make this optional
-        for i in range(system.getNumConstraints() - 1, -1, -1):
-            p1, p2, _ = system.getConstraintParameters(i)
-            if p1 in alchemical_atoms or p2 in alchemical_atoms:
-                system.removeConstraint(i)
-
-        # Alchemify the system
-        system = alchemify(
+        # Create an Alchemist object with the modifications to apply
+        alchemist = Alchemist()
+        alchemist.create_alchemical_graph(lambda_schedule=lambda_schedule)
+        alchemist.apply_modifications(
             system=system,
             alchemical_atoms=alchemical_atoms,
-            lambda_lj=lambda_lj,
-            lambda_q=lambda_q,
-            lambda_interpolate=lambda_interpolate,
-            ml_potential=ml_potential,
-            ml_potential_kwargs=ml_potential_kwargs,
-            create_system_kwargs=create_system_kwargs,
             topology=topology,
+            ml_potential=ml_potential,
         )
 
         if integrator is None:
@@ -273,10 +167,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             system=system,
             context=context,
             integrator=integrator,
-            lambda_lj=lambda_lj,
-            lambda_q=lambda_q,
-            lambda_interpolate=lambda_interpolate,
-            lambda_emle=lambda_emle,
         )
 
         return alc_state

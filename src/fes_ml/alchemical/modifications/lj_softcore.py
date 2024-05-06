@@ -1,14 +1,13 @@
 """This module contains the implementation of the LJSoftCoreModification class."""
 
 import logging
-from typing import List
+from typing import List, Optional, Union
 
 import openmm as _mm
 import openmm.app as _app
-import openmm.unit as _unit
 
-from ..alchemist import Alchemist
 from .base_modification import BaseModification, BaseModificationFactory
+from .intramolecular import IntraMolecularNonBondedForcesModification, IntraMolecularNonBondedExceptionsModification
 
 logger = logging.getLogger(__name__)
 
@@ -17,24 +16,20 @@ class LJSoftCoreModificationFactory(BaseModificationFactory):
     """Factory for creating LJSoftCoreModification instances."""
 
     def create_modification(self, *args, **kwargs) -> BaseModification:
-        """Create an instance of LJSoftCoreModification.
-
-        Parameters
-        ----------
-        args : list
-            Additional arguments to be passed to the modification.
-        kwargs : dict
-            Additional keyword arguments to be passed to the modification.
+        """
+        Create an instance of LJSoftCoreModification.
 
         Returns
         -------
         LJSoftCoreModification
-            The modification to be applied.
+            Instance of the modification to be applied.
         """
         return LJSoftCoreModification(*args, **kwargs)
 
 
 class LJSoftCoreModification(BaseModification):
+    NAME = "LJSoftCore"
+
     _NON_BONDED_METHODS = {
         0: _app.NoCutoff,
         1: _app.CutoffNonPeriodic,
@@ -43,13 +38,14 @@ class LJSoftCoreModification(BaseModification):
         4: _app.PME,
     }
 
-    NAME = "lambda_lj"
+    pre_dependencies: List[str] = [IntraMolecularNonBondedForcesModification.NAME]
+    post_dependencies: List[str] = [IntraMolecularNonBondedExceptionsModification.NAME]
 
     def apply(
         self,
         system: _mm.System,
-        lambda_value: float,
         alchemical_atoms: List[int],
+        lambda_value: Optional[Union[float, int]] = 1.0,
         *args,
         **kwargs,
     ) -> _mm.System:
@@ -60,11 +56,11 @@ class LJSoftCoreModification(BaseModification):
         ----------
         system : openmm.System
             The system to be modified.
-        lambda_value : float
-            The value of the alchemical state parameter.
         alchemical_atoms : list of int
             The indices of the alchemical atoms in the system.
-        args : list
+        lambda_value : float
+            The value of the alchemical state parameter.
+        args : tuple
             Additional arguments to be passed to the modification.
         kwargs : dict
             Additional keyword arguments to be passed to the modification.
@@ -74,9 +70,8 @@ class LJSoftCoreModification(BaseModification):
         openmm.System
             The modified system.
         """
-        # Apply the LJ soft core modification
         logger.info(
-            f"Applying LJ soft core modification with lambda value: {lambda_value}"
+            f"Applying {self.NAME} with lambda value: {lambda_value}"
         )
 
         forces = {force.__class__.__name__: force for force in system.getForces()}
@@ -94,7 +89,8 @@ class LJSoftCoreModification(BaseModification):
         )
 
         logger.debug(f"LJ softcore function: {energy_function}")
-        # Create a CustomNonbondedForce to compute the softcore Lennard-Jones and Coulomb interactions
+
+        # Create a CustomNonbondedForce to compute the softcore Lennard-Jones
         soft_core_force = _mm.CustomNonbondedForce(energy_function)
 
         if self._NON_BONDED_METHODS[nb_force.getNonbondedMethod()] in [
@@ -141,9 +137,4 @@ class LJSoftCoreModification(BaseModification):
         system.addForce(soft_core_force)
 
         return system
-
-
-# Register the LJSoftCoreModificationFactory with the Alchemist
-Alchemist.register_modification_factory(
-    LJSoftCoreModification.NAME, LJSoftCoreModificationFactory()
-)
+    

@@ -41,6 +41,14 @@ tests = [
 [project.urls]
 repository = "https://github.com/michellab/fes-ml"
 
+[project.entry-points."alchemical.modifications"]
+LJSoftCore = "fes_ml.alchemical.modifications.lj_softcore:LJSoftCoreModificationFactory"
+ChargeScaling = "fes_ml.alchemical.modifications.charge_scaling:ChargeScalingModificationFactory"
+IntraMolecularNonBondedForces = "fes_ml.alchemical.modifications.intramolecular:IntraMolecularNonBondedForcesModificationFactory"
+IntraMolecularNonBondedExceptions = "fes_ml.alchemical.modifications.intramolecular:IntraMolecularNonBondedExceptionsModificationFactory"
+IntraMolecularBondedRemoval = "fes_ml.alchemical.modifications.intramolecular:IntraMolecularBondedRemovalModificationFactory"
+MLPotential = "fes_ml.alchemical.modifications.ml_potential:MLModificationFactory"
+
 [tool.coverage.run]
 source = ['src/fes_ml']
 
