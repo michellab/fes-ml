@@ -19,9 +19,9 @@ if __name__ == "__main__":
     logger.info("Setting up the alchemical system")
     # Set up the alchemical modifications
     lambda_schedule = {
-        "lambda_q": [1.0],
-        "lambda_lj": [1.0],
-        "lambda_emle": [1.0],
+        "ChargeScaling": [1.0],
+        "LJSoftCore": [1.0],
+        "EMLEPotential": [1.0],
     }
 
     # Define the dynamics and EMLE parameters
