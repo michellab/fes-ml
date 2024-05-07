@@ -122,7 +122,7 @@ class TestAlchemicalStates:
         top_file: str,
         crd_file: str,
         ml_atoms: Optional[List[int]] = None,
-        lambda_interpolate: Optional[float] = None,
+        MLInterpolation: Optional[float] = None,
     ) -> Tuple[_mm.System, _mm.Context]:
         """
         Create an OpenMM system.
@@ -136,7 +136,7 @@ class TestAlchemicalStates:
         ml_atoms : iterable of int, optional
             The list of atoms to be treated with the ML potential.
             If None, the system is fully treated at the MM level.
-        lambda_interpolate : float, optional
+        MLInterpolation : float, optional
             The value of the lambda interpolation parameter.
 
         Returns
@@ -168,8 +168,8 @@ class TestAlchemicalStates:
             _mm.Platform.getPlatformByName("Reference"),
         )
 
-        if ml_atoms is None and lambda_interpolate is not None:
-            context.setParameter("lambda_interpolate", lambda_interpolate)
+        if ml_atoms is None and MLInterpolation is not None:
+            context.setParameter("MLInterpolation", MLInterpolation)
 
         return system, context
 
@@ -180,7 +180,8 @@ class TestAlchemicalStates:
         lambda_schedule: Dict[str, List[Optional[float]]],
         alchemical_atoms: List[int],
         ml_atoms: Optional[List[int]] = None,
-        lambda_interpolate: Optional[float] = None,
+        MLInterpolation: Optional[float] = None,
+        **kwargs,
     ) -> None:
         """
         Test the energy decomposition of a system.
@@ -198,7 +199,7 @@ class TestAlchemicalStates:
         ml_atoms : iterable of int, optional
             The list of atoms to be treated with the ML potential.
             If None, the system is fully treated at the MM level.
-        lambda_interpolate : float, optional
+        MLInterpolation : float, optional
             The value of the lambda interpolation parameter.
         """
         # Create the alchemical state
@@ -207,6 +208,7 @@ class TestAlchemicalStates:
             crd_file=crd_file,
             alchemical_atoms=alchemical_atoms,
             lambda_schedule=lambda_schedule,
+            **kwargs
         )
         alc = fes.alchemical_states[0]
 
@@ -215,7 +217,7 @@ class TestAlchemicalStates:
 
         # Create a system fully treated at the MM level using OpenMM
         system, context = self._create_openmm_system(
-            top_file, crd_file, ml_atoms=ml_atoms, lambda_interpolate=lambda_interpolate
+            top_file, crd_file, ml_atoms=ml_atoms, MLInterpolation=MLInterpolation
         )
         context.setPositions(alc.context.getState(getPositions=True).getPositions())
 
@@ -261,8 +263,8 @@ class TestAlchemicalStates:
 
         Notes
         -----
-        This test compares the energy components of a system created with LJ (lambda_lj=1),
-        and/or charges (lambda_q=1) fully turned on, to the energy components of a system fully
+        This test compares the energy components of a system created with LJ (LJSoftCore=1),
+        and/or charges (ChargeScaling=1) fully turned on, to the energy components of a system fully
         treated at the MM level
 
         Parameters
@@ -277,8 +279,8 @@ class TestAlchemicalStates:
         print("Testing function: test_alchemical_lj_charges")
         # Create a system where LJ and charges are alchemified and fully turned on
         lambda_schedule_lj_q: Dict[str, List[Optional[float]]] = {
-            "lambda_lj": [1],
-            "lambda_q": [1],
+            "LJSoftCore": [1],
+            "ChargeScaling": [1],
         }
         ml_atoms = None
         self._test_energy_decomposition(
@@ -286,20 +288,20 @@ class TestAlchemicalStates:
         )
 
         # Create a system where LJ is alchemified and fully turned on
-        lambda_schedule_lj: Dict[str, List[Optional[float]]] = {"lambda_lj": [1]}
+        lambda_schedule_lj: Dict[str, List[Optional[float]]] = {"LJSoftCore": [1]}
         ml_atoms = None
         self._test_energy_decomposition(
             top_file, crd_file, lambda_schedule_lj, alchemical_atoms, ml_atoms
         )
 
         # Create a system where charges are alchemified and fully turned on
-        lambda_schedule_q: Dict[str, List[Optional[float]]] = {"lambda_q": [1]}
+        lambda_schedule_q: Dict[str, List[Optional[float]]] = {"ChargeScaling": [1]}
         ml_atoms = None
         self._test_energy_decomposition(
             top_file, crd_file, lambda_schedule_q, alchemical_atoms, ml_atoms
         )
 
-    '''
+    
     # TODO: make this faster so that CI doesn't take too long
     def test_alchemical_ml(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]
@@ -309,8 +311,8 @@ class TestAlchemicalStates:
 
         Notes
         -----
-        This test compares the energy components of a system created with the MLP (lambda_interpolate=1)
-        (lambda_interpolate=0) fully turned on (off), to the energy components of a system fully treated
+        This test compares the energy components of a system created with the MLP (MLInterpolation=1)
+        (MLInterpolation=0) fully turned on (off), to the energy components of a system fully treated
         at the ML/MM (MM) level.
 
         Parameters
@@ -323,20 +325,20 @@ class TestAlchemicalStates:
             The list of alchemical atoms.
         """
         print("Testing function: test_alchemical_ml")
-        # Create a system where the MLP is turned off and compare it to the energy of
+        # Create a system where the MLP is turned on and compare it to the energy of
         # the system fully treated at the MM/ML level
         lambda_schedule_intp_1: Dict[str, List[Optional[float]]] = {
-            "lambda_interpolate": [1]
+            "MLInterpolation": [1]
         }
         ml_atoms = alchemical_atoms
         self._test_energy_decomposition(
-            top_file, crd_file, lambda_schedule_intp_1, alchemical_atoms, ml_atoms
+            top_file, crd_file, lambda_schedule_intp_1, alchemical_atoms, ml_atoms, ml_potential="ani2x"
         )
 
         # Create a system where the MLP is turned off and compare it to the energy of
         # the system fully treated at the MM level
         lambda_schedule_intp_0: Dict[str, List[Optional[float]]] = {
-            "lambda_interpolate": [0]
+            "MLInterpolation": [0]
         }
         ml_atoms = alchemical_atoms
         self._test_energy_decomposition(
@@ -345,9 +347,10 @@ class TestAlchemicalStates:
             lambda_schedule_intp_0,
             alchemical_atoms,
             ml_atoms,
-            lambda_interpolate=lambda_schedule_intp_0["lambda_interpolate"][0],
+            MLInterpolation=lambda_schedule_intp_0["MLInterpolation"][0],
+            ml_potential="ani2x"
         )
-
+    '''
     def test_alchemical_ml_lj_charges(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]
     ) -> None:
@@ -356,8 +359,8 @@ class TestAlchemicalStates:
 
         Notes
         -----
-        This test compares the energy components of a system created with LJ (lambda_lj=1),
-        charges (lambda_q=1), and/or MLP (lambda_interpolate=1) (lambda_interpolate=0) fully
+        This test compares the energy components of a system created with LJ (LJSoftCore=1),
+        charges (ChargeScaling=1), and/or MLP (MLInterpolation=1) (MLInterpolation=0) fully
         turned on/off, to the energy components of a system fully treated at the ML/MM (MM) level.
 
         Parameters
@@ -372,9 +375,9 @@ class TestAlchemicalStates:
         print("Testing function: test_alchemical_ml_lj_charges")
         # Create a system where LJ, charges, and the MLP are fully turned on
         lambda_schedule_intp_1: Dict[str, List[Optional[float]]] = {
-            "lambda_interpolate": [1],
-            "lambda_lj": [1],
-            "lambda_q": [1],
+            "MLInterpolation": [1],
+            "LJSoftCore": [1],
+            "ChargeScaling": [1],
         }
 
         ml_atoms = alchemical_atoms
@@ -384,15 +387,15 @@ class TestAlchemicalStates:
             lambda_schedule_intp_1,
             alchemical_atoms,
             ml_atoms,
-            lambda_interpolate=lambda_schedule_intp_1["lambda_interpolate"][0],
+            MLInterpolation=lambda_schedule_intp_1["MLInterpolation"][0],
         )
 
         # Create a system where LJ and charges are fully turned on but the MLP is turned off
         # and compare it to the energy of the system fully treated at the ML/MM level
         lambda_schedule_intp_0: Dict[str, List[Optional[float]]] = {
-            "lambda_interpolate": [0],
-            "lambda_lj": [1],
-            "lambda_q": [1],
+            "MLInterpolation": [0],
+            "LJSoftCore": [1],
+            "ChargeScaling": [1],
         }
 
         ml_atoms = alchemical_atoms
@@ -402,6 +405,6 @@ class TestAlchemicalStates:
             lambda_schedule_intp_0,
             alchemical_atoms,
             ml_atoms,
-            lambda_interpolate=lambda_schedule_intp_0["lambda_interpolate"][0],
+            MLInterpolation=lambda_schedule_intp_0["MLInterpolation"][0],
         )
     '''
