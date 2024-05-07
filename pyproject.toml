@@ -47,7 +47,10 @@ ChargeScaling = "fes_ml.alchemical.modifications.charge_scaling:ChargeScalingMod
 IntraMolecularNonBondedForces = "fes_ml.alchemical.modifications.intramolecular:IntraMolecularNonBondedForcesModificationFactory"
 IntraMolecularNonBondedExceptions = "fes_ml.alchemical.modifications.intramolecular:IntraMolecularNonBondedExceptionsModificationFactory"
 IntraMolecularBondedRemoval = "fes_ml.alchemical.modifications.intramolecular:IntraMolecularBondedRemovalModificationFactory"
-MLPotential = "fes_ml.alchemical.modifications.ml_potential:MLModificationFactory"
+MLPotential = "fes_ml.alchemical.modifications.ml_potential:MLPotentialModificationFactory"
+MLInterpolation = "fes_ml.alchemical.modifications.ml_interpolation:MLInterpolationModificationFactory"
+MLCorrection = "fes_ml.alchemical.modifications.ml_correction:MLCorrectionModificationFactory"
+EMLEPotential = "fes_ml.alchemical.modifications.emle_potential:EMLEPotentialModificationFactory"
 
 [tool.coverage.run]
 source = ['src/fes_ml']
