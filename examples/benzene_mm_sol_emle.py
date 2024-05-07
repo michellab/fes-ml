@@ -4,12 +4,12 @@ MM(sol, electrostatic) -> MM(gas) free energy calculation for benzene.
 This script demonstrates how to calculate the absolute hydration free energy at the MM level in an electrostatic embedding scheme.
 The solute is alchemically modified using a lambda schedule that decouples it from the solvent.
 
-At lambda_emle=1, the solute-solvent electrostatic interactions are fully turned on (electrostatic embedding).
-At lambda_emle=0, the solute-solvent electrostatic interactions are fully turned off (mechanical embedding).
-At lambda_q=1, the solute-solvent electrostatic interactions are fully turned on (mechanical embedding).
-At lambda_q=0, the solute-solvent electrostatic interactions are fully turned off (mechanical embedding).
-At lambda_lj=1, the solute-solvent van der Waals interactions are fully turned on.
-At lambda_lj=0, the solute-solvent van der Waals interactions are fully turned off.
+At EMLEPotential=1, the solute-solvent electrostatic interactions are fully turned on (electrostatic embedding).
+At EMLEPotential=0, the solute-solvent electrostatic interactions are fully turned off (mechanical embedding).
+At ChargeScaling=1, the solute-solvent electrostatic interactions are fully turned on (mechanical embedding).
+At ChargeScaling=0, the solute-solvent electrostatic interactions are fully turned off (mechanical embedding).
+At LJSoftCore=1, the solute-solvent van der Waals interactions are fully turned on.
+At LJSoftCore=0, the solute-solvent van der Waals interactions are fully turned off.
 
 Authors: Joao Morado
 """
@@ -20,17 +20,17 @@ if __name__ == "__main__":
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
-    n_lambda_emle = 6
-    n_lambda_q = 5
-    n_lambda_lj = 11
-    emle_windows = np.linspace(1.0, 0.0, n_lambda_emle)
-    q_windows = np.linspace(1.0, 0.0, n_lambda_q, endpoint=False)
-    lj_windows = np.linspace(1.0, 0.0, n_lambda_lj)
+    n_EMLEPotential = 6
+    n_ChargeScaling = 5
+    n_LJSoftCore = 11
+    emle_windows = np.linspace(1.0, 0.0, n_EMLEPotential)
+    q_windows = np.linspace(1.0, 0.0, n_ChargeScaling, endpoint=False)
+    lj_windows = np.linspace(1.0, 0.0, n_LJSoftCore)
 
     lambda_schedule = {
-        "lambda_emle": list(emle_windows) + [None] * (n_lambda_q + n_lambda_lj),
-        "lambda_q": [None] * n_lambda_emle + list(q_windows) + [0.0] * n_lambda_lj,
-        "lambda_lj": [None] * n_lambda_emle + [1.0] * n_lambda_q + list(lj_windows),
+        "EMLEPotential": list(emle_windows) + [None] * (n_ChargeScaling + n_LJSoftCore),
+        "ChargeScaling": [None] * n_EMLEPotential + list(q_windows) + [0.0] * n_LJSoftCore,
+        "LJSoftCore": [None] * n_EMLEPotential + [1.0] * n_ChargeScaling + list(lj_windows),
     }
 
     plot_lambda_schedule(lambda_schedule)

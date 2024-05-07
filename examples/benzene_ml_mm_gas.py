@@ -3,8 +3,8 @@ ML(gas)->MM(gas) free energy calculation for benzene in vacuum using an ML appro
 
 This script demonstrates how to perform a free energy calculation for benzene in vacuum using a ML approach.
 The solute is alchemically modified using a lambda schedule that interpolates between ML and MM potentials.
-At lambda_interpolate=1, the solute is fully simulated with the ML potential (mechanical embedding scheme).
-At lambda_interpolate=0, the solute is fully simulated with the FF.
+At MLInterpolation=1, the solute is fully simulated with the ML potential (mechanical embedding scheme).
+At MLInterpolation=0, the solute is fully simulated with the FF.
 
 Authors: Joao Morado
 """
@@ -16,10 +16,10 @@ if __name__ == "__main__":
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
-    n_lambda_interpolate = 11
-    interpolate_windows = np.linspace(1.0, 0.0, n_lambda_interpolate)
+    n_MLInterpolation = 11
+    interpolate_windows = np.linspace(1.0, 0.0, n_MLInterpolation)
 
-    lambda_schedule = {"lambda_interpolate": interpolate_windows}
+    lambda_schedule = {"MLInterpolation": interpolate_windows}
 
     plot_lambda_schedule(lambda_schedule)
 
