@@ -5,15 +5,11 @@ import shutil as _shutil
 from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
 
-import numpy as _np
 import openmm as _mm
 import openmm.app as _app
 import sire as _sr
-from emle.calculator import EMLECalculator as _EMLECalculator
 
-from ...utils import energy_decomposition as energy_decomposition
 from ..alchemical_state import AlchemicalState
-from ..alchemist import Alchemist
 from .base_strategy import AlchemicalStateCreationStrategy
 
 logger = logging.getLogger(__name__)
@@ -23,6 +19,18 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
     """Strategy for creating alchemical states using Sire."""
 
     _TMP_DIR = "tmp_fes_ml_sire"
+
+    _DYNAMIC_KWARGS = {
+        "timestep": "1fs",
+        "constraint": "none",
+        "cutoff_type": "pme",
+        "cutoff": "9A",
+        "integrator": "langevin_middle",
+        "temperature": "298.15K",
+        "perturbable_constraint": None,
+    }
+
+    _EMLE_KWARGS = {"method": "electrostatic", "backend": "torchani"}
 
     def create_alchemical_state(
         self,
@@ -34,11 +42,12 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         ml_potential: str = "ani2x",
         ml_potential_kwargs: Optional[Dict[str, Any]] = None,
         create_system_kwargs: Optional[Dict[str, Any]] = None,
-        topology: Optional[_mm.app.topology.Topology] = None,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
         integrator: Optional[Any] = None,
         keep_tmp_files: bool = True,
+        *args,
+        **kwargs,
     ) -> AlchemicalState:
         """
         Create an alchemical state for the given lambda values using OpenMM Systems created with Sire.
@@ -57,73 +66,53 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             The number of minimisation iterations to perform before creating the alchemical state.
             1 step is enough to bring the geometry to the distances imposed by the restraints.
             If None, no minimisation is performed.
-        ml_potential : str, optional, default='ani2x'
-            The machine learning potential to use in the mechanical embedding scheme.
-        ml_potential_kwargs : dict, optional, default=None
-            Additional keyword arguments to be passed to MLPotential when creating the ML potential in OpenMM-ML.
-            See: https://openmm.github.io/openmm-ml/dev/generated/openmmml.MLPotential.html
-        create_system_kwargs : dict, optional, default=None
-            Additional keyword arguments to be passed to the createSystem or createMixedSystem methods of the
-            OpenMM-ML package. See: https://openmm.github.io/openmm-ml/dev/generated/openmmml.models.macepotential.MACEPotentialImpl.html
-        topology : openmm.app.Topology, optional, default=None
-            The OpenMM topology object.
         dynamics_kwargs : dict
             Additional keyword arguments to be passed to sire.mol.Dynamics.
             See https://sire.openbiosim.org/api/mol.html#sire.mol.Dynamics.
         emle_kwargs : dict
             Additional keyword arguments to be passed to the EMLECalculator.
-            See TODO.
+            See https://github.com/chemle/emle-engine/blob/main/emle/calculator.py#L399-L519.
         integrator : Any, optional, default=None
             The OpenMM integrator to use. If None, the integrator is the one used in the dynamics_kwargs, if provided.
             Otherwise, the default is a LangevinMiddle integrator with a 1 fs timestep and a 298.15 K temperature.
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
+        args : list
+            Additional arguments to be passed to the Alchemist `apply_modifications` method.
+        kwargs : dict
+            Additional keyword arguments to be passed to the Alchemist `apply_modifications` method.
 
         Returns
         -------
         AlchemicalState
             The alchemical state.
         """
+        logger.debug("=" * 100)
+        # Generate local copies of the dynamics and EMLE kwargs
+        dynamics_kwargs = (
+            _deepcopy(self._DYNAMIC_KWARGS)
+            if dynamics_kwargs is None
+            else _deepcopy(dynamics_kwargs)
+        )
+        emle_kwargs = (
+            _deepcopy(self._EMLE_KWARGS)
+            if emle_kwargs is None
+            else _deepcopy(emle_kwargs)
+        )
+        passed_args = locals()
+        passed_args["dynamics_kwargs"] = dynamics_kwargs
+        passed_args["emle_kwargs"] = emle_kwargs
 
-        if dynamics_kwargs is None:
-            dynamics_kwargs = {
-                "timestep": "1fs",
-                "constraint": "none",
-                "cutoff_type": "pme",
-                "cutoff": "9A",
-                "integrator": "langevin_middle",
-                "temperature": "298.15K",
-            }
-        else:
-            dynamics_kwargs = _deepcopy(dynamics_kwargs)
-
-        if emle_kwargs is None:
-            emle_kwargs = {"method": "electrostatic", "backend": "torchani"}
-        else:
-            emle_kwargs = _deepcopy(emle_kwargs)
-
-        logger.debug("-" * 100)
-        logger.debug("Creating alchemical state using SireCreationStrategy.")
-        logger.debug(f"top_file: {top_file}")
-        logger.debug(f"crd_file: {crd_file}")
-        logger.debug(f"alchemical_atoms: {alchemical_atoms}")
-        logger.debug(f"lambda_schedule: {lambda_schedule}")
-        logger.debug(f"ml_potential: {ml_potential}")
-        logger.debug(f"topology: {topology}")
-        logger.debug("dynamics_kwargs:")
-        for key, value in dynamics_kwargs.items():
-            logger.debug(f"{key}: {value}")
-        logger.debug("emle_kwargs:")
-        for key, value in emle_kwargs.items():
-            logger.debug(f"{key}: {value}")
+        # Report the creation settings
+        self._report_creation_settings(passed_args)
 
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
 
-        # Select the QM subsystem
+        # Select the alchemical subsystem
         alchemical_subsystem = mols.atoms(alchemical_atoms)
 
-        # Write QM subsystem parm7 to a temporary file
+        # Write the alchemical subsystem and full system parm7 to temp files
         alchemical_prm7 = _sr.save(
             alchemical_subsystem,
             directory=self._TMP_DIR,
@@ -131,7 +120,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             format=["prm7"],
         )
 
-        # Write the full system parm7 to a temporary file
         parm7 = _sr.save(
             mols,
             directory=self._TMP_DIR,
@@ -139,40 +127,46 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             format=["prm7"],
         )
 
+        # Load the topology of the full system
+        topology = _app.AmberPrmtopFile(parm7[0]).topology
+
         # Create a QM/MM dynamics object
         d = mols.dynamics(**dynamics_kwargs)
 
         if minimise_iterations:
             d.minimise(minimise_iterations)
 
-        # Get the underlying OpenMM context.
-        omm = d._d._omm_mols
+        # Get the OpenMM context, system, integrator, and platform
+        omm_context = _sr.convert.to(mols, "openmm")
+        omm_system = omm_context.getSystem()
+        omm_integrator = omm_context.getIntegrator()
+        omm_platform = omm_context.getPlatform()
 
-        # Get the OpenMM system.
-        system = omm._system
+        # Report the energy decomposition before applying the alchemical modifications
+        self._report_energy_decomposition(omm_context, omm_system)
 
-        # Create an Alchemist object with the modifications to apply
-        alchemist = Alchemist()
-        alchemist.create_alchemical_graph(lambda_schedule=lambda_schedule)
-        alchemist.plot_graph()
-        alchemist.apply_modifications(
-            system=system,
-            alchemical_atoms=alchemical_atoms,
-            topology=topology,
-            ml_potential=ml_potential,
+        # Run the Alchemist
+        self._run_alchemist(
+            omm_system,
+            alchemical_atoms,
+            lambda_schedule,
+            *args,
+            **kwargs,
         )
 
+        # Create the final integrator
         if integrator is None:
-            # Create a new integrator
-            integrator = _deepcopy(omm.getIntegrator())
+            integrator = _deepcopy(omm_integrator)
         else:
             integrator = _deepcopy(integrator)
 
-        # Create a new context and set positions and velocities
-        topology = _app.AmberPrmtopFile(parm7[0]).topology
-        simulation = _mm.app.Simulation(topology, system, integrator, omm.getPlatform())
-        simulation.context.setPositions(omm.getState(getPositions=True).getPositions())
+        # Create a simulation object
+        simulation = _mm.app.Simulation(topology, omm_system, integrator, omm_platform)
 
+        # Set the positions and velocities
+        simulation.context.setPositions(
+            omm_context.getState(getPositions=True).getPositions()
+        )
         try:
             simulation.context.setVelocitiesToTemperature(integrator.getTemperature())
         except AttributeError:
@@ -180,32 +174,24 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 float(dynamics_kwargs["temperature"][:-1])
             )
 
-        logger.debug("Energy decomposition of the system:")
-        logger.debug(
-            f"Total potential energy: {simulation.context.getState(getEnergy=True).getPotentialEnergy()}"
-        )
-        energy_decomp = energy_decomposition(system, simulation.context)
-        for force, energy in energy_decomp.items():
-            logger.debug(f"{force}: {energy}")
-        logger.debug("Alchemical state created successfully.")
-        logger.debug("-" * 100)
+        # Report the energy decomposition after applying the alchemical modifications
+        self._report_energy_decomposition(simulation.context, omm_system)
 
         # Create the AlchemicalState
         alc_state = AlchemicalState(
-            system=system,
+            system=omm_system,
             context=simulation.context,
             integrator=integrator,
             simulation=simulation,
             topology=topology,
-            lambda_lj=lambda_lj,
-            lambda_q=lambda_q,
-            lambda_interpolate=lambda_interpolate,
-            lambda_emle=lambda_emle,
-            lambda_ml_correction=lambda_ml_correction,
+            modifications=lambda_schedule,
         )
 
         if not keep_tmp_files:
             # Clean up the temporary directory
             _shutil.rmtree(self._TMP_DIR)
+
+        logger.debug("Alchemical state created successfully.")
+        logger.debug("=" * 100)
 
         return alc_state
