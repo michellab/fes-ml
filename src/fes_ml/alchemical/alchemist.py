@@ -52,21 +52,20 @@ class Alchemist:
 
     def plot_graph(self):
         """Plot the graph of the alchemical modifications."""
-
         import matplotlib.pyplot as plt
 
-        plt.figure(figsize=(6, 6))
-        pos = nx.spectral_layout(self._graph)
+        plt.figure(figsize=(10, 10))
         nx.draw(
             self._graph,
-            pos,
+            pos=nx.circular_layout(self._graph),
             with_labels=True,
             node_color="skyblue",
-            node_size=5000,
+            node_size=10000,
             edge_color="gray",
         )
         plt.title("Alchemical Graph")
-        plt.show()
+        plt.savefig("alchemical_graph.png")
+        plt.close()
 
     def reset_alchemical_graph(self):
         """Reset the graph of alchemical modifications."""

@@ -253,8 +253,7 @@ class FES:
                 top_file=self.top_file,
                 crd_file=self.crd_file,
                 alchemical_atoms=alchemical_atoms,
-                lambda_schedule={k: v[i] for k, v in lambda_schedule.items()},
-                topology=self.topology,
+                lambda_schedule={k: v[i] for k, v in lambda_schedule.items() if v[i]},
                 *args,
                 **kwargs,
             )

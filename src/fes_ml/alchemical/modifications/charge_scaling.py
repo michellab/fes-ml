@@ -6,7 +6,10 @@ from typing import List, Optional
 import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory
-from .intramolecular import IntraMolecularNonBondedForcesModification, IntraMolecularNonBondedExceptionsModification
+from .intramolecular import (
+    IntraMolecularNonBondedExceptionsModification,
+    IntraMolecularNonBondedForcesModification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +43,7 @@ class ChargeScalingModification(BaseModification):
         **kwargs,
     ) -> _mm.System:
         """
-        Scale the charges of the alchemical atoms in the System. 
+        Scale the charges of the alchemical atoms in the System.
         Only the intermolecular interactions are affected by this modification.
 
         Parameters
@@ -57,15 +60,21 @@ class ChargeScalingModification(BaseModification):
         system : openmm.System
             The modified System with the charges scaled.
         """
-        logger.info(
-            f"Applying {self.NAME} with lambda value: {lambda_value}"
-        )
+        logger.info(f"Applying {self.NAME} with lambda value: {lambda_value}")
 
-        nb_forces = [force for force in system.getForces() if isinstance(force, _mm.NonbondedForce)]
+        nb_forces = [
+            force
+            for force in system.getForces()
+            if isinstance(force, _mm.NonbondedForce)
+        ]
         if len(nb_forces) > 1:
-            raise ValueError("The system must not contain more than one NonbondedForce.")
+            raise ValueError(
+                "The system must not contain more than one NonbondedForce."
+            )
         elif len(nb_forces) == 0:
-            logger.warning("The system does not contain a NonbondedForce and therefore no charge scaling will be applied.=.")
+            logger.warning(
+                "The system does not contain a NonbondedForce and therefore no charge scaling will be applied.=."
+            )
             return system
         else:
             force = nb_forces[0]

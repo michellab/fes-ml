@@ -33,10 +33,12 @@ class MLModificationFactory(BaseModificationFactory):
 
 
 class MLModification(BaseModification):
-    NAME = "MLPotential"    
+    NAME = "MLPotential"
     pre_dependencies: List[str] = [IntraMolecularNonBondedForcesModification.NAME]
-    post_dependencies: List[str] = [IntraMolecularBondedRemovalModification.NAME,
-                                    IntraMolecularNonBondedExceptionsModification.NAME]
+    post_dependencies: List[str] = [
+        IntraMolecularBondedRemovalModification.NAME,
+        IntraMolecularNonBondedExceptionsModification.NAME,
+    ]
 
     def apply(
         self,
@@ -74,12 +76,15 @@ class MLModification(BaseModification):
         elif ml_potential == "mace":
             self._create_mace(topology, system, alchemical_atoms, addForces_kwargs)
         else:
-            raise ValueError(f"Unknown ML potential: {ml_potential}. Currently supported potentials are 'ani2x' and 'mace'.")
-
+            raise ValueError(
+                f"Unknown ML potential: {ml_potential}. Currently supported potentials are 'ani2x' and 'mace'."
+            )
 
         return system
-    
-    def _create_ani2x(self, topology, system, alchemical_atoms, addForces_kwargs) -> _mm.System:
+
+    def _create_ani2x(
+        self, topology, system, alchemical_atoms, addForces_kwargs
+    ) -> _mm.System:
         """
         Add an ANI-2x potential to the System.
 
@@ -93,7 +98,7 @@ class MLModification(BaseModification):
             The indices of the atoms to model with the ANI-2x potential.
         addForces_kwargs : dict
             Additional keyword arguments to pass to the addForces method of the ANI-2x potential.
-        
+
         Returns
         -------
         system : openmm.System
@@ -104,7 +109,9 @@ class MLModification(BaseModification):
 
         return system
 
-    def _create_mace(self, topology, system, alchemical_atoms, addForces_kwargs) -> _mm.System:
+    def _create_mace(
+        self, topology, system, alchemical_atoms, addForces_kwargs
+    ) -> _mm.System:
         """
         Add a MACE potential to the System.
 
@@ -118,13 +125,15 @@ class MLModification(BaseModification):
             The indices of the atoms to model with the MACE potential.
         addForces_kwargs : dict
             Additional keyword arguments to pass to the addForces method of the MACE potential.
-        
+
         Returns
         -------
         system : openmm.System
             The modified System.
         """
-        macepotiml = macepotential.MACEPotentialImpl(name="mace-off23-small", modelPath="")
+        macepotiml = macepotential.MACEPotentialImpl(
+            name="mace-off23-small", modelPath=""
+        )
         macepotiml.addForces(topology, system, alchemical_atoms, **addForces_kwargs)
 
         return system

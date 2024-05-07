@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
+from typing import Dict, Union
 
 import openmm as _mm
+import openmm.app as _app
 
 
 @dataclass
@@ -10,37 +12,27 @@ class AlchemicalState:
 
     Attributes
     ----------
-    lambda_lj : float
-        The lambda value for the softcore Lennard-Jones potential.
-    lambda_q : float
-        The lambda value to scale the charges.
-    lambda_interpolate : float
-        The lambda value to interpolate between the ML and MM potentials in a mechanical embedding scheme.
-        If lambda_interpolate=1, the alchemical subsystem is fully described by the ML potential.
-        If lambda_interpolate=0, the alchemical subsystem is fully described by the MM potential.
-    lambda_emle : float
-        The lambda value to interpolate between the ML and MM potentials in a electrostatic embedding scheme.
-        If lambda_emle=1, the alchemical subsystem is fully described by the ML potential.
-        If lambda_emle=0, the alchemical subsystem is fully described by the MM potential.
     system : openmm.System
         The OpenMM system associated with the alchemical state.
     context : openmm.Context
         The OpenMM context associated with the alchemical state.
     integrator : openmm.Integrator
         The OpenMM integrator associated with the alchemical state.
-    simulation : openmm.app.simulation.Simulation
+    simulation : openmm.app.Simulation
         The OpenMM simulation associated with the alchemical state.
     topology : openmm.app.Topology
         The OpenMM topology associated with the alchemical state.
+    modifications : dict
+        Dictionary mapping the name of the alchemical modifications
+        applied to the system to the lambda value.
     """
 
-    lambda_lj: float = field(repr=True, default=None)
-    lambda_q: float = field(repr=True, default=None)
-    lambda_interpolate: float = field(repr=True, default=None)
-    lambda_emle: float = field(repr=True, default=None)
-    lambda_ml_correction: float = field(repr=True, default=None)
+    # OpenMM objects
     system: _mm.System = field(repr=False, default=None)
     integrator: _mm.Integrator = field(repr=False, default=None)
     context: _mm.Context = field(repr=False, default=None)
-    simulation: _mm.app.Simulation = field(repr=False, default=None)
+    simulation: _app.Simulation = field(repr=False, default=None)
     topology: _mm.app.Topology = field(repr=False, default=None)
+
+    # Alchemical state parameters
+    modifications: Dict[str, Union[float, int]] = field(repr=True, default=None)

@@ -7,7 +7,10 @@ import openmm as _mm
 import openmm.app as _app
 
 from .base_modification import BaseModification, BaseModificationFactory
-from .intramolecular import IntraMolecularNonBondedForcesModification, IntraMolecularNonBondedExceptionsModification
+from .intramolecular import (
+    IntraMolecularNonBondedExceptionsModification,
+    IntraMolecularNonBondedForcesModification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,10 +73,6 @@ class LJSoftCoreModification(BaseModification):
         openmm.System
             The modified system.
         """
-        logger.info(
-            f"Applying {self.NAME} with lambda value: {lambda_value}"
-        )
-
         forces = {force.__class__.__name__: force for force in system.getForces()}
         nb_force = forces["NonbondedForce"]
 
@@ -137,4 +136,3 @@ class LJSoftCoreModification(BaseModification):
         system.addForce(soft_core_force)
 
         return system
-    
