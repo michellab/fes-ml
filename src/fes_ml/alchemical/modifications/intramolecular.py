@@ -221,7 +221,7 @@ class IntraMolecularBondedRemovalModification(BaseModification):
         **kwargs,
     ) -> _mm.System:
         """
-        Create a copy of the system with all bonded interactions between atoms in a particular set removed.
+        Remove all bonded interactions between atoms in a particular set.
 
         Parameters
         ----------
@@ -239,13 +239,48 @@ class IntraMolecularBondedRemovalModification(BaseModification):
         -------
         mm.System
             A new System with the specified interactions removed.
-
-        Notes
-        -----
-        This code is practically identical to the code in https://github.com/openmm/openmm-ml/blob/main/openmmml/mlpotential.py#L353-L415,
-        but it has been modified to be a standalone function that can be used with any System.
         """
         atom_set = set(alchemical_atoms)
+
+        def should_remove(term_atoms):
+            return all(a in atom_set for a in term_atoms) == remove_in_set
+        
+        for id, force in enumerate(system.getForces()):
+            if hasattr(force, 'addBond'):
+                for i in range(force.getNumBonds()):
+                    try:
+                        # HarmonicBondForce
+                        p1, p2, length, k = force.getBondParameters(i)
+                        if should_remove((p1, p2)):
+                            force.setBondParameters(i, p1, p2, length, 1e-9)
+                    except ValueError:
+                        # CustomBondForce
+                        p1, p2, params = force.getBondParameters(i)
+                        if should_remove((p1, p2)):
+                            zero_params = [1e-9 for _ in params]
+                            force.setBondParameters(i, p1, p2, zero_params)
+            if hasattr(force, 'addAngle'):
+                for i in range(force.getNumAngles()):
+                    p1, p2, p3, angle, k = force.getAngleParameters(i)
+                    if should_remove((p1, p2, p3)):
+                        force.setAngleParameters(i, p1, p2, p3, angle, 1e-9)
+            
+            if hasattr(force, 'addTorsion'):
+                for i in range(force.getNumTorsions()):
+                    p1, p2, p3, p4, periodicity, phase, k = force.getTorsionParameters(i)
+                    if should_remove((p1, p2, p3, p4)):
+                        force.setTorsionParameters(i, p1, p2, p3, p4, periodicity, phase, 1e-9)
+
+        if remove_constraints:
+            for i in range(system.getNumConstraints(), 0, -1):
+                p1, p2, length = system.getConstraintParameters(i - 1)
+                if should_remove((p1, p2)):
+                    system.removeConstraint(i - 1)
+
+        return system
+
+
+        """
 
         # Create an XML representation of the System.
         import xml.etree.ElementTree as ET
@@ -254,8 +289,7 @@ class IntraMolecularBondedRemovalModification(BaseModification):
         root = ET.fromstring(xml)
 
         # This function decides whether a bonded interaction should be removed.
-        def should_remove(term_atoms):
-            return all(a in atom_set for a in term_atoms) == remove_in_set
+
 
         # Remove bonds, angles, and torsions.
         for bonds in root.findall("./Forces/Force/Bonds"):
@@ -288,3 +322,4 @@ class IntraMolecularBondedRemovalModification(BaseModification):
                         constraints.remove(constraint)
 
         return _mm.XmlSerializer.deserialize(ET.tostring(root, encoding="unicode"))
+        """

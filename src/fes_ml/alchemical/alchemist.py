@@ -176,7 +176,11 @@ class Alchemist:
                     f"Applying {mod} modification with lambda value {lambda_value}"
                 )
             system = modification.apply(
-                system, alchemical_atoms, lambda_value=lambda_value, *args, **kwargs
+                system,
+                alchemical_atoms=alchemical_atoms,
+                lambda_value=lambda_value,
+                *args,
+                **kwargs,
             )
 
         return system

@@ -32,6 +32,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
     _EMLE_KWARGS = {"method": "electrostatic", "backend": "torchani"}
 
+
     def create_alchemical_state(
         self,
         top_file: str,
@@ -39,9 +40,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         alchemical_atoms: List[int],
         lambda_schedule: Dict[str, Union[float, int]],
         minimise_iterations: int = 1,
-        ml_potential: str = "ani2x",
-        ml_potential_kwargs: Optional[Dict[str, Any]] = None,
-        create_system_kwargs: Optional[Dict[str, Any]] = None,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
         emle_kwargs: Optional[Dict[str, Any]] = None,
         integrator: Optional[Any] = None,
@@ -130,15 +128,15 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Load the topology of the full system
         topology = _app.AmberPrmtopFile(parm7[0]).topology
 
-        # Create a QM/MM dynamics object
+        # Create a MM dynamics object
         d = mols.dynamics(**dynamics_kwargs)
 
         if minimise_iterations:
             d.minimise(minimise_iterations)
 
         # Get the OpenMM context, system, integrator, and platform
-        omm_context = _sr.convert.to(mols, "openmm")
-        omm_system = omm_context.getSystem()
+        omm_context = d._d._omm_mols
+        omm_system = omm_context._system
         omm_integrator = omm_context.getIntegrator()
         omm_platform = omm_context.getPlatform()
 
@@ -150,6 +148,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             omm_system,
             alchemical_atoms,
             lambda_schedule,
+            topology=topology,
             *args,
             **kwargs,
         )

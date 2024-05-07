@@ -17,22 +17,22 @@ from .intramolecular import (
 logger = logging.getLogger(__name__)
 
 
-class MLModificationFactory(BaseModificationFactory):
+class MLPotentialModificationFactory(BaseModificationFactory):
     """Factory for creating MLModifaction instances."""
 
     def create_modification(self, *args, **kwargs) -> BaseModification:
         """
-        Create an instance of MLModification.
+        Create an instance of MLPotentialModification.
 
         Returns
         -------
-        MLModification
+        MLPotentialModification
             The modification to be applied.
         """
-        return MLModification(*args, **kwargs)
+        return MLPotentialModification(*args, **kwargs)
 
 
-class MLModification(BaseModification):
+class MLPotentialModification(BaseModification):
     NAME = "MLPotential"
     pre_dependencies: List[str] = [IntraMolecularNonBondedForcesModification.NAME]
     post_dependencies: List[str] = [

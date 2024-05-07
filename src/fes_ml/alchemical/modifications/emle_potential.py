@@ -4,11 +4,11 @@ import openmm as _mm
 from .base_modification import BaseModification, BaseModificationFactory
 
 
-class MLCorrectionModificationFactory(BaseModificationFactory):
-    """Factory for creating MLInterpolate instances."""
+class EMLEPotentialModificationFactory(BaseModificationFactory):
+    """Factory for creating EMLEPotentialModification instances."""
 
     def create_modification(self, *args, **kwargs) -> BaseModification:
-        """Create an instance of MLCorrection.
+        """Create an instance of EMLEPotential.
 
         Parameters
         ----------
@@ -19,16 +19,16 @@ class MLCorrectionModificationFactory(BaseModificationFactory):
 
         Returns
         -------
-        MLInterpolate
+        EMLEPotential
             The modification to be applied.
         """
-        return MLCorrectionModification(*args, **kwargs)
+        return EMLEPotentialModification(*args, **kwargs)
 
 
-class MLCorrectionModification(BaseModification):
-    NAME = "MLCorrection"
-    PRE_DEPENDENCIES = ["MLPotential"]
-    POST_DEPENDENCIES = ["IntraMolecularNonBondedExceptions", "IntraMolecularBondedRemoval"]
+class EMLEPotentialModification(BaseModification):
+    NAME = "EMLEPotential"
+    pre_dependencies = None
+    post_dependencies = None
 
     def apply(self, system: _mm.System, *args, **kwargs) -> _mm.System:
         pass
