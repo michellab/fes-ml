@@ -104,7 +104,6 @@ class TestAlchemicalStates:
         fes = FES(
             top_file=top_file,
             crd_file=crd_file,
-            topology=_app.AmberPrmtopFile(top_file).topology,
         )
 
         # Create the alchemical state

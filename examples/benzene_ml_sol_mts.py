@@ -1,9 +1,16 @@
 """
-ML(sol)->MM(sol) free energy calculation for benzene in solution using an ML/MM approach (mechanical embedding).
+ML(sol)->ML(gas) free energy calculation for benzene.
 
-The solute is alchemically modified using a lambda schedule that interpolates between ML and MM potentials.
-At lambda_interpolate=1, the solute is fully simulated with an MLP.
-At lambda_interpolate=0, the solute is fully simulated with the MM force field.
+This script demonstrates how to calculate a direct absolute hydration free energy at the ML level using MTS integration.
+The solute is alchemically modified using a lambda schedule that decouples the solute from the solvent.
+At lambda_q=1, the solute-solvent electrostatic interactions are fully turned on.
+At lambda_q=0, the solute-solvent electrostatic interactions are fully turned off.
+At lambda_lj=1, the solute-solvent van der Waals interactions are fully turned on.
+At lambda_lj=0, the solute-solvent van der Waals interactions are fully turned off.
+
+Furthermore, lambda_ml_correction is used at full strength for all states (i.e., lambda_ml_correction=1.0) to introduce a
+delta ML correction to the MM energy. This correction is considered part of the slow forces and is integrated twice as
+slowly as the fast forces.
 
 Authors: Joao Morado
 """
@@ -11,20 +18,22 @@ Authors: Joao Morado
 if __name__ == "__main__":
     import numpy as np
     import openmm as mm
-    import openmm.app as app
     import openmm.unit as unit
 
     from fes_ml.fes import FES
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
-    n_lambda_interpolate = 6
+    n_lambda_q = 5
+    n_lambda_lj = 11
+    q_windows = np.linspace(1.0, 0.0, n_lambda_q, endpoint=False)
+    lj_windows = np.linspace(1.0, 0.0, n_lambda_lj)
 
     lambda_schedule = {
-        "lambda_interpolate": np.linspace(1.0, 0.0, n_lambda_interpolate),
+        "lambda_q": list(q_windows) + [0.0] * n_lambda_lj,
+        "lambda_lj": [1.0] * n_lambda_q + list(lj_windows),
+        "lambda_ml_correction": [1.0] * (n_lambda_q + n_lambda_lj),
     }
-
-    plot_lambda_schedule(lambda_schedule, "lambda_schedule_mm_sol_mts.png")
 
     # Define the dynamics and EMLE parameters
     dynamics_kwargs = {
@@ -35,7 +44,7 @@ if __name__ == "__main__":
         "integrator": "langevin_middle",
         "temperature": "298.15K",
         "pressure": "1atm",
-        "platform": "cuda",
+        "platform": "reference",
         "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
     }
 
@@ -68,7 +77,7 @@ if __name__ == "__main__":
 
     # Set the force groups
     fes.set_force_groups(
-        slow_forces=["CustomCVForce"],
+        slow_forces=["MLCorrectionForce"],
         fast_force_group=0,
         slow_force_group=1,
     )
