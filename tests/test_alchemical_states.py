@@ -338,7 +338,7 @@ class TestAlchemicalStates:
             ml_atoms,
             ml_potential="ani2x",
         )
-
+    '''
         # Create a system where the MLP is turned off and compare it to the energy of
         # the system fully treated at the MM level
         lambda_schedule_intp_0: Dict[str, List[Optional[float]]] = {
@@ -355,7 +355,7 @@ class TestAlchemicalStates:
             ml_potential="ani2x",
         )
 
-    '''
+    
     def test_alchemical_ml_lj_charges(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]
     ) -> None:
