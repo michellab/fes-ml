@@ -128,6 +128,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Create an Alchemist object with the modifications to apply
         alchemist = Alchemist()
         alchemist.create_alchemical_graph(lambda_schedule=lambda_schedule)
+        alchemist.plot_graph()
         alchemist.apply_modifications(
             system=system,
             alchemical_atoms=alchemical_atoms,

@@ -19,10 +19,10 @@ if __name__ == "__main__":
     n_lambda_interpolate = 11
 
     lambda_schedule = {
-        "lambda_interpolate": np.linspace(1.0, 0.0, n_lambda_interpolate),
+        "LJSoftCore": [0.5],
+        "ChargeScaling": [0.5],
+        "MLPotential": [1.0],
     }
-
-    plot_lambda_schedule(lambda_schedule, "lambda_schedule_mm_sol.png")
 
     # Define the dynamics and EMLE parameters
     dynamics_kwargs = {
