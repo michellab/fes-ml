@@ -244,9 +244,9 @@ class IntraMolecularBondedRemovalModification(BaseModification):
 
         def should_remove(term_atoms):
             return all(a in atom_set for a in term_atoms) == remove_in_set
-        
+
         for id, force in enumerate(system.getForces()):
-            if hasattr(force, 'addBond'):
+            if hasattr(force, "addBond"):
                 for i in range(force.getNumBonds()):
                     try:
                         # HarmonicBondForce
@@ -259,17 +259,21 @@ class IntraMolecularBondedRemovalModification(BaseModification):
                         if should_remove((p1, p2)):
                             zero_params = [1e-9 for _ in params]
                             force.setBondParameters(i, p1, p2, zero_params)
-            if hasattr(force, 'addAngle'):
+            if hasattr(force, "addAngle"):
                 for i in range(force.getNumAngles()):
                     p1, p2, p3, angle, k = force.getAngleParameters(i)
                     if should_remove((p1, p2, p3)):
                         force.setAngleParameters(i, p1, p2, p3, angle, 1e-9)
-            
-            if hasattr(force, 'addTorsion'):
+
+            if hasattr(force, "addTorsion"):
                 for i in range(force.getNumTorsions()):
-                    p1, p2, p3, p4, periodicity, phase, k = force.getTorsionParameters(i)
+                    p1, p2, p3, p4, periodicity, phase, k = force.getTorsionParameters(
+                        i
+                    )
                     if should_remove((p1, p2, p3, p4)):
-                        force.setTorsionParameters(i, p1, p2, p3, p4, periodicity, phase, 1e-9)
+                        force.setTorsionParameters(
+                            i, p1, p2, p3, p4, periodicity, phase, 1e-9
+                        )
 
         if remove_constraints:
             for i in range(system.getNumConstraints(), 0, -1):
@@ -278,7 +282,6 @@ class IntraMolecularBondedRemovalModification(BaseModification):
                     system.removeConstraint(i - 1)
 
         return system
-
 
         """
 

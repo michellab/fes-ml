@@ -128,7 +128,9 @@ def scale_charges(
         [charge, sigma, epsilon] = nb_force.getParticleParameters(index)
         if index in alchemical_atoms:
             # Scale the charge and remove the LJ 12-6 interaction
-            nb_force.setParticleParameters(index, charge * ChargeScaling, sigma, epsilon)
+            nb_force.setParticleParameters(
+                index, charge * ChargeScaling, sigma, epsilon
+            )
 
     return system
 
@@ -383,11 +385,7 @@ def _add_ml_correction(
 
     # Define the correction energy expression
     corr_energy_expression = (
-        "MLCorrection*(("
-        + "+".join(ml_forces)
-        + ") - ("
-        + "+".join(mm_forces)
-        + "))"
+        "MLCorrection*((" + "+".join(ml_forces) + ") - (" + "+".join(mm_forces) + "))"
     )
     cv_force.setEnergyFunction(corr_energy_expression)
     cv_force.setGlobalParameterDefaultValue(0, lambda_value)
@@ -491,13 +489,17 @@ def alchemify(
             create_system_kwargs=create_system_kwargs,
         )
 
-    if (LJSoftCore is not None or ChargeScaling is not None) and MLInterpolation is None:
+    if (
+        LJSoftCore is not None or ChargeScaling is not None
+    ) and MLInterpolation is None:
         system = _add_intramolecular_nonbonded_forces(system, alchemical_atoms)
     if LJSoftCore is not None:
         system = add_LJ_softcore(system, alchemical_atoms, LJSoftCore)
     if ChargeScaling is not None:
         system = scale_charges(system, alchemical_atoms, ChargeScaling)
-    if (LJSoftCore is not None or ChargeScaling is not None) and MLInterpolation is None:
+    if (
+        LJSoftCore is not None or ChargeScaling is not None
+    ) and MLInterpolation is None:
         system = _add_intramolecular_nonbonded_exceptions(system, alchemical_atoms)
 
     return system

@@ -1,4 +1,3 @@
-
 import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory

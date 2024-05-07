@@ -208,7 +208,7 @@ class TestAlchemicalStates:
             crd_file=crd_file,
             alchemical_atoms=alchemical_atoms,
             lambda_schedule=lambda_schedule,
-            **kwargs
+            **kwargs,
         )
         alc = fes.alchemical_states[0]
 
@@ -301,7 +301,6 @@ class TestAlchemicalStates:
             top_file, crd_file, lambda_schedule_q, alchemical_atoms, ml_atoms
         )
 
-    
     # TODO: make this faster so that CI doesn't take too long
     def test_alchemical_ml(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]
@@ -332,7 +331,12 @@ class TestAlchemicalStates:
         }
         ml_atoms = alchemical_atoms
         self._test_energy_decomposition(
-            top_file, crd_file, lambda_schedule_intp_1, alchemical_atoms, ml_atoms, ml_potential="ani2x"
+            top_file,
+            crd_file,
+            lambda_schedule_intp_1,
+            alchemical_atoms,
+            ml_atoms,
+            ml_potential="ani2x",
         )
 
         # Create a system where the MLP is turned off and compare it to the energy of
@@ -348,8 +352,9 @@ class TestAlchemicalStates:
             alchemical_atoms,
             ml_atoms,
             MLInterpolation=lambda_schedule_intp_0["MLInterpolation"][0],
-            ml_potential="ani2x"
+            ml_potential="ani2x",
         )
+
     '''
     def test_alchemical_ml_lj_charges(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]

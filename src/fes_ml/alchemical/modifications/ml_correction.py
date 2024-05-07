@@ -1,10 +1,9 @@
-
 import logging
-import openmm as _mm
 from copy import deepcopy as _deepcopy
 
-from .base_modification import BaseModification, BaseModificationFactory
+import openmm as _mm
 
+from .base_modification import BaseModification, BaseModificationFactory
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +40,7 @@ class MLCorrectionModification(BaseModification):
     def apply(
         self,
         system: _mm.System,
+        lambda_value: float,
         *args,
         **kwargs,
     ) -> _mm.System:
@@ -70,42 +70,48 @@ class MLCorrectionModification(BaseModification):
         This code is heavily inspired on this https://github.com/openmm/openmm-ml/blob/main/openmmml/mlpotential.py#L190-L351.
         """
 
-        cv = _mm.CustomCVForce('')
-        cv.addGlobalParameter('MLInterpolation', 1)
+        cv = _mm.CustomCVForce("")
+        cv.addGlobalParameter("MLInterpolation", lambda_value)
 
         # Add ML forces to the CV
         ml_forces = []
         for force_id, force in enumerate(system.getForces()):
-            if force.getName() == 'TorchForce':
+            if force.getName() == "TorchForce":
                 ml_forces.append((force_id, force))
 
         ml_vars = []
         for i, (force_id, force) in enumerate(ml_forces):
-            name = f'mlForce{i+1}'
+            name = f"mlForce{i+1}"
             cv.addCollectiveVariable(name, _deepcopy(force))
             ml_vars.append(name)
 
         # Add bonded forces to the CV
         bonded_forces = []
         for force in system.getForces():
-            if hasattr(force, 'addBond') or hasattr(force, 'addAngle') or hasattr(force, 'addTorsion'):
+            if (
+                hasattr(force, "addBond")
+                or hasattr(force, "addAngle")
+                or hasattr(force, "addTorsion")
+            ):
                 bonded_forces.append(force)
-        
+
         mm_vars = []
         for i, force in enumerate(bonded_forces):
-            name = f'mmForce{i+1}'
+            name = f"mmForce{i+1}"
             cv.addCollectiveVariable(name, _deepcopy(force))
             mm_vars.append(name)
-        
+
         # Remove forces from the system
         forces_to_remove = sorted([force_id for force_id, _ in ml_forces], reverse=True)
         for force_id in forces_to_remove:
             system.removeForce(force_id)
-        
+
         # Set the energy function
-        ml_sum = '+'.join(ml_vars) if len(ml_vars) > 0 else '0'
-        mm_sum = '+'.join(mm_vars) if len(mm_vars) > 0 else '0'
-        ml_interpolation_function = f'MLInterpolation*({ml_sum}) - (1-MLInterpolation)*({mm_sum})'
+        ml_sum = "+".join(ml_vars) if len(ml_vars) > 0 else "0"
+        mm_sum = "+".join(mm_vars) if len(mm_vars) > 0 else "0"
+        ml_interpolation_function = (
+            f"MLInterpolation*({ml_sum}) - (1-MLInterpolation)*({mm_sum})"
+        )
         cv.setEnergyFunction(ml_interpolation_function)
         cv.setName(self.NAME)
         system.addForce(cv)

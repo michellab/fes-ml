@@ -32,7 +32,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
 
     _EMLE_KWARGS = {"method": "electrostatic", "backend": "torchani"}
 
-
     def create_alchemical_state(
         self,
         top_file: str,
