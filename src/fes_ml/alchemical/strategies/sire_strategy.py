@@ -5,6 +5,7 @@ import shutil as _shutil
 from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as _np
 import openmm as _mm
 import openmm.app as _app
 import sire as _sr
@@ -30,8 +31,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         "perturbable_constraint": None,
     }
 
-    _EMLE_KWARGS = {"method": "electrostatic", "backend": "torchani"}
-
     def create_alchemical_state(
         self,
         top_file: str,
@@ -40,9 +39,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_schedule: Dict[str, Union[float, int]],
         minimise_iterations: int = 1,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
-        emle_kwargs: Optional[Dict[str, Any]] = None,
         integrator: Optional[Any] = None,
         keep_tmp_files: bool = True,
+        modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         *args,
         **kwargs,
     ) -> AlchemicalState:
@@ -66,18 +65,13 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         dynamics_kwargs : dict
             Additional keyword arguments to be passed to sire.mol.Dynamics.
             See https://sire.openbiosim.org/api/mol.html#sire.mol.Dynamics.
-        emle_kwargs : dict
-            Additional keyword arguments to be passed to the EMLECalculator.
-            See https://github.com/chemle/emle-engine/blob/main/emle/calculator.py#L399-L519.
         integrator : Any, optional, default=None
             The OpenMM integrator to use. If None, the integrator is the one used in the dynamics_kwargs, if provided.
             Otherwise, the default is a LangevinMiddle integrator with a 1 fs timestep and a 298.15 K temperature.
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
-        args : list
-            Additional arguments to be passed to the Alchemist `apply_modifications` method.
-        kwargs : dict
-            Additional keyword arguments to be passed to the Alchemist `apply_modifications` method.
+        modifications_kwargs : dict
+            A dictionary of keyword arguments for the modifications.
 
         Returns
         -------
@@ -91,14 +85,9 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             if dynamics_kwargs is None
             else _deepcopy(dynamics_kwargs)
         )
-        emle_kwargs = (
-            _deepcopy(self._EMLE_KWARGS)
-            if emle_kwargs is None
-            else _deepcopy(emle_kwargs)
-        )
+
         passed_args = locals()
         passed_args["dynamics_kwargs"] = dynamics_kwargs
-        passed_args["emle_kwargs"] = emle_kwargs
 
         # Report the creation settings
         self._report_creation_settings(passed_args)
@@ -142,14 +131,32 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Report the energy decomposition before applying the alchemical modifications
         self._report_energy_decomposition(omm_context, omm_system)
 
+        modifications_kwargs = modifications_kwargs or {}
+        if "EMLEPotential" in lambda_schedule:
+            modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
+                "EMLEPotential", {}
+            )
+            modifications_kwargs["EMLEPotential"]["mols"] = mols
+            modifications_kwargs["EMLEPotential"]["parm7"] = alchemical_prm7[0]
+            modifications_kwargs["EMLEPotential"]["mm_charges"] = _np.asarray(
+                [atom.charge().value() for atom in mols.atoms(alchemical_atoms)]
+            )
+
+        if any(
+            key in lambda_schedule
+            for key in ["MLPotential", "MLInterpolation", "MLCorrection"]
+        ):
+            modifications_kwargs["MLPotential"] = modifications_kwargs.get(
+                "MLPotential", {}
+            )
+            modifications_kwargs["MLPotential"]["topology"] = topology
+
         # Run the Alchemist
         self._run_alchemist(
             omm_system,
             alchemical_atoms,
             lambda_schedule,
-            topology=topology,
-            *args,
-            **kwargs,
+            modifications_kwargs=modifications_kwargs,
         )
 
         # Create the final integrator
@@ -165,6 +172,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         simulation.context.setPositions(
             omm_context.getState(getPositions=True).getPositions()
         )
+
         try:
             simulation.context.setVelocitiesToTemperature(integrator.getTemperature())
         except AttributeError:

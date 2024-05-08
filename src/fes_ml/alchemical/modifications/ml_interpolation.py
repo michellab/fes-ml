@@ -66,11 +66,10 @@ class MLInterpolationModification(BaseModification):
             The modified system.
         Notes
         -----
-        This code is heavily inspired on this https://github.com/openmm/openmm-ml/blob/main/openmmml/mlpotential.py#L190-L351.
+        This code is heavily inspired on https://github.com/openmm/openmm-ml/blob/main/openmmml/mlpotential.py#L190-L351.
         """
-
         cv = _mm.CustomCVForce("")
-        cv.addGlobalParameter("MLInterpolation", lambda_value)
+        cv.addGlobalParameter("lambda_interpolate", lambda_value)
 
         # Add ML forces to the CV
         ml_forces = []
@@ -110,7 +109,7 @@ class MLInterpolationModification(BaseModification):
         ml_sum = "+".join(ml_vars) if len(ml_vars) > 0 else "0"
         mm_sum = "+".join(mm_vars) if len(mm_vars) > 0 else "0"
         ml_interpolation_function = (
-            f"MLInterpolation*({ml_sum}) + (1-MLInterpolation)*({mm_sum})"
+            f"lambda_interpolate*({ml_sum}) + (1-lambda_interpolate)*({mm_sum})"
         )
         cv.setEnergyFunction(ml_interpolation_function)
         system.addForce(cv)

@@ -1,9 +1,11 @@
+"""Logging configuration for the fes-ml package."""
 import logging
 import logging.config
 import os
 
 
 def config_logger() -> None:
+    """Configure the logger for the fes-ml package."""
     # Define log level
     log_level = os.environ.get("FES_ML_LOG_LEVEL", default="INFO").upper()
 

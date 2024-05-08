@@ -38,7 +38,7 @@ class ChargeScalingModification(BaseModification):
         self,
         system: _mm.System,
         alchemical_atoms: List[int],
-        lambda_value: Optional[float] = 1.0,
+        lambda_value: float,
         *args,
         **kwargs,
     ) -> _mm.System:

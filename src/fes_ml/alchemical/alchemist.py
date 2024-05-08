@@ -1,7 +1,7 @@
 """Module for the Alchemist class."""
 import logging
 import sys
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import networkx as nx
 import openmm as _mm
@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class Alchemist:
+    """A class for applying alchemical modifications to an OpenMM system."""
+
     _modification_factories: Dict[str, BaseModificationFactory] = {}
 
     @staticmethod
@@ -87,17 +89,19 @@ class Alchemist:
         self._graph.add_node(
             modification.NAME, modification=modification, lambda_value=lambda_value
         )
-        for pre_dependency in modification.pre_dependencies:
-            factory = self._modification_factories[pre_dependency]
-            pre_modification = factory.create_modification()
-            self._graph.add_edge(pre_modification.NAME, modification.NAME)
-            self.add_modification_to_graph(pre_modification, None)
+        if modification.pre_dependencies is not None:
+            for pre_dependency in modification.pre_dependencies:
+                factory = self._modification_factories[pre_dependency]
+                pre_modification = factory.create_modification()
+                self._graph.add_edge(pre_modification.NAME, modification.NAME)
+                self.add_modification_to_graph(pre_modification, None)
 
-        for post_dependency in modification.post_dependencies:
-            factory = self._modification_factories[post_dependency]
-            post_modification = factory.create_modification()
-            self._graph.add_edge(modification.NAME, post_modification.NAME)
-            self.add_modification_to_graph(post_modification, None)
+        if modification.post_dependencies is not None:
+            for post_dependency in modification.post_dependencies:
+                factory = self._modification_factories[post_dependency]
+                post_modification = factory.create_modification()
+                self._graph.add_edge(modification.NAME, post_modification.NAME)
+                self.add_modification_to_graph(post_modification, None)
 
     def create_alchemical_graph(
         self,
@@ -144,6 +148,7 @@ class Alchemist:
         self,
         system: _mm.System,
         alchemical_atoms: List[int],
+        modifications_kwargs: Dict[str, Dict[str, Any]],
         *args,
         **kwargs,
     ) -> _mm.System:
@@ -156,6 +161,17 @@ class Alchemist:
             The system to be modified.
         lambda_schedule : dict
             A dictionary of lambda values to be applied to the system.
+        modifications_kwargs : dict
+            A dictionary of keyword arguments for the modifications.
+            It is structured as follows:
+            {
+                "modification_name": {
+                    "key1": value1,
+                    "key2": value2,
+                    ...
+                },
+                ...
+            }
         args : list
             Additional arguments to be passed to the modifications.
         kwargs : dict
@@ -169,6 +185,8 @@ class Alchemist:
         for mod in nx.topological_sort(self._graph):
             lambda_value = self._graph.nodes[mod]["lambda_value"]
             modification = self._graph.nodes[mod]["modification"]
+            modification_kwargs = modifications_kwargs.get(mod, {})
+
             if lambda_value is None:
                 logger.debug(f"Applying {mod} modification")
             else:
@@ -180,6 +198,7 @@ class Alchemist:
                 alchemical_atoms=alchemical_atoms,
                 lambda_value=lambda_value,
                 *args,
+                **modification_kwargs,
                 **kwargs,
             )
 

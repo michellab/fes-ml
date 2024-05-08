@@ -301,7 +301,6 @@ class TestAlchemicalStates:
             top_file, crd_file, lambda_schedule_q, alchemical_atoms, ml_atoms
         )
 
-    # TODO: make this faster so that CI doesn't take too long
     def test_alchemical_ml(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]
     ) -> None:
@@ -336,10 +335,9 @@ class TestAlchemicalStates:
             lambda_schedule_intp_1,
             alchemical_atoms,
             ml_atoms,
-            ml_potential="ani2x",
+            MLInterpolation=lambda_schedule_intp_1["MLInterpolation"][0],
         )
 
-    '''
         # Create a system where the MLP is turned off and compare it to the energy of
         # the system fully treated at the MM level
         lambda_schedule_intp_0: Dict[str, List[Optional[float]]] = {
@@ -353,9 +351,7 @@ class TestAlchemicalStates:
             alchemical_atoms,
             ml_atoms,
             MLInterpolation=lambda_schedule_intp_0["MLInterpolation"][0],
-            ml_potential="ani2x",
         )
-
 
     def test_alchemical_ml_lj_charges(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]
@@ -413,4 +409,117 @@ class TestAlchemicalStates:
             ml_atoms,
             MLInterpolation=lambda_schedule_intp_0["MLInterpolation"][0],
         )
+
+    '''
+    def test_alchemical_emle(
+            self, top_file: str, crd_file: str, alchemical_atoms: List[int]
+        ):
+        """
+        Test that a system with EMLE is created correctly.
+
+        Notes
+        -----
+        This test compares the energy components of a system created with LJ (lambda_lj=1),
+        charges (lambda_q=1), and MLP (lambda_interpolate=1) fully turned on, to the energy
+        components of a system fully treated at the ML/MM level
+
+        Parameters
+        ----------
+        top_file : str
+            The topology file of the system.
+        crd_file : str
+            The coordinate file of the system.
+        alchemical_atoms : iterable of int
+            The list of alchemical atoms.
+        """
+        from fes_ml.utils import write_system_to_xml
+        print("Testing function: test_alchemical_emle")
+        # Create a system where LJ, charges, and the MLP are fully turned on
+        lambda_schedule: Dict[str, List[Any]] = {
+            "EMLEPotential": [1],
+        }
+
+        # Set pure mechanical embedding scheme
+        self._EMLE_KWARGS["method"] = "electrostatic"
+
+        # Create the alchemical state
+        fes = self._create_alchemical_states(
+            top_file=top_file,
+            crd_file=crd_file,
+            alchemical_atoms=alchemical_atoms,
+            lambda_schedule=lambda_schedule,
+            topology=_app.AmberPrmtopFile(top_file).topology,
+        )
+        alc = fes.alchemical_states[0]
+
+        """
+        for i, force in enumerate(alc.system.getForces()):
+            print(force.getName())
+            if force.getName() == "N10SireOpenMM9EMLEForceE":
+                alc.system.removeForce(i)
+            if force.getName() == "NonbondedForce":
+                for e in range(force.getNumExceptions()):
+                    p1, p2, chargeProd, sigma, epsilon = force.getExceptionParameters(e)
+                    if p1 in alchemical_atoms or p2 in alchemical_atoms:
+                        force.setExceptionParameters(e, p1, p2, 0.0, sigma, 0.0)
+
+                for i in range(len(alchemical_atoms)):
+                    for j in range(i):
+                        force.addException(alchemical_atoms[i], alchemical_atoms[j], 0, 1, 0, True)
+        alc.context.reinitialize(preserveState=True)
+
+        write_system_to_xml(alc.system, "alc.xml")
+        """
+        # Energy decomposition of the alchemical state
+        alc_energy_decom = self._get_energy_decomposition(alc.system, alc.context)
+        # ---------------------------------------------------------------------------- #
+        # ML ENERGY DECOMP
+        # ---------------------------------------------------------------------------- #
+
+        # Create a system fully treated at the MM level using OpenMM
+        prmtop = _app.AmberPrmtopFile(top_file)
+        inpcrd = _app.AmberInpcrdFile(crd_file)
+
+        system = prmtop.createSystem(
+            nonbondedMethod=_app.PME,
+            nonbondedCutoff=1.2 * _unit.nanometer,
+            rigidWater=True,
+        )
+
+        potential = MLPotential("ani2x")
+        ml_system = potential.createMixedSystem(
+            prmtop.topology, system, alchemical_atoms, interpolate=1
+        )
+        system = ml_system
+        """
+        for i, force in enumerate(system.getForces()):
+            if force.getName() == "NonbondedForce":
+                for p in range(force.getNumParticles()):
+                    charge, sigma, epsilon = force.getParticleParameters(p)
+                    if p in alchemical_atoms:
+                        force.setParticleParameters(p, 0.0, sigma, epsilon)
+
+                for i in range(len(alchemical_atoms)):
+                    for j in range(i):
+                        force.addException(alchemical_atoms[i], alchemical_atoms[j], 0, 1, 0, True)
+
+        write_system_to_xml(system, "system.xml")
+        """
+        context = _mm.Context(
+            system,
+            _mm.LangevinMiddleIntegrator(
+                298.15 * _unit.kelvin, 1.0 / _unit.picosecond, 1.0 * _unit.femtosecond
+            ),
+            _mm.Platform.getPlatformByName("CUDA"),
+        )
+
+        context.setPositions(alc.context.getState(getPositions=True).getPositions())
+        context.setParameter("lambda_interpolate", 1)
+
+        # Energy decomposition of the ML/MM system
+        mm_energy_decom = self._get_energy_decomposition(system, context)
+
+        # Compare total energy
+        print("Total energy EMLE", alc.context.getState(getEnergy=True).getPotentialEnergy())
+        print("Total energy OPENMM-ML", context.getState(getEnergy=True).getPotentialEnergy())
     '''

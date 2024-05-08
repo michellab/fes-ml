@@ -1,3 +1,4 @@
+"""Free Energy Simulation (FES) module."""
 import logging
 import os
 import pickle
@@ -210,6 +211,7 @@ class FES:
         self,
         alchemical_atoms: List[int],
         lambda_schedule: Dict[str, List[Optional[float]]],
+        modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         *args,
         **kwargs,
     ) -> List[AlchemicalState]:
@@ -222,6 +224,17 @@ class FES:
             List of atom indices to be alchemically modified.
         lambda_schedule : dict
             Dictionary with the lambda values for the alchemical states.
+        modifications_kwargs : dict
+            A dictionary of keyword arguments for the modifications.
+            It is structured as follows:
+            {
+                "modification_name": {
+                    "key1": value1,
+                    "key2": value2,
+                    ...
+                },
+                ...
+            }
 
         Returns
         -------
@@ -253,7 +266,10 @@ class FES:
                 top_file=self.top_file,
                 crd_file=self.crd_file,
                 alchemical_atoms=alchemical_atoms,
-                lambda_schedule={k: v[i] for k, v in lambda_schedule.items() if v[i]},
+                lambda_schedule={
+                    k: v[i] for k, v in lambda_schedule.items() if v[i] is not None
+                },
+                modifications_kwargs=modifications_kwargs,
                 *args,
                 **kwargs,
             )
@@ -421,10 +437,10 @@ class FES:
                 )
 
             # Compute energies at all alchemical states
-            for l, alc_ in enumerate(self.alchemical_states):
+            for alc_id, alc_ in enumerate(self.alchemical_states):
                 alc_.context.setPositions(self._positions)
                 alc_.context.setPeriodicBoxVectors(*self._pbc)
-                self._U_kl[l].append(
+                self._U_kl[alc_id].append(
                     alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT
                 )
 
@@ -498,8 +514,8 @@ class FES:
             Force group for the slow forces.
         force_group_dict : dict, optional, default=None
             Dictionary with the force group for each force.
-            If provided, it takes precedence over the other arguments and the force groups are set according to the dictionary.
-            Otherwise, the force groups are set according to the other arguments.
+            If provided, it takes precedence over the other arguments and the force groups are set
+            according to the dictionary. Otherwise, the force groups are set according to the other arguments.
 
         Returns
         -------
@@ -509,8 +525,10 @@ class FES:
         Notes
         -----
         The force groups are set as follows:
-        - If `force_group_dict` is provided, the force groups are set according to the dictionary. All forces not in the dictionary are set to `fast_force_group`.
-        - If `slow_forces` is provided, the forces in `slow_forces` are set to `slow_force_group` and the others to `fast_force_group`.
+        - If `force_group_dict` is provided, the force groups are set according to the dictionary.
+        All forces not in the dictionary are set to `fast_force_group`.
+        - If `slow_forces` is provided, the forces in `slow_forces` are set to `slow_force_group` and
+        the others to `fast_force_group`.
         - If `slow_forces` is not provided, all forces are set to `fast_force_group`.
         """
         if force_group_dict is not None:

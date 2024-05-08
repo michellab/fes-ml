@@ -1,4 +1,4 @@
-"""This module contains the implementation of the IntraMolecularNonBondedModification class."""
+"""This module contains the implementations of the modifications related to intramolecular parameters."""
 
 import logging
 from typing import List
@@ -81,8 +81,9 @@ class IntraMolecularNonBondedExceptionsModification(BaseModification):
         self, system: _mm.System, alchemical_atoms: List[int], *args, **kwargs
     ) -> _mm.System:
         """
-        Add exceptions to the NonbondedForce and CustomNonbondedForces
-        to prevent the alchemical atoms from interacting as these interactions
+        Add exceptions to the NonbondedForce and CustomNonbondedForces.
+
+        Prevents the alchemical atoms from interacting as these interactions
         are already taken into account by the CustomBondForce.
 
         Parameters
