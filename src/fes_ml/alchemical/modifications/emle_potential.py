@@ -85,7 +85,7 @@ class EMLEPotentialModification(BaseModification):
         # Create a calculator.
         calculator = _EMLECalculator(
             backend=backend,
-            method="mm",
+            method=method,
             parm7=parm7,
             mm_charges=mm_charges,
             lambda_interpolate=lambda_value,
