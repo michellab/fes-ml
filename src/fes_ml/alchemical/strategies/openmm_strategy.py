@@ -554,6 +554,10 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                     f"The length of the found ml region is >100. This seems like too much."
                 )
 
+        if ml_potential:
+            raise NotImplementedError(
+                "currently not doing ML for openmm until plugin")
+
         # TODO alchemify or plugin
         # self.system, ml_potential, alchemical_atoms, lambda_schedule
         # alchemist = Alchemist()
