@@ -12,6 +12,7 @@ dependencies:
   - eigen
   - loguru
   - openmm >= 8.1
+  - openmm-torch
   - nnpops
   - pip
   - pybind11
