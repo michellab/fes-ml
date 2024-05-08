@@ -1,5 +1,9 @@
 from .alchemical_state import AlchemicalState
-from .strategies import AlchemicalStateCreationStrategy, SireCreationStrategy, OpenMMCreationStrategy
+from .strategies import (
+    AlchemicalStateCreationStrategy,
+    OpenMMCreationStrategy,
+    SireCreationStrategy,
+)
 
 
 class AlchemicalStateFactory:

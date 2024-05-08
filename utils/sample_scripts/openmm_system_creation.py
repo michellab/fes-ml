@@ -16,11 +16,12 @@ Authors: Joao Morado
 """
 
 if __name__ == "__main__":
+    import sys
+
     import numpy as np
     import openmm as mm
-    import openmm.unit as unit
     import openmm.app as app
-    import sys
+    import openmm.unit as unit
 
     from fes_ml.fes import FES
     from fes_ml.utils import plot_lambda_schedule
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     print(f"Script : {script}")
     print(f"Window : {window}")
 
-    sdf_file = "" # path to sdf file
+    sdf_file = ""  # path to sdf file
 
     # Set up the alchemical modifications
     n_lambda_interpolate = 6
@@ -65,30 +66,37 @@ if __name__ == "__main__":
         "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
     }
 
-    create_system_kwargs = {"ligand_forcefield": "openff",
-                            "water_model": "OPC",
-                            "HMR": True,
-                            }
+    create_system_kwargs = {
+        "ligand_forcefield": "openff",
+        "water_model": "OPC",
+        "HMR": True,
+    }
 
     temperature = float(dynamics_kwargs["temperature"][:-1])
     dt = float(dynamics_kwargs["timestep"][:-1])
 
     innersteps = 2
     innerinnersteps = 4
-    
-    if dynamics_kwargs["integrator"] == 'langevin_middle':
 
+    if dynamics_kwargs["integrator"] == "langevin_middle":
         # 1. normal Langevin Middle. Just choose timestep:
-        integrator = mm.LangevinMiddleIntegrator(temperature*unit.kelvin, 1/unit.picosecond, dt*unit.femtosecond)
+        integrator = mm.LangevinMiddleIntegrator(
+            temperature * unit.kelvin, 1 / unit.picosecond, dt * unit.femtosecond
+        )
 
-    elif dynamics_kwargs["integrator"] == 'MTS':
+    elif dynamics_kwargs["integrator"] == "MTS":
         # 2. Multiple timestep langevin middle. Choose outer timestep and number of inner steps.
         # group 0 is slow forces, group 1 is fast forces, group 2 is fastest forces
-        timestep_groups = [(0,1), (1,innersteps)]
+        timestep_groups = [(0, 1), (1, innersteps)]
         if innerinnersteps:
-            timestep_groups.append((2,innerinnersteps))
-        integrator = mm.MTSLangevinIntegrator(temperature*unit.kelvin, 1.0/unit.picosecond, dt*unit.femtosecond, timestep_groups)
-        
+            timestep_groups.append((2, innerinnersteps))
+        integrator = mm.MTSLangevinIntegrator(
+            temperature * unit.kelvin,
+            1.0 / unit.picosecond,
+            dt * unit.femtosecond,
+            timestep_groups,
+        )
+
     # Create the FES object to run the simulations
     fes = FES(
         sdf_file=sdf_file,
@@ -97,25 +105,24 @@ if __name__ == "__main__":
     # Create the alchemical states
     print("Creating alchemical states...")
     fes.create_alchemical_states(
-        strategy_name = "openmm",
+        strategy_name="openmm",
         lambda_schedule=lambda_schedule,
         dynamics_kwargs=dynamics_kwargs,
         integrator=integrator,
         ml_potential="mace",
-        create_system_kwargs=create_system_kwargs
-        **dynamics_kwargs
+        create_system_kwargs=create_system_kwargs**dynamics_kwargs,
     )
-    
+
     # TODO how get the created system?
     # TODO choose force groups from system so can set using set_force_groups
 
     force_group_dict = {}
 
-    """ 
+    """
     how the forces should set
     print("system forces:")
     for i, force in enumerate(system.getForces()):
-    
+
         if isinstance(force, (mm.CustomCVForce)):
             group = 'slow'
         elif isinstance(force, mm.NonbondedForce):
@@ -134,32 +141,43 @@ if __name__ == "__main__":
         force.setForceGroup( {'fastest': 2, 'fast': 1, 'slow': 0}[group])
         if isinstance(force, mm.NonbondedForce):
             force.setReciprocalSpaceForceGroup(0)
-    
+
     """
 
     # Set the force groups
-    fes.set_force_groups(
-        force_group_dict = force_group_dict
-    )
+    fes.set_force_groups(force_group_dict=force_group_dict)
 
     # # Equilibrate during 1 ns
     # fes.run_equilibration_batch(10000) # 1000000
     # # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
     # U_kln = fes.run_production_batch( 10, 1000, # 1000, 1000, # niterations, nsteps
-    #                                  reporters=app.StateDataReporter(step=True, # f'{folderpath}/stdout_eq_{w}.txt', n_steps, 
+    #                                  reporters=app.StateDataReporter(step=True, # f'{folderpath}/stdout_eq_{w}.txt', n_steps,
     #                 potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True,
     #                 speed=True, volume=True, density=True))
-    
+
     # # Save data
     # np.save("U_kln_mm_sol.npy", np.asarray(U_kln))
 
     # Minimize
     fes.run_minimization_batch(1000)
     # Run single state
-    U_kn = fes.run_single_state(1000, 1000, window=int(window),
-                                reporters=[app.StateDataReporter( f'stdout_{window}.txt', 100, step=True,
-                                                                potentialEnergy=True, kineticEnergy=True, totalEnergy=True,
-                                                                temperature=True, speed=True, volume=True, density=True)]
-                                )
+    U_kn = fes.run_single_state(
+        1000,
+        1000,
+        window=int(window),
+        reporters=[
+            app.StateDataReporter(
+                f"stdout_{window}.txt",
+                100,
+                step=True,
+                potentialEnergy=True,
+                kineticEnergy=True,
+                totalEnergy=True,
+                temperature=True,
+                speed=True,
+                volume=True,
+                density=True,
+            )
+        ],
+    )
     np.save(f"{script}_{window}.npy", np.asarray(U_kn))
-    
