@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
     """Strategy for creating alchemical states using OpenMM."""
 
+    # TODO remove, double check with plugin
     @staticmethod
     def removeBonds(
         system: _mm.System,
@@ -110,7 +111,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         if removeConstraints:
             for constraints in root.findall("./Constraints"):
                 for constraint in constraints.findall("Constraint"):
-                    constraintAtoms = [int(constraint.attrib[p]) for p in ("p1", "p2")]
+                    constraintAtoms = [int(constraint.attrib[p])
+                                       for p in ("p1", "p2")]
                     if shouldRemove(constraintAtoms):
                         constraints.remove(constraint)
 
@@ -124,7 +126,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         print(f"solvating...")
 
         # make an OpenFF Topology of the ligand
-        ligand_off_topology = offTopology.from_molecules(molecules=[self.ligand])
+        ligand_off_topology = offTopology.from_molecules(
+            molecules=[self.ligand])
 
         # convert it to an OpenMM Topology
         ligand_omm_topology = ligand_off_topology.to_openmm()
@@ -162,7 +165,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 box_shape=UNIT_CUBE,
             )
 
-            interchange = Interchange.from_smirnoff(force_field=ff, topology=topology)
+            interchange = Interchange.from_smirnoff(
+                force_field=ff, topology=topology)
             modeller = _app.Modeller(
                 topology.to_openmm(), interchange.positions.to_openmm()
             )
@@ -188,7 +192,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         ff.registerTemplateGenerator(self.smirnoff.generator)
 
         # make an OpenFF Topology of the ligand
-        ligand_off_topology = offTopology.from_molecules(molecules=[self.ligand])
+        ligand_off_topology = offTopology.from_molecules(
+            molecules=[self.ligand])
 
         # convert it to an OpenMM Topology
         ligand_omm_topology = ligand_off_topology.to_openmm()
@@ -203,9 +208,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         self.ff = ff
         self.leg = "vacuum"
 
-    def create_system(
-        self, ML=True, ml_atoms=None, model="ani2x", leg="solvated", **kwargs
-    ):
+    def create_system(self, leg="solvated", **kwargs):
         if leg.lower() == "solvated":
             self.create_solvated(**kwargs)
         elif leg.lower() == "vacuum":
@@ -233,18 +236,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 key_list.append(key)
         system_kwarg_dict = {key: kwargs[key] for key in key_list}
 
-        self.system = self.ff.createSystem(self.modeller.topology, **system_kwarg_dict)
-
-        if ml_atoms:
-            self.ml_atoms = ml_atoms
-        else:
-            self.ml_atoms = [
-                atom.index for atom in list(self.modeller.topology.chains())[0].atoms()
-            ]
-            if len(self.ml_atoms) > 100:
-                raise ValueError(
-                    f"The length of the found ml region is >100. This seems like too much."
-                )
+        self.system = self.ff.createSystem(
+            self.modeller.topology, **system_kwarg_dict)
 
         if self.leg == "vacuum":
             pass
@@ -258,9 +251,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             )
             return
 
-        if ML == True:
-            self.create_ml(model)
-
+    # TODO remove, double check with plugin
     def _create_ani2x(self, system):
         ml_system = deepcopy(system)
 
@@ -282,6 +273,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
 
         self.ml_force = deepcopy(torch_force)
 
+    # TODO remove, double check with plugin
     def _create_mace(self, system):
         ml_system = deepcopy(system)
 
@@ -305,6 +297,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
 
         self.ml_force = deepcopy(torch_force)
 
+    # TODO remove, double check with plugin
     def create_ml(self, model="ani2x"):
         if model == "ani2x":
             self._create_ani2x(self.system)
@@ -313,6 +306,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
 
         self._create_custom_force(self.system)
 
+    # TODO remove, double check with plugin
     def _create_custom_force(self, system):
         # create the MM forces for just the ligand
 
@@ -362,7 +356,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                     atomEpsilon[i] = epsilon
                 exceptions = {}
                 for i in range(force.getNumExceptions()):
-                    p1, p2, chargeProd, sigma, epsilon = force.getExceptionParameters(i)
+                    p1, p2, chargeProd, sigma, epsilon = force.getExceptionParameters(
+                        i)
                     exceptions[(p1, p2)] = (chargeProd, sigma, epsilon)
                 for p1 in self.ml_atoms:
                     for p2 in self.ml_atoms:
@@ -375,7 +370,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                         else:
                             chargeProd = atomCharge[p1] * atomCharge[p2]
                             sigma = 0.5 * (atomSigma[p1] + atomSigma[p2])
-                            epsilon = unit.sqrt(atomEpsilon[p1] * atomEpsilon[p2])
+                            epsilon = unit.sqrt(
+                                atomEpsilon[p1] * atomEpsilon[p2])
                         if chargeProd._value != 0 or epsilon._value != 0:
                             internalNonbonded.addBond(
                                 p1, p2, [chargeProd, sigma, epsilon]
@@ -390,7 +386,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         # set the CV force to be the correction term V_ml(ligand) - Vmm(ligand)
         cv.addCollectiveVariable("ml_force", self.ml_force)
 
-        cv_force_string = "ml_force - 1.0*(" + "+".join(mm_ligand_force_names) + ")"
+        cv_force_string = "ml_force - 1.0*(" + \
+            "+".join(mm_ligand_force_names) + ")"
 
         print(cv_force_string)
         cv.setEnergyFunction(cv_force_string)
@@ -499,7 +496,6 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug(f"lambda_lj: {lambda_lj}")
         logger.debug(f"lambda_q: {lambda_q}")
         logger.debug(f"lambda_interpolate: {lambda_interpolate}")
-        # TODO this needs to be one ???
         logger.debug(f"lambda_ml_correction: {lambda_ml_correction}")
         logger.debug(f"ml_potential: {ml_potential}")
         logger.debug("dynamics_kwargs:")
@@ -531,6 +527,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             else:
                 pass
 
+        # TODO implement constraints properly
         # if "constraints" not in dynamics_kwargs.keys():
         #     dynamics_kwargs["constraints"] = self.constrain_H
 
@@ -544,14 +541,25 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         self.leg = None
         self.system = None
 
-        self.create_system(
-            ML=True,
-            model=ml_potential,
-            ml_atoms=alchemical_atoms,
-            **create_system_kwargs,
-        )
+        self.create_system(**create_system_kwargs)
 
-        # alchemify
+        if alchemical_atoms:
+            pass
+        else:
+            alchemical_atoms = [
+                atom.index for atom in list(self.modeller.topology.chains())[0].atoms()
+            ]
+            if len(alchemical_atoms) > 100:
+                raise ValueError(
+                    f"The length of the found ml region is >100. This seems like too much."
+                )
+
+        # TODO alchemify or plugin
+        # self.system, ml_potential, alchemical_atoms, lambda_schedule
+        # alchemist = Alchemist()
+        # alchemist.create_alchemical_graph(lambda_schedule=lambda_schedule)
+        # alchemist.apply_modifications(
+        #     system=system, alchemical_atoms=alchemical_atoms, **modifications_kwargs)
 
         if integrator is None:
             raise ValueError("please provide an integrator")
@@ -566,7 +574,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         )
         simulation.context.setPositions(self.modeller.positions)
         try:
-            simulation.context.setVelocitiesToTemperature(integrator.getTemperature())
+            simulation.context.setVelocitiesToTemperature(
+                integrator.getTemperature())
         except AttributeError:
             simulation.context.setVelocitiesToTemperature(
                 float(dynamics_kwargs["temperature"][:-1])
