@@ -1,4 +1,4 @@
-name: fes-ml-test
+name: fes-ml
 
 channels:
   - conda-forge
@@ -12,7 +12,6 @@ dependencies:
   - eigen
   - loguru
   - openmm >= 8.1
-  - openmm-ml
   - nnpops
   - pip
   - pybind11
