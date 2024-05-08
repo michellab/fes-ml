@@ -40,86 +40,88 @@ logger = logging.getLogger(__name__)
 
 class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
     """Strategy for creating alchemical states using OpenMM."""
-    
+
     @staticmethod
     def removeBonds(system: _mm.System, atoms: Iterable[int], removeInSet: bool, removeConstraints: bool) -> _mm.System:
-            """Copy a System, removing all bonded interactions between atoms in (or not in) a particular set.
+        """Copy a System, removing all bonded interactions between atoms in (or not in) a particular set.
 
-            Parameters
-            ----------
-            system: System
-                the System to copy
-            atoms: Iterable[int]
-                a set of atom indices
-            removeInSet: bool
-                if True, any bonded term connecting atoms in the specified set is removed.  If False,
-                any term that does *not* connect atoms in the specified set is removed
-            removeConstraints: bool
-                if True, remove constraints between pairs of atoms in the set
+        Parameters
+        ----------
+        system: System
+            the System to copy
+        atoms: Iterable[int]
+            a set of atom indices
+        removeInSet: bool
+            if True, any bonded term connecting atoms in the specified set is removed.  If False,
+            any term that does *not* connect atoms in the specified set is removed
+        removeConstraints: bool
+            if True, remove constraints between pairs of atoms in the set
 
-            Returns
-            -------
-            a newly created System object in which the specified bonded interactions have been removed
-            """
-            atomSet = set(atoms)
+        Returns
+        -------
+        a newly created System object in which the specified bonded interactions have been removed
+        """
+        atomSet = set(atoms)
 
-            print(atomSet)
+        print(atomSet)
 
-            # Create an XML representation of the System.
+        # Create an XML representation of the System.
 
-            import xml.etree.ElementTree as ET
-            xml = _mm.XmlSerializer.serialize(system)
-            root = ET.fromstring(xml)
+        import xml.etree.ElementTree as ET
+        xml = _mm.XmlSerializer.serialize(system)
+        root = ET.fromstring(xml)
 
-            # This function decides whether a bonded interaction should be removed.
+        # This function decides whether a bonded interaction should be removed.
 
-            def shouldRemove(termAtoms):
-                return all(a in atomSet for a in termAtoms) == removeInSet
+        def shouldRemove(termAtoms):
+            return all(a in atomSet for a in termAtoms) == removeInSet
 
-            # Remove bonds, angles, and torsions.
+        # Remove bonds, angles, and torsions.
 
-            for bonds in root.findall('./Forces/Force/Bonds'):
-                for bond in bonds.findall('Bond'):
-                    bondAtoms = [int(bond.attrib[p]) for p in ('p1', 'p2')]
-                    if shouldRemove(bondAtoms):
-                        bonds.remove(bond)
-            for angles in root.findall('./Forces/Force/Angles'):
-                for angle in angles.findall('Angle'):
-                    angleAtoms = [int(angle.attrib[p]) for p in ('p1', 'p2', 'p3')]
-                    if shouldRemove(angleAtoms):
-                        angles.remove(angle)
-            for torsions in root.findall('./Forces/Force/Torsions'):
-                for torsion in torsions.findall('Torsion'):
-                    torsionAtoms = [int(torsion.attrib[p]) for p in ('p1', 'p2', 'p3', 'p4')]
-                    if shouldRemove(torsionAtoms):
-                        torsions.remove(torsion)
+        for bonds in root.findall('./Forces/Force/Bonds'):
+            for bond in bonds.findall('Bond'):
+                bondAtoms = [int(bond.attrib[p]) for p in ('p1', 'p2')]
+                if shouldRemove(bondAtoms):
+                    bonds.remove(bond)
+        for angles in root.findall('./Forces/Force/Angles'):
+            for angle in angles.findall('Angle'):
+                angleAtoms = [int(angle.attrib[p]) for p in ('p1', 'p2', 'p3')]
+                if shouldRemove(angleAtoms):
+                    angles.remove(angle)
+        for torsions in root.findall('./Forces/Force/Torsions'):
+            for torsion in torsions.findall('Torsion'):
+                torsionAtoms = [int(torsion.attrib[p])
+                                for p in ('p1', 'p2', 'p3', 'p4')]
+                if shouldRemove(torsionAtoms):
+                    torsions.remove(torsion)
 
-            # Optionally remove constraints.
+        # Optionally remove constraints.
 
-            if removeConstraints:
-                for constraints in root.findall('./Constraints'):
-                    for constraint in constraints.findall('Constraint'):
-                        constraintAtoms = [int(constraint.attrib[p]) for p in ('p1', 'p2')]
-                        if shouldRemove(constraintAtoms):
-                            constraints.remove(constraint)
+        if removeConstraints:
+            for constraints in root.findall('./Constraints'):
+                for constraint in constraints.findall('Constraint'):
+                    constraintAtoms = [int(constraint.attrib[p])
+                                       for p in ('p1', 'p2')]
+                    if shouldRemove(constraintAtoms):
+                        constraints.remove(constraint)
 
-            # Create a new System from it.
+        # Create a new System from it.
 
-            return _mm.XmlSerializer.deserialize(ET.tostring(root, encoding='unicode'))
+        return _mm.XmlSerializer.deserialize(ET.tostring(root, encoding='unicode'))
 
     def create_solvated(self, water_model=None, padding=2.0, ionicStrength=0.15, **kwargs):
 
         print(f"solvating...")
- 
+
         # make an OpenFF Topology of the ligand
-        ligand_off_topology = offTopology.from_molecules(molecules=[self.ligand])
+        ligand_off_topology = offTopology.from_molecules(
+            molecules=[self.ligand])
 
         # convert it to an OpenMM Topology
         ligand_omm_topology = ligand_off_topology.to_openmm()
 
         # get the positions of the ligand
         ligand_positions = offquantity_to_openmm(self.ligand.conformers[0])
-
 
         if water_model.upper() == "TIP3P":
             # Create an OpenMM ForceField object for water
@@ -131,7 +133,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             # create an OpenMM Modeller object
             modeller = _app.Modeller(ligand_omm_topology, ligand_positions)
             # solvate
-            modeller.addSolvent(ff, padding=padding*unit.nanometer, ionicStrength=ionicStrength*unit.molar)
+            modeller.addSolvent(ff, padding=padding*unit.nanometer,
+                                ionicStrength=ionicStrength*unit.molar)
 
         # TODO some way to calc no of water molecules based on padding so consistent.
         # TODO possible to also calc ionic strength below with OPC?
@@ -141,19 +144,23 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             water.generate_conformers()
 
             ff = ForceField(self.ligand_forcefield, "opc.offxml")
-            topology = pack_box(molecules=[self.ligand, water], number_of_copies=[1, 900], mass_density=1.0 * offunit.gram / offunit.milliliter, box_shape=UNIT_CUBE)
+            topology = pack_box(molecules=[self.ligand, water], number_of_copies=[
+                                1, 900], mass_density=1.0 * offunit.gram / offunit.milliliter, box_shape=UNIT_CUBE)
 
-            interchange = Interchange.from_smirnoff(force_field=ff, topology=topology)
-            modeller = _app.Modeller(topology.to_openmm(), interchange.positions.to_openmm())
-            # self.system = interchange.to_openmm() 
+            interchange = Interchange.from_smirnoff(
+                force_field=ff, topology=topology)
+            modeller = _app.Modeller(
+                topology.to_openmm(), interchange.positions.to_openmm())
+            # self.system = interchange.to_openmm()
             ff = _app.ForceField("amber14/opc.xml")
             ff.registerTemplateGenerator(self.smirnoff.generator)
-            modeller.addExtraParticles(ff) # need to add extra particles for which element is None (virtual sites)
+            # need to add extra particles for which element is None (virtual sites)
+            modeller.addExtraParticles(ff)
 
         else:
             logging.error("please state the water model.")
             return
-        
+
         self.modeller = modeller
         self.ff = ff
         self.leg = "solvated"
@@ -167,7 +174,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         ff.registerTemplateGenerator(self.smirnoff.generator)
 
         # make an OpenFF Topology of the ligand
-        ligand_off_topology = offTopology.from_molecules(molecules=[self.ligand])
+        ligand_off_topology = offTopology.from_molecules(
+            molecules=[self.ligand])
 
         # convert it to an OpenMM Topology
         ligand_omm_topology = ligand_off_topology.to_openmm()
@@ -182,7 +190,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         self.ff = ff
         self.leg = "vacuum"
 
-    def create_system(self, ML=True, model="ani2x", leg="solvated", **kwargs):
+    def create_system(self, ML=True, ml_atoms=None, model="ani2x", leg="solvated", **kwargs):
 
         if leg.lower() == "solvated":
             self.create_solvated(**kwargs)
@@ -197,7 +205,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             elif self.leg == "solvated":
                 kwargs["nonbondedMethod"] = _app.PME
             else:
-                print("please create the system using create_vacuum or create_solvated. Not creating the system...")
+                print(
+                    "please create the system using create_vacuum or create_solvated. Not creating the system...")
                 return
 
         # create system with all MM forces
@@ -206,25 +215,30 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         for key in kwargs.keys():
             if key in inspect.signature(_app.ForceField.createSystem).parameters:
                 key_list.append(key)
-        system_kwarg_dict = {key:kwargs[key] for key in key_list}
+        system_kwarg_dict = {key: kwargs[key] for key in key_list}
 
-        system = self.ff.createSystem(self.modeller.topology, **system_kwarg_dict)
-        self.system = system
+        self.system = self.ff.createSystem(
+            self.modeller.topology, **system_kwarg_dict)
 
-        self.chains = list(self.modeller.topology.chains())
-
-        self.ligand_chain = 0
-
-        self.ml_atoms = [atom.index for atom in self.chains[self.ligand_chain].atoms()]
+        if ml_atoms:
+            self.ml_atoms = ml_atoms
+        else:
+            self.ml_atoms = [atom.index for atom in list(
+                self.modeller.topology.chains())[0].atoms()]
+            if len(self.ml_atoms) > 100:
+                raise ValueError(
+                    f"The length of the found ml region is >100. This seems like too much.")
 
         if self.leg == "vacuum":
             pass
         elif self.leg == "solvated":
-            self.system.addForce(_mm.MonteCarloBarostat(1.0*unit.bar, float(self.temperature)))
+            self.system.addForce(_mm.MonteCarloBarostat(
+                1.0*unit.bar, float(self.temperature)))
         else:
-            print("please create the system using create_vacuum or create_solvated. Not creating the system...")
+            print(
+                "please create the system using create_vacuum or create_solvated. Not creating the system...")
             return
-        
+
         if ML == True:
             self.create_ml(model)
 
@@ -234,15 +248,16 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
 
         macepotiml = models.anipotential.ANIPotentialImpl(name="ani2x")
         macepotiml.addForces(
-                        self.modeller.topology,
-                        ml_system,
-                        self.ml_atoms,
-                        0,
-                        returnEnergyType='energy',
-                        periodic = True,
+            self.modeller.topology,
+            ml_system,
+            self.ml_atoms,
+            0,
+            returnEnergyType='energy',
+            periodic=True,
         )
 
-        torch_force = [TorchForce.cast(f) for f in ml_system.getForces() if TorchForce.isinstance(f)][0] 
+        torch_force = [TorchForce.cast(
+            f) for f in ml_system.getForces() if TorchForce.isinstance(f)][0]
 
         self.ml_force = deepcopy(torch_force)
 
@@ -250,17 +265,19 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
 
         ml_system = deepcopy(system)
 
-        macepotiml = models.macepotential.MACEPotentialImpl(name="mace-off23-small", modelPath="")
+        macepotiml = models.macepotential.MACEPotentialImpl(
+            name="mace-off23-small", modelPath="")
         macepotiml.addForces(
-                        self.modeller.topology,
-                        ml_system,
-                        self.ml_atoms,
-                        0,
-                        returnEnergyType='energy',
-                        periodic = True,
+            self.modeller.topology,
+            ml_system,
+            self.ml_atoms,
+            0,
+            returnEnergyType='energy',
+            periodic=True,
         )
-      
-        torch_force = [TorchForce.cast(f) for f in ml_system.getForces() if TorchForce.isinstance(f)][0] 
+
+        torch_force = [TorchForce.cast(
+            f) for f in ml_system.getForces() if TorchForce.isinstance(f)][0]
 
         self.ml_force = deepcopy(torch_force)
 
@@ -281,7 +298,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         cv = _mm.CustomCVForce('')
 
         # create a new system that contains just the bonded MM forces of the ligand
-        ligand_bonded_system = OpenMMCreationStrategy.removeBonds(system, self.ml_atoms, False, False)
+        ligand_bonded_system = OpenMMCreationStrategy.removeBonds(
+            system, self.ml_atoms, False, False)
 
         # extract the ligand MM bonded forces
         ligand_bonded_forces = []
@@ -291,7 +309,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
 
         # add them to the CV force
         mm_ligand_force_names = []
-        for i, force in enumerate(ligand_bonded_forces ):
+        for i, force in enumerate(ligand_bonded_forces):
             name = f'mmForce{i+1}'
             cv.addCollectiveVariable(name, deepcopy(force))
             mm_ligand_force_names.append(name)
@@ -300,7 +318,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         # use a custom bond force for the coulomb + LJ interaction.
         for force in system.getForces():
             if isinstance(force, _mm.NonbondedForce):
-                internalNonbonded = _mm.CustomBondForce('138.935456*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)')
+                internalNonbonded = _mm.CustomBondForce(
+                    '138.935456*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)')
                 internalNonbonded.addPerBondParameter('chargeProd')
                 internalNonbonded.addPerBondParameter('sigma')
                 internalNonbonded.addPerBondParameter('epsilon')
@@ -315,7 +334,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                     atomEpsilon[i] = epsilon
                 exceptions = {}
                 for i in range(force.getNumExceptions()):
-                    p1, p2, chargeProd, sigma, epsilon = force.getExceptionParameters(i)
+                    p1, p2, chargeProd, sigma, epsilon = force.getExceptionParameters(
+                        i)
                     exceptions[(p1, p2)] = (chargeProd, sigma, epsilon)
                 for p1 in self.ml_atoms:
                     for p2 in self.ml_atoms:
@@ -328,10 +348,12 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                         else:
                             chargeProd = atomCharge[p1]*atomCharge[p2]
                             sigma = 0.5*(atomSigma[p1]+atomSigma[p2])
-                            epsilon = unit.sqrt(atomEpsilon[p1]*atomEpsilon[p2])
+                            epsilon = unit.sqrt(
+                                atomEpsilon[p1]*atomEpsilon[p2])
                         if chargeProd._value != 0 or epsilon._value != 0:
-                            internalNonbonded.addBond(p1, p2, [chargeProd, sigma, epsilon])
-                
+                            internalNonbonded.addBond(
+                                p1, p2, [chargeProd, sigma, epsilon])
+
                 # add the non bonded forces to the cv
                 if internalNonbonded.getNumBonds() > 0:
                     name = f'mmForce{len(mm_ligand_force_names)+1}'
@@ -341,13 +363,13 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         # set the CV force to be the correction term V_ml(ligand) - Vmm(ligand)
         cv.addCollectiveVariable('ml_force', self.ml_force)
 
-        cv_force_string = 'ml_force - 1.0*(' + '+'.join(mm_ligand_force_names) + ')'
+        cv_force_string = 'ml_force - 1.0*(' + \
+            '+'.join(mm_ligand_force_names) + ')'
 
         print(cv_force_string)
         cv.setEnergyFunction(cv_force_string)
         system.addForce(cv)
         # the cv includes the mmForces (ligand bonded, internal nonbonded), the ml_forces, and an energy function that incl the ml_forces-(mm forces)
-
 
     def create_alchemical_state(
         self,
@@ -436,12 +458,12 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 "timestep": "1fs",
                 "constraint": "none",
                 "integrator": "langevin_middle",
-                "temperature": "298.15K", # Kelvin
+                "temperature": "298.15K",  # Kelvin
                 "HMR": False,
             }
         else:
             dynamics_kwargs = _deepcopy(dynamics_kwargs)
-        
+
         self.temperature = dynamics_kwargs["temperature"][:-1]
 
         logger.debug("-" * 100)
@@ -451,7 +473,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug(f"lambda_lj: {lambda_lj}")
         logger.debug(f"lambda_q: {lambda_q}")
         logger.debug(f"lambda_interpolate: {lambda_interpolate}")
-        logger.debug(f"lambda_ml_correction: {lambda_ml_correction}") # TODO this needs to be one ???
+        # TODO this needs to be one ???
+        logger.debug(f"lambda_ml_correction: {lambda_ml_correction}")
         logger.debug(f"ml_potential: {ml_potential}")
         logger.debug("dynamics_kwargs:")
         for key, value in dynamics_kwargs.items():
@@ -465,13 +488,13 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         # Create the SMIRNOFF template generator with the default installed force field
         if create_system_kwargs["ligand_forcefield"].upper() == "OPENFF":
             self.smirnoff = SMIRNOFFTemplateGenerator(molecules=self.ligand,
-                                                        #forcefield="", # 'openff-2.1.0' "openff_unconstrained-2.0.0.offxml"
-                                                    )
+                                                      # forcefield="", # 'openff-2.1.0' "openff_unconstrained-2.0.0.offxml"
+                                                      )
             self.ligand_forcefield = self.smirnoff.smirnoff_filename
         elif create_system_kwargs["ligand_forcefield"].upper() == "GAFF":
             self.smirnoff = GAFFTemplateGenerator(molecules=self.ligand,
-                                                    #forcefield='gaff-2.11'
-                                                    )
+                                                  # forcefield='gaff-2.11'
+                                                  )
             self.ligand_forcefield = self.smirnoff.gaff_version
 
         if "hydrogenMass" not in create_system_kwargs.keys():
@@ -479,10 +502,10 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 create_system_kwargs["hydrogenMass"] = 3*unit.amu
             else:
                 pass
-        
+
         # if "constraints" not in dynamics_kwargs.keys():
         #     dynamics_kwargs["constraints"] = self.constrain_H
-        
+
         # if constrain_H:
         #     self.constrain_H = "HBonds"
         # else:
@@ -491,9 +514,12 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         self.modeller = None
         self.ff = None
         self.leg = None
-        self.system = None        
+        self.system = None
 
-        self.create_system(ML=True, model=ml_potential, **create_system_kwargs)
+        self.create_system(ML=True, model=ml_potential,
+                           ml_atoms=alchemical_atoms, **create_system_kwargs)
+
+        # alchemify
 
         if integrator is None:
             raise ValueError("please provide an integrator")
@@ -501,11 +527,12 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             integrator = _deepcopy(integrator)
 
         # Create a new context and set positions and velocities
-        simulation = _app.Simulation(self.modeller.topology, self.system, integrator, # omm.getPlatform() # TODO this was from the emle part?
-                                        )
+        simulation = _app.Simulation(self.modeller.topology, self.system, integrator,  # omm.getPlatform() # TODO this was from the emle part?
+                                     )
         simulation.context.setPositions(self.modeller.positions)
         try:
-            simulation.context.setVelocitiesToTemperature(integrator.getTemperature())
+            simulation.context.setVelocitiesToTemperature(
+                integrator.getTemperature())
         except AttributeError:
             simulation.context.setVelocitiesToTemperature(
                 float(dynamics_kwargs["temperature"][:-1])
@@ -520,8 +547,8 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
             logger.debug(f"{force}: {energy}")
         logger.debug("Alchemical state created successfully.")
         logger.debug("-" * 100)
- 
-         # Create the AlchemicalState
+
+        # Create the AlchemicalState
         alc_state = AlchemicalState(
             system=self.system,
             context=simulation.context,
