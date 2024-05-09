@@ -60,8 +60,6 @@ class ChargeScalingModification(BaseModification):
         system : openmm.System
             The modified System with the charges scaled.
         """
-        logger.info(f"Applying {self.NAME} with lambda value: {lambda_value}")
-
         nb_forces = [
             force
             for force in system.getForces()

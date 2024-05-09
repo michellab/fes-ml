@@ -125,8 +125,8 @@ class LJSoftCoreModification(BaseModification):
             [charge, sigma, epsilon] = nb_force.getParticleParameters(index)
             soft_core_force.addParticle([sigma, epsilon])
             if index in alchemical_atoms:
-                # Remove the LJ 12-6 interaction
-                nb_force.setParticleParameters(index, charge, sigma, 1e-9)
+                # Remove the LJ 12-6 interaction (if 1e-9, the free energies are weirdly wrong)
+                nb_force.setParticleParameters(index, charge, sigma, 0.0)
 
         # Set the custom force to occur between just the alchemical particle and the other particles
         mm_atoms = set(range(system.getNumParticles())) - set(alchemical_atoms)

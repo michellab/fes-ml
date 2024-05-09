@@ -164,16 +164,16 @@ class IntraMolecularNonBondedForcesModification(BaseModification):
             eps_solvent = nb_force.getReactionFieldDielectric()
             krf = (1 / (cutoff**3)) * (eps_solvent - 1) / (2 * eps_solvent + 1)
             crf = (1 / cutoff) * (3 * eps_solvent) / (2 * eps_solvent + 1)
-            energy_expression = "138.9354558466661*charge_prod*(1/r + krf*r*r - crf) + 4*epsilon*((sigma/r)^12-(sigma/r)^6);"
+            energy_expression = "138.9354558466661*chargeProd*(1/r + krf*r*r - crf) + 4*epsilon*((sigma/r)^12-(sigma/r)^6);"
             energy_expression += f"krf = {krf.value_in_unit(_unit.nanometer**-3)};"
             energy_expression += f"crf = {crf.value_in_unit(_unit.nanometer**-1)}"
         else:
             energy_expression = (
-                "138.9354558466661*charge_prod/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)"
+                "138.9354558466661*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)"
             )
 
         internal_nonbonded = _mm.CustomBondForce(energy_expression)
-        internal_nonbonded.addPerBondParameter("charge_prod")
+        internal_nonbonded.addPerBondParameter("chargeProd")
         internal_nonbonded.addPerBondParameter("sigma")
         internal_nonbonded.addPerBondParameter("epsilon")
         num_particles = system.getNumParticles()

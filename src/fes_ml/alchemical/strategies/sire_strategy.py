@@ -39,6 +39,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_schedule: Dict[str, Union[float, int]],
         minimise_iterations: int = 1,
         dynamics_kwargs: Optional[Dict[str, Any]] = None,
+        remove_constraints: bool = True,
         integrator: Optional[Any] = None,
         keep_tmp_files: bool = True,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
@@ -65,6 +66,8 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         dynamics_kwargs : dict
             Additional keyword arguments to be passed to sire.mol.Dynamics.
             See https://sire.openbiosim.org/api/mol.html#sire.mol.Dynamics.
+        remove_constraints : bool, optional, default=True
+            Whether to remove constraints involving the alchemical atoms.
         integrator : Any, optional, default=None
             The OpenMM integrator to use. If None, the integrator is the one used in the dynamics_kwargs, if provided.
             Otherwise, the default is a LangevinMiddle integrator with a 1 fs timestep and a 298.15 K temperature.
@@ -79,6 +82,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             The alchemical state.
         """
         logger.debug("=" * 100)
+
         # Generate local copies of the dynamics and EMLE kwargs
         dynamics_kwargs = (
             _deepcopy(self._DYNAMIC_KWARGS)
@@ -150,6 +154,13 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
                 "MLPotential", {}
             )
             modifications_kwargs["MLPotential"]["topology"] = topology
+
+        # Remove constraints involving alchemical atoms
+        if remove_constraints:
+            for i in range(omm_system.getNumConstraints() - 1, -1, -1):
+                p1, p2, _ = omm_system.getConstraintParameters(i)
+                if p1 in alchemical_atoms or p2 in alchemical_atoms:
+                    omm_system.removeConstraint(i)
 
         # Run the Alchemist
         self._run_alchemist(
