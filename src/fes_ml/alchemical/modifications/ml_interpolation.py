@@ -1,9 +1,11 @@
 import logging
 from copy import deepcopy as _deepcopy
+from typing import List
 
 import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory
+from .intramolecular import IntraMolecularBondedRemovalModification
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ class MLInterpolationModification(BaseModification):
     def apply(
         self,
         system: _mm.System,
+        alchemical_atoms: List[int],
         lambda_value: float,
         *args,
         **kwargs,
@@ -79,7 +82,7 @@ class MLInterpolationModification(BaseModification):
 
         ml_vars = []
         for i, (force_id, force) in enumerate(ml_forces):
-            name = f"mlForce{i+1}"
+            name = f"{force.getName()}{i+1}"
             cv.addCollectiveVariable(name, _deepcopy(force))
             ml_vars.append(name)
 
@@ -91,11 +94,16 @@ class MLInterpolationModification(BaseModification):
                 or hasattr(force, "addAngle")
                 or hasattr(force, "addTorsion")
             ):
+                # Remove bonded interactions between non-alchemical atoms
+                force = _deepcopy(force)
+                IntraMolecularBondedRemovalModification._remove_bonded_interactions(
+                    force, alchemical_atoms, False
+                )
                 bonded_forces.append(force)
 
         mm_vars = []
         for i, force in enumerate(bonded_forces):
-            name = f"mmForce{i+1}"
+            name = f"{force.getName()}{i+1}"
             cv.addCollectiveVariable(name, _deepcopy(force))
             mm_vars.append(name)
 

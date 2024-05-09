@@ -135,7 +135,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Report the energy decomposition before applying the alchemical modifications
         self._report_energy_decomposition(omm_context, omm_system)
 
-        modifications_kwargs = modifications_kwargs or {}
+        modifications_kwargs = _deepcopy(modifications_kwargs) or {}
         if "EMLEPotential" in lambda_schedule:
             modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
                 "EMLEPotential", {}
@@ -145,7 +145,6 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
             modifications_kwargs["EMLEPotential"]["mm_charges"] = _np.asarray(
                 [atom.charge().value() for atom in mols.atoms(alchemical_atoms)]
             )
-
         if any(
             key in lambda_schedule
             for key in ["MLPotential", "MLInterpolation", "MLCorrection"]

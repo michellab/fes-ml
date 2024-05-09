@@ -184,8 +184,8 @@ class Alchemist:
         """
         for mod in nx.topological_sort(self._graph):
             lambda_value = self._graph.nodes[mod]["lambda_value"]
-            modification = self._graph.nodes[mod]["modification"]
-            modification_kwargs = modifications_kwargs.get(mod, {})
+            mod_instance = self._graph.nodes[mod]["modification"]
+            mod_kwargs = modifications_kwargs.get(mod, {})
 
             if lambda_value is None:
                 logger.debug(f"Applying {mod} modification")
@@ -193,12 +193,12 @@ class Alchemist:
                 logger.debug(
                     f"Applying {mod} modification with lambda value {lambda_value}"
                 )
-            system = modification.apply(
+            system = mod_instance.apply(
                 system,
                 alchemical_atoms=alchemical_atoms,
                 lambda_value=lambda_value,
                 *args,
-                **modification_kwargs,
+                **mod_kwargs,
                 **kwargs,
             )
 

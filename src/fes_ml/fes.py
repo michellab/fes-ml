@@ -212,6 +212,7 @@ class FES:
         alchemical_atoms: List[int],
         lambda_schedule: Dict[str, List[Optional[float]]],
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
+        strategy_name: str = "sire",
         *args,
         **kwargs,
     ) -> List[AlchemicalState]:
@@ -235,6 +236,9 @@ class FES:
                 },
                 ...
             }
+        strategy_name : str, optional, default='sire'
+            The name of the strategy to create the alchemical state.
+            Available strategies are: "sire".
 
         Returns
         -------
@@ -263,6 +267,7 @@ class FES:
         self.alchemical_states = []
         for i in range(nstates):
             alchemical_state = alchemical_factory.create_alchemical_state(
+                strategy_name,
                 top_file=self.top_file,
                 crd_file=self.crd_file,
                 alchemical_atoms=alchemical_atoms,
