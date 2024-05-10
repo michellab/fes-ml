@@ -18,7 +18,7 @@ class AlchemicalStateCreationStrategy(ABC):
     @abstractmethod
     def create_alchemical_state(self, *args, **kwargs) -> AlchemicalState:
         """
-        Create an alchemical state for the given lambda values.
+        Create an alchemical state for the given λ values.
 
         Returns
         -------
@@ -34,14 +34,14 @@ class AlchemicalStateCreationStrategy(ABC):
         lambda_schedule: Dict[str, Union[float, int]],
         *args,
         **kwargs,
-    ):
+    ) -> None:
         """
         Run the alchemist to apply the alchemical modifications to the system.
 
         Parameters
         ----------
         lambda_schedule : dict
-            A dicitonary containing a mapping of the alchemical modifications to the lambda values.
+            A dicitonary containing a mapping of the alchemical modifications to the λ values.
         system : openmm.System
             The system to be modified.
         alchemical_atoms : list of int
@@ -84,14 +84,14 @@ class AlchemicalStateCreationStrategy(ABC):
             The OpenMM context.
         """
         logger.debug("")
-        logger.debug("-" * 50)
+        logger.debug("-" * 100)
         logger.debug("ENERGY DECOMPOSITION")
-        logger.debug("-" * 50)
+        logger.debug("-" * 100)
         logger.debug(
             f"Total potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}"
         )
         energy_decomp = energy_decomposition(system, context)
         for force, energy in energy_decomp.items():
             logger.debug(f"{force}: {energy}")
-        logger.debug("-" * 50)
+        logger.debug("-" * 100)
         logger.debug("")

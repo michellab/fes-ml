@@ -56,7 +56,7 @@ class AlchemicalStateFactory:
         self, strategy_name: str = "sire", *args, **kwargs
     ) -> AlchemicalState:
         """
-        Create an alchemical state for the given lambda values.
+        Create an alchemical state for the given λ values.
 
         Parameters
         ----------

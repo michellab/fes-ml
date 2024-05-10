@@ -61,8 +61,8 @@ def plot_lambda_schedule(
     Parameters
     ----------
     lambda_schedule : dict
-        Dictionary with the lambda values for the alchemical states.
-        The keys of the dictionary are the lambda parameters and the values are lists of lambda values.
+        Dictionary with the λ values for the alchemical states.
+        The keys of the dictionary are the λ parameters and the values are lists of λ values.
     output_file : str, optional, default=None
         The name of the output file to save the plot. If None, the plot is shown.
     """

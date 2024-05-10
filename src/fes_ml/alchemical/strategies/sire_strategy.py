@@ -47,7 +47,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         **kwargs,
     ) -> AlchemicalState:
         """
-        Create an alchemical state for the given lambda values using OpenMM Systems created with Sire.
+        Create an alchemical state for the given λ values using OpenMM Systems created with Sire.
 
         Parameters
         ----------
@@ -58,7 +58,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         alchemical_atoms : list of int
             A list of atom indices to be alchemically modified.
         lambda_schedule : dict
-            A dictionary mapping the name of the alchemical modification to the lambda value.
+            A dictionary mapping the name of the alchemical modification to the λ value.
         minimise_iterations : int, optional, default=1
             The number of minimisation iterations to perform before creating the alchemical state.
             1 step is enough to bring the geometry to the distances imposed by the restraints.

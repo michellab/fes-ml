@@ -25,7 +25,7 @@ class BaseModification(ABC):
       attribute ``NAME``.
     - Modifications can be applied by passing a lambda schedule
       dictionary when creating alchemical states. This dictionary
-      maps ``NAME``s to lambda values for each ``AlchemicalState``.
+      maps ``NAME``s to λ values for each ``AlchemicalState``.
 
     Implementing new modifications:
 

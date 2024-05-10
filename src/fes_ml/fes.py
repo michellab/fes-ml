@@ -25,7 +25,7 @@ class FES:
     top_file : str
         Path to the topology file.
     lambda_schedule : dict
-        Dictionary with the lambda values for the alchemical states.
+        Dictionary with the λ values for the alchemical states.
     alchemical_states : list of AlchemicalState
         List of alchemical states.
     alchemical_atoms : list of int
@@ -101,9 +101,9 @@ class FES:
         top_file : str
             Path to the topology file.
         lambda_schedule : dict, optional, default=None
-            Dictionary with the lambda values for the alchemical states.
+            Dictionary with the λ values for the alchemical states.
             The keys of the dictionary are the names of the modifications
-            and the values are lists of lambda values.
+            and the values are lists of λ values.
         alchemical_atoms : list of int, optional, default=None
             List of atom indices to be alchemically modified.
         output_prefix : str, optional, default="fes"
@@ -217,14 +217,14 @@ class FES:
         **kwargs,
     ) -> List[AlchemicalState]:
         """
-        Create a batch of alchemical states for the given lambda values.
+        Create a batch of alchemical states for the given λ values.
 
         Parameters
         ----------
         alchemical_atoms : list
             List of atom indices to be alchemically modified.
         lambda_schedule : dict
-            Dictionary with the lambda values for the alchemical states.
+            Dictionary with the λ values for the alchemical states.
         modifications_kwargs : dict
             A dictionary of keyword arguments for the modifications.
             It is structured as follows:
@@ -252,7 +252,7 @@ class FES:
         self.lambda_schedule = lambda_schedule
         self.alchemical_atoms = alchemical_atoms
 
-        # Check that that each parameter has the same number of lambda values
+        # Check that that each parameter has the same number of λ values
         nstates_param = [
             len(lambda_schedule.get(lambda_param, []))
             for lambda_param in lambda_schedule
@@ -260,9 +260,7 @@ class FES:
 
         nstates = nstates_param[0]
         if not all([n == nstates for n in nstates_param]):
-            raise ValueError(
-                "All lambda parameters must have the same number of lambda values."
-            )
+            raise ValueError("All λ parameters must have the same number of λ values.")
 
         self.alchemical_states = []
         for i in range(nstates):

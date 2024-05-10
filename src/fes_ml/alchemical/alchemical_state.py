@@ -24,7 +24,7 @@ class AlchemicalState:
         The OpenMM topology associated with the alchemical state.
     modifications : dict
         Dictionary mapping the name of the alchemical modifications
-        applied to the system to the lambda value.
+        applied to the system to the λ value.
     """
 
     # OpenMM objects

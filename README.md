@@ -131,10 +131,18 @@ fes.create_alchemical_states(
 )
 ```
 
-## Log Level
+## Logging Settings
 
-By default, fes-ml logs messages at the `INFO` level. This means you will see informative messages about the overall progress but not necessarily detailed debugging information. You can control the verbosity of the logging output by setting the `FES_ML_LOG_LEVEL` environment variable:
+By default, fes-ml logs messages at the INFO level. This means you will see informative messages about the overall progress but not necessarily detailed debugging information. You can control the verbosity of the logging output by setting the FES_ML_LOG_LEVEL environment variable:
 
 ```bash
 export FES_ML_LOG_LEVEL="DEBUG"
 ```
+
+If you want to include log messages from packages other than fes-ml, set the `FES_ML_FILTER_LOGGERS` variable to 0:
+
+```bash
+export FES_ML_FILTER_LOGGERS=0
+```
+
+By default, this variable is set to 1, meaning only log messages coming from `fes-ml` are displayed.

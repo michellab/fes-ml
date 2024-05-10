@@ -114,7 +114,7 @@ class Alchemist:
         Parameters
         ----------
         lambda_schedule : dict
-            A dictionary of lambda values to be applied to the system.
+            A dictionary of λ values to be applied to the system.
         additional_modifications : list of str
             Additional modifications to apply.
 
@@ -160,7 +160,7 @@ class Alchemist:
         system : openmm.System
             The system to be modified.
         lambda_schedule : dict
-            A dictionary of lambda values to be applied to the system.
+            A dictionary of λ values to be applied to the system.
         modifications_kwargs : dict
             A dictionary of keyword arguments for the modifications.
             It is structured as follows:
@@ -190,9 +190,7 @@ class Alchemist:
             if lambda_value is None:
                 logger.debug(f"Applying {mod} modification")
             else:
-                logger.debug(
-                    f"Applying {mod} modification with lambda value {lambda_value}"
-                )
+                logger.debug(f"Applying {mod} modification with λ={lambda_value}")
             system = mod_instance.apply(
                 system,
                 alchemical_atoms=alchemical_atoms,
