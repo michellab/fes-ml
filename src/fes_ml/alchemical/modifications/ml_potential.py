@@ -48,21 +48,11 @@ class MLPotentialModification(BaseModification):
         "mace-off23-large",
     ]
 
-    _ANI_POTENTIALS = ["ani2x"]
-    _MACE_POTENTIALS = [
-        "mace",
-        "mace-off23-small",
-        "mace-off23-medium",
-        "mace-off23-large",
-    ]
-
     def apply(
         self,
         system: _mm.System,
         alchemical_atoms: List[int],
         topology: _app.Topology,
-        name: str = "ani2x",
-        modelPath: Optional[str] = None,
         name: str = "ani2x",
         modelPath: Optional[str] = None,
         *args,
@@ -102,7 +92,6 @@ class MLPotentialModification(BaseModification):
             )
         else:
             raise ValueError(
-                f"Unknown ML potential: {name}. Currently supported potentials are {self._ANI_POTENTIALS + self._MACE_POTENTIALS}"
                 f"Unknown ML potential: {name}. Currently supported potentials are {self._ANI_POTENTIALS + self._MACE_POTENTIALS}"
             )
 
