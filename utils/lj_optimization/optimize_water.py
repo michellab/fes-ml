@@ -1,3 +1,5 @@
+"""Script to optimize the LJ parameters of the TIP3P water model."""
+
 if __name__ == "__main__":
     import logging
     import os

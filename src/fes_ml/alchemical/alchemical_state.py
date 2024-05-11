@@ -1,3 +1,4 @@
+"""Module that defines the AlchemicalState dataclass."""
 from dataclasses import dataclass, field
 from typing import Dict, Union
 

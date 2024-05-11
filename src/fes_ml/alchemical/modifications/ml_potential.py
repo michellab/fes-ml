@@ -1,7 +1,7 @@
-"""This module contains the implementation of the LJSoftCoreModification class."""
+"""Module for the MLPotentialModification class and its factory."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import openmm as _mm
 import openmm.app as _app
@@ -33,6 +33,8 @@ class MLPotentialModificationFactory(BaseModificationFactory):
 
 
 class MLPotentialModification(BaseModification):
+    """Class to add a ML potential to the System."""
+
     NAME = "MLPotential"
     pre_dependencies: List[str] = [IntraMolecularNonBondedForcesModification.NAME]
     post_dependencies: List[str] = [
@@ -83,7 +85,6 @@ class MLPotentialModification(BaseModification):
         system : openmm.System
             The modified System.
         """
-
         if name in self._ANI_POTENTIALS:
             self._create_ani2x(topology, system, alchemical_atoms, *args, **kwargs)
         elif name in self._MACE_POTENTIALS:
@@ -92,7 +93,8 @@ class MLPotentialModification(BaseModification):
             )
         else:
             raise ValueError(
-                f"Unknown ML potential: {name}. Currently supported potentials are {self._ANI_POTENTIALS + self._MACE_POTENTIALS}"
+                f"Unknown ML potential: {name}. "
+                f"Currently supported potentials are {self._ANI_POTENTIALS + self._MACE_POTENTIALS}"
             )
 
         return system

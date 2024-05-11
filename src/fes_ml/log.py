@@ -34,13 +34,15 @@ def log_banner() -> None:
 
 
 class BlockFilter(logging.Filter):
+    """Filter to block loggers not starting with fes_ml."""
+
     def filter(self, record):
+        """Filter loggers not starting with fes_ml."""
         return record.name.startswith("fes_ml")
 
 
 def config_logger() -> None:
     """Configure the logger for the fes-ml package."""
-
     # Define log level
     log_level = os.environ.get("FES_ML_LOG_LEVEL", default="INFO").upper()
     silence_loggers = int(os.environ.get("FES_ML_FILTER_LOGGERS", default=1))

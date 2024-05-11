@@ -1,3 +1,4 @@
+"""Module for the MLCorrectionModification class and its factory."""
 import logging
 from copy import deepcopy as _deepcopy
 
@@ -30,6 +31,8 @@ class MLCorrectionModificationFactory(BaseModificationFactory):
 
 
 class MLCorrectionModification(BaseModification):
+    """Class to add a CustomCVForce that is a Δ ML correction."""
+
     NAME = "MLCorrection"
     pre_dependencies = ["MLPotential"]
     post_dependencies = [
@@ -69,7 +72,6 @@ class MLCorrectionModification(BaseModification):
         -----
         This code is heavily inspired on this https://github.com/openmm/openmm-ml/blob/main/openmmml/mlpotential.py#L190-L351.
         """
-
         cv = _mm.CustomCVForce("")
         cv.addGlobalParameter("lambda_interpolate", lambda_value)
 

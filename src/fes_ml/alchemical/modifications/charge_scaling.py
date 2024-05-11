@@ -1,7 +1,7 @@
-"""This module contains the implementation of the LJSoftCoreModification class."""
+"""Module for the ChargeScalingModification class and its factory."""
 
 import logging
-from typing import List, Optional
+from typing import List
 
 import openmm as _mm
 
@@ -30,6 +30,8 @@ class ChargeScalingModificationFactory(BaseModificationFactory):
 
 
 class ChargeScalingModification(BaseModification):
+    """Class to scale the charges of the alchemical atoms in the System."""
+
     NAME = "ChargeScaling"
     pre_dependencies: List[str] = [IntraMolecularNonBondedForcesModification.NAME]
     post_dependencies: List[str] = [IntraMolecularNonBondedExceptionsModification.NAME]
@@ -44,6 +46,7 @@ class ChargeScalingModification(BaseModification):
     ) -> _mm.System:
         """
         Scale the charges of the alchemical atoms in the System.
+
         Only the intermolecular interactions are affected by this modification.
 
         Parameters

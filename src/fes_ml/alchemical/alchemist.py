@@ -25,18 +25,30 @@ class Alchemist:
     def register_modification_factory(
         name: str, factory: BaseModificationFactory
     ) -> Dict[str, BaseModificationFactory]:
+        """Register a new modification factory in the Alchemist class."""
         Alchemist._modification_factories[name] = factory
 
         return Alchemist._modification_factories
 
     def __init__(self) -> None:
+        """Initialize the Alchemist object."""
+        logger.debug("-" * 100)
+        logger.debug("Δ ALCHEMIST Δ")
+        logger.debug("-" * 100)
+
         self._graph = nx.DiGraph()
 
+    def __del__(self) -> None:
+        """Delete the Alchemist object."""
+        logger.debug("-" * 100)
+
     def __repr__(self) -> str:
+        """Return the string representation of the Alchemist object."""
         return nx.to_dict_of_lists(self._graph)
 
     @property
     def graph(self) -> nx.DiGraph:
+        """Set the graph of alchemical modifications."""
         return self._graph
 
     def add_modification(self, name: str, factory: BaseModificationFactory):
@@ -123,6 +135,7 @@ class Alchemist:
         nx.DiGraph
             The graph of the modifications to apply.
         """
+        logger.debug("Creating graph of alchemical modifications.")
         for name, lambda_value in lambda_schedule.items():
             if name in Alchemist._modification_factories:
                 factory = self._modification_factories[name]
@@ -141,7 +154,12 @@ class Alchemist:
                     )
                 else:
                     raise ValueError(f"Modification {name} not found in the factories.")
-
+        logger.debug("Created graph of alchemical modifications:\n")
+        for line in nx.generate_network_text(
+            self._graph, vertical_chains=False, ascii_only=True
+        ):
+            logger.debug(line)
+        logger.debug("")
         return self._graph
 
     def apply_modifications(

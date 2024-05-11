@@ -1,4 +1,4 @@
-"""This module contains the implementations of the modifications related to intramolecular parameters."""
+"""Module for classes related to modifications of the intramolecular terms and their factories."""
 
 import logging
 from typing import List
@@ -75,6 +75,8 @@ class IntraMolecularBondedRemovalModificationFactory(BaseModificationFactory):
 
 
 class IntraMolecularNonBondedExceptionsModification(BaseModification):
+    """Class to add zeroed exceptions between alchemical atoms."""
+
     NAME = "IntraMolecularNonBondedExceptions"
 
     def apply(
@@ -119,6 +121,8 @@ class IntraMolecularNonBondedExceptionsModification(BaseModification):
 
 
 class IntraMolecularNonBondedForcesModification(BaseModification):
+    """Class to add intramolecular nonbonded forces as a CustomBondForce."""
+
     NAME = "IntraMolecularNonBondedForces"
 
     def apply(
@@ -210,6 +214,8 @@ class IntraMolecularNonBondedForcesModification(BaseModification):
 
 
 class IntraMolecularBondedRemovalModification(BaseModification):
+    """Class to remove bonded interactions (by zeroing them) between alchemical atoms."""
+
     NAME = "IntraMolecularBondedRemoval"
 
     @staticmethod

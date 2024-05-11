@@ -1,4 +1,4 @@
-"""This module contains the implementation of the LJSoftCoreModification class."""
+"""Module for the LJSoftCoreModification class and its factory."""
 
 import logging
 from typing import List, Optional, Union
@@ -31,6 +31,8 @@ class LJSoftCoreModificationFactory(BaseModificationFactory):
 
 
 class LJSoftCoreModification(BaseModification):
+    """Class to add a softcore Lennard-Jones potential to the System."""
+
     NAME = "LJSoftCore"
 
     _NON_BONDED_METHODS = {

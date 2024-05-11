@@ -1,3 +1,4 @@
+"""Integration tests for the fes-ml package."""
 import os
 from typing import Dict, List, Optional, Tuple
 
@@ -26,6 +27,8 @@ test_data_dir = os.path.join(test_data_dir, "test_data")
     ],
 )
 class TestAlchemicalStates:
+    """Test the creation of alchemical states."""
+
     _DYNAMICS_KWARGS = {
         "timestep": "1fs",
         "cutoff_type": "PME",
@@ -145,7 +148,7 @@ class TestAlchemicalStates:
             The OpenMM system.
         """
         prmtop = _app.AmberPrmtopFile(top_file)
-        inpcrd = _app.AmberInpcrdFile(crd_file)
+        _ = _app.AmberInpcrdFile(crd_file)
 
         system = prmtop.createSystem(
             nonbondedMethod=_app.PME,

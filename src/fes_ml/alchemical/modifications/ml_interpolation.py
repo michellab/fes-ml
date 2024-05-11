@@ -1,3 +1,4 @@
+"""Module for the MLInterpolationModification class and its factory."""
 import logging
 from copy import deepcopy as _deepcopy
 from typing import List
@@ -32,6 +33,8 @@ class MLInterpolationModificationFactory(BaseModificationFactory):
 
 
 class MLInterpolationModification(BaseModification):
+    """Class to add a CustomCVForce to interpolate between ML and MM forces."""
+
     NAME = "MLInterpolation"
     pre_dependencies = ["MLPotential"]
     post_dependencies = [

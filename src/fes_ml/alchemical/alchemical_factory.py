@@ -1,3 +1,4 @@
+"""Module that defines the AlchemicalStateFactory class."""
 import logging
 
 from .alchemical_state import AlchemicalState
@@ -18,7 +19,7 @@ class AlchemicalStateFactory:
     """
 
     def __init__(self) -> None:
-        """AlchemicalStateFactory constructor."""
+        """Initialize the AlchemicalStateFactory."""
         self.strategies: dict = {}
 
     def register_strategy(

@@ -1,5 +1,5 @@
 """
-MM(sol)->MM(gas) free energy calculation for benzene using a multiple time step Langevin integrator
+MM(sol)->MM(gas) free energy calculation for benzene using a multiple time step Langevin integrator.
 
 This script demonstrates how to calculate a direct absolute hydration free energy at the MM level.
 The solute is alchemically modified using a lambda schedule that decouples the solute from the solvent.

@@ -1,4 +1,4 @@
-"""Base classes for system modifications."""
+"""Module for the BaseModification abstract class and its factory."""
 
 from abc import ABC, abstractmethod
 from typing import List
@@ -41,6 +41,11 @@ class BaseModification(ABC):
     post_dependencies: List[str] = []
 
     def __init_subclass__(cls, **kwargs):
+        """
+        Initialize the subclass.
+
+        Force subclasses to override the NAME attribute.
+        """
         super().__init_subclass__(**kwargs)
         if cls.NAME is NotImplemented:
             raise NotImplementedError(
