@@ -14,14 +14,16 @@ if __name__ == "__main__":
     import numpy as np
     import openmm as mm
 
+    from fes_ml.alchemical.modifications.ml_interpolation import (
+        MLInterpolationModification,
+    )
     from fes_ml.fes import FES
-    from fes_ml.alchemical.modifications.ml_interpolation import MLInterpolationModification
 
     # Set up the alchemical modifications
     n_interpolation = 3
 
     lambda_schedule = {
-        "MLInterpolation" : np.linspace(1.0, 0.0, n_interpolation),
+        "MLInterpolation": np.linspace(1.0, 0.0, n_interpolation),
     }
 
     # Define the dynamics and EMLE parameters
