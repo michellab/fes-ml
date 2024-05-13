@@ -2,8 +2,8 @@
 ML(sol)->MM(sol) free energy calculation for benzene in solution using an ML/MM approach (mechanical embedding).
 
 The solute is alchemically modified using a lambda schedule that interpolates between ML and MM potentials.
-At lambda_interpolate=1, the solute is fully simulated with an MLP.
-At lambda_interpolate=0, the solute is fully simulated with the MM force field.
+At MLInterpolation=1, the solute is fully simulated with an MLP.
+At MLInterpolation=0, the solute is fully simulated with the MM force field.
 
 Authors: Joao Morado
 """
@@ -11,17 +11,16 @@ Authors: Joao Morado
 if __name__ == "__main__":
     import numpy as np
     import openmm as mm
-    import openmm.app as app
     import openmm.unit as unit
 
     from fes_ml.fes import FES
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
-    n_lambda_interpolate = 6
+    n_MLInterpolation = 6
 
     lambda_schedule = {
-        "lambda_interpolate": np.linspace(1.0, 0.0, n_lambda_interpolate),
+        "MLInterpolation": np.linspace(1.0, 0.0, n_MLInterpolation),
     }
 
     plot_lambda_schedule(lambda_schedule, "lambda_schedule_mm_sol_mts.png")

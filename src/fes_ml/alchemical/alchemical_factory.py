@@ -1,9 +1,14 @@
+"""Module that defines the AlchemicalStateFactory class."""
+import logging
+
 from .alchemical_state import AlchemicalState
 from .strategies import (
     AlchemicalStateCreationStrategy,
     OpenMMCreationStrategy,
     SireCreationStrategy,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AlchemicalStateFactory:
@@ -18,7 +23,7 @@ class AlchemicalStateFactory:
     """
 
     def __init__(self) -> None:
-        """AlchemicalStateFactory constructor."""
+        """Initialize the AlchemicalStateFactory."""
         self.strategies: dict = {}
 
     def register_strategy(
@@ -36,11 +41,27 @@ class AlchemicalStateFactory:
         """
         self.strategies[name] = strategy
 
+    def get_strategy(self, name: str) -> AlchemicalStateCreationStrategy:
+        """
+        Get a strategy to create alchemical states.
+
+        Parameters
+        ----------
+        name : str
+            The name of the strategy.
+
+        Returns
+        -------
+        AlchemicalStateCreationStrategy
+            The strategy to create alchemical states.
+        """
+        return self.strategies.get(name, None)
+
     def create_alchemical_state(
         self, strategy_name: str = "sire", *args, **kwargs
     ) -> AlchemicalState:
         """
-        Create an alchemical state for the given lambda values.
+        Create an alchemical state for the given λ values.
 
         Parameters
         ----------
@@ -52,7 +73,7 @@ class AlchemicalStateFactory:
         AlchemicalState
             The alchemical state.
         """
-        strategy = self.strategies.get(strategy_name, None)
+        strategy = self.get_strategy(strategy_name)
         if strategy:
             alchemical_state = strategy.create_alchemical_state(*args, **kwargs)
             return alchemical_state

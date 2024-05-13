@@ -1,9 +1,10 @@
+"""Script to calculate free energy differences using MBAR."""
 import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 from openmm import unit
-from pymbar import MBAR, timeseries
+from pymbar import MBAR
 
 if len(sys.argv) != 3 or sys.argv[1] in ["-h", "--help"]:
     print("Usage: python analyse.py <file_name> <temperature>")

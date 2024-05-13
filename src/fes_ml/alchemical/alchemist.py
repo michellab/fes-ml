@@ -1,0 +1,241 @@
+"""Module for the Alchemist class."""
+import logging
+import sys
+from typing import Any, Dict, List, Optional
+
+import networkx as nx
+import openmm as _mm
+
+from .modifications.base_modification import BaseModification, BaseModificationFactory
+
+if sys.version_info < (3, 10):
+    from importlib_metadata import entry_points
+else:
+    from importlib.metadata import entry_points
+
+logger = logging.getLogger(__name__)
+
+
+class Alchemist:
+    """A class for applying alchemical modifications to an OpenMM system."""
+
+    _modification_factories: Dict[str, BaseModificationFactory] = {}
+
+    @staticmethod
+    def register_modification_factory(
+        name: str, factory: BaseModificationFactory
+    ) -> Dict[str, BaseModificationFactory]:
+        """Register a new modification factory in the Alchemist class."""
+        Alchemist._modification_factories[name] = factory
+
+        return Alchemist._modification_factories
+
+    def __init__(self) -> None:
+        """Initialize the Alchemist object."""
+        logger.debug("-" * 100)
+        logger.debug("⌬ ALCHEMIST ⌬")
+        logger.debug("-" * 100)
+
+        self._graph = nx.DiGraph()
+
+    def __del__(self) -> None:
+        """Delete the Alchemist object."""
+        logger.debug("-" * 100)
+
+    def __repr__(self) -> str:
+        """Return the string representation of the Alchemist object."""
+        return nx.to_dict_of_lists(self._graph)
+
+    @property
+    def graph(self) -> nx.DiGraph:
+        """Set the graph of alchemical modifications."""
+        return self._graph
+
+    def add_modification(self, name: str, factory: BaseModificationFactory):
+        """
+        Add a modification to the Alchemist graph.
+
+        Parameters
+        ----------
+        name : str
+            The name of the modification.
+        factory : BaseModificationFactory
+            The factory to create the modification.
+        """
+        self._modification_factories[name] = factory
+
+    def plot_graph(self):
+        """Plot the graph of the alchemical modifications."""
+        import matplotlib.pyplot as plt
+
+        plt.figure(figsize=(10, 10))
+        nx.draw(
+            self._graph,
+            pos=nx.circular_layout(self._graph),
+            with_labels=True,
+            node_color="skyblue",
+            node_size=10000,
+            edge_color="gray",
+        )
+        plt.title("Alchemical Graph")
+        plt.savefig("alchemical_graph.png")
+        plt.close()
+
+    def reset_alchemical_graph(self):
+        """Reset the graph of alchemical modifications."""
+        self._graph = nx.DiGraph()
+
+    def add_modification_to_graph(
+        self, modification: BaseModification, lambda_value: Optional[float] = 1.0
+    ) -> None:
+        """
+        Add a modification to the graph of alchemical modifications.
+
+        Parameters
+        ----------
+        modification : BaseModification
+            The modification to add to the graph.
+        lambda_value : float
+            The value of the alchemical state parameter.
+        """
+        self._graph.add_node(
+            modification.NAME, modification=modification, lambda_value=lambda_value
+        )
+        if modification.pre_dependencies is not None:
+            for pre_dependency in modification.pre_dependencies:
+                if pre_dependency not in self._modification_factories:
+                    raise ValueError(
+                        f"Pre-dependency {pre_dependency} of {modification.NAME} "
+                        "not found in the factories. Please make sure there are no "
+                        "typos in the name of this pre-dependency and that the target "
+                        "modification is implemented and registered as an entry point."
+                    )
+
+                factory = self._modification_factories[pre_dependency]
+                pre_modification = factory.create_modification()
+                self._graph.add_edge(pre_modification.NAME, modification.NAME)
+                self.add_modification_to_graph(pre_modification, None)
+
+        if modification.post_dependencies is not None:
+            for post_dependency in modification.post_dependencies:
+                if post_dependency not in self._modification_factories:
+                    raise ValueError(
+                        f"Post-dependency {post_dependency} of {modification.NAME} "
+                        "not found in the factories. Please make sure there are no "
+                        "typos in the name of this post-dependency and that the target "
+                        "modification is implemented and registered as an entry point."
+                    )
+                factory = self._modification_factories[post_dependency]
+                post_modification = factory.create_modification()
+                self._graph.add_edge(modification.NAME, post_modification.NAME)
+                self.add_modification_to_graph(post_modification, None)
+
+    def create_alchemical_graph(
+        self,
+        lambda_schedule: Dict[str, float],
+        additional_modifications: Optional[List[str]] = None,
+    ):
+        """
+        Create a graph of alchemical modifications to apply.
+
+        Parameters
+        ----------
+        lambda_schedule : dict
+            A dictionary of λ values to be applied to the system.
+        additional_modifications : list of str
+            Additional modifications to apply.
+
+        Returns
+        -------
+        nx.DiGraph
+            The graph of the modifications to apply.
+        """
+        logger.debug("Creating graph of alchemical modifications.")
+        for name, lambda_value in lambda_schedule.items():
+            if name in Alchemist._modification_factories:
+                factory = self._modification_factories[name]
+                modification = factory.create_modification()
+                self.add_modification_to_graph(modification, lambda_value=lambda_value)
+            else:
+                raise ValueError(f"Modification {name} not found in the factories.")
+
+        if additional_modifications is not None:
+            for name in additional_modifications:
+                if name in Alchemist._modification_factories:
+                    factory = self._modification_factories[name]
+                    modification = factory.create_modification()
+                    self.add_modification_to_graph(
+                        modification, lambda_value=lambda_value
+                    )
+                else:
+                    raise ValueError(f"Modification {name} not found in the factories.")
+        logger.debug("Created graph of alchemical modifications:\n")
+        for line in nx.generate_network_text(
+            self._graph, vertical_chains=False, ascii_only=True
+        ):
+            logger.debug(line)
+        logger.debug("")
+        return self._graph
+
+    def apply_modifications(
+        self,
+        system: _mm.System,
+        alchemical_atoms: List[int],
+        modifications_kwargs: Dict[str, Dict[str, Any]],
+        *args,
+        **kwargs,
+    ) -> _mm.System:
+        """
+        Apply the alchemical modifications to the system.
+
+        Parameters
+        ----------
+        system : openmm.System
+            The system to be modified.
+        lambda_schedule : dict
+            A dictionary of λ values to be applied to the system.
+        modifications_kwargs : dict
+            A dictionary of keyword arguments for the modifications.
+            It is structured as follows:
+            {
+                "modification_name": {
+                    "key1": value1,
+                    "key2": value2,
+                    ...
+                },
+                ...
+            }
+        args : list
+            Additional arguments to be passed to the modifications.
+        kwargs : dict
+            Additional keyword arguments to be passed to the modifications.
+
+        Returns
+        -------
+        openmm.System
+            The modified system.
+        """
+        for mod in nx.topological_sort(self._graph):
+            lambda_value = self._graph.nodes[mod]["lambda_value"]
+            mod_instance = self._graph.nodes[mod]["modification"]
+            mod_kwargs = modifications_kwargs.get(mod, {})
+
+            if lambda_value is None:
+                logger.debug(f"Applying {mod} modification")
+            else:
+                logger.debug(f"Applying {mod} modification with λ={lambda_value}")
+            system = mod_instance.apply(
+                system,
+                alchemical_atoms=alchemical_atoms,
+                lambda_value=lambda_value,
+                *args,
+                **mod_kwargs,
+                **kwargs,
+            )
+
+        return system
+
+
+# Register any alchemical modifications defined by entry points.
+for modification in entry_points(group="alchemical.modifications"):
+    Alchemist.register_modification_factory(modification.name, modification.load()())

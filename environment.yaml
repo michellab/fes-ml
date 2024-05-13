@@ -11,14 +11,14 @@ dependencies:
   - deepmd-kit
   - eigen
   - loguru
-  - openmm >= 8.1
+  - openmm>=8.1
+  - openmm-torch
   - openmmforcefields
-  - openmm-ml
   - nnpops
   - pip
   - pybind11
   - pytorch
-  - python < 3.11
+  - python<3.11
   - pyyaml
   - sire
   - torchani
@@ -26,4 +26,6 @@ dependencies:
   - pip:
     - git+https://github.com/lab-cosmo/librascal.git
     - git+https://github.com/chemle/emle-engine.git
+    - git+https://github.com/openmm/openmm-ml.git@main
     - coloredlogs
+    - mace-torch
