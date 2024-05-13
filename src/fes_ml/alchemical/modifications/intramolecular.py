@@ -279,7 +279,7 @@ class IntraMolecularBondedRemovalModification(BaseModification):
                     if IntraMolecularBondedRemovalModification._should_remove(
                         (p1, p2), atom_set, remove_in_set
                     ):
-                        zero_params = [1e-9 for _ in params]
+                        zero_params = [0 for _ in params]
                         force.setBondParameters(i, p1, p2, zero_params)
         if hasattr(force, "addAngle"):
             for i in range(force.getNumAngles()):

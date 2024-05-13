@@ -1,4 +1,5 @@
 """Module for the EMLEPotentialModification class and its factory."""
+import logging
 from typing import List
 
 import numpy as _np
@@ -7,6 +8,8 @@ import sire as _sr
 from emle.calculator import EMLECalculator as _EMLECalculator
 
 from .base_modification import BaseModification, BaseModificationFactory
+
+logger = logging.getLogger(__name__)
 
 
 class EMLEPotentialModificationFactory(BaseModificationFactory):
@@ -53,6 +56,9 @@ class EMLEPotentialModification(BaseModification):
         """
         Add the EMLE potential to the OpenMM system.
 
+        Note that the charges of the atoms in the alchemical region are set to zero,
+        which may interfere with other modifications.
+
         Parameters
         ----------
         system : openmm.System
@@ -82,6 +88,36 @@ class EMLEPotentialModification(BaseModification):
         system : openmm.System
             The modified OpenMM System with the EMLE potential added.
         """
+        if lambda_value is None:
+            # This can only occur when MLInterpolation is also being used.
+            # There must be a lambda_interpolate global variable available.
+            # What we do is to find the lambda_interpolate value from the MLInterpolation force,
+            # and use that to create the EMLECalculator.
+            # Because we also add the interpolation force as 1, we can be sure that the lambda_interpolate
+            # does not scale the EMLE potential.
+
+            cv_force = [
+                f for f in system.getForces() if f.getName() == "MLInterpolation"
+            ]
+            assert (
+                len(cv_force) == 1
+            ), f"There are {len(cv_force)} MLInterpolation forces. Only one is allowed."
+
+            cv_force = cv_force[0]
+            assert isinstance(
+                cv_force, _mm.CustomCVForce
+            ), f"Expected a CustomCVForce, but got {type(cv_force)}."
+
+            for i in range(cv_force.getNumGlobalParameters()):
+                if cv_force.getGlobalParameterName(i) == "lambda_interpolate":
+                    lambda_value = cv_force.getGlobalParameterDefaultValue(i)
+                    break
+
+            logger.debug(
+                f"Using λ={lambda_value} to create EMLE potential. "
+                "This is the lambda_interpolate value of MLInterpolation force."
+            )
+
         # Create a calculator.
         calculator = _EMLECalculator(
             backend=backend,
@@ -100,15 +136,25 @@ class EMLEPotentialModification(BaseModification):
         )
 
         # Get the OpenMM EMLEForce object.
-        emle_force, _ = engine.get_forces()
+        emle_force, interpolation_force = engine.get_forces()
 
+        # Add the EMLE force to the system.
         system.addForce(emle_force)
+        # Add the interpolation force to the system, so that the EMLE force does not scale
+        # with the MLInterpolation force.
+        system.addForce(interpolation_force)
+
         # Zero the charges on the atoms within the QM region
         for force in system.getForces():
             if isinstance(force, _mm.NonbondedForce):
-                for i in range(force.getNumParticles()):
-                    if i in alchemical_atoms:
+                for i in alchemical_atoms:
+                    try:
                         _, sigma, epsilon = force.getParticleParameters(i)
-                        force.setParticleParameters(i, 1e-9, sigma, epsilon)
+                        force.setParticleParameters(i, 0, sigma, epsilon)
+                    except _mm.OpenMMException:
+                        logger.warning(
+                            f"Could not set charge to 0 for atom {i}. "
+                            "Check if this is the expected behaviour."
+                        )
 
         return system

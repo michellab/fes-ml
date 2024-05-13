@@ -33,7 +33,7 @@ class Alchemist:
     def __init__(self) -> None:
         """Initialize the Alchemist object."""
         logger.debug("-" * 100)
-        logger.debug("Δ ALCHEMIST Δ")
+        logger.debug("⌬ ALCHEMIST ⌬")
         logger.debug("-" * 100)
 
         self._graph = nx.DiGraph()
@@ -103,6 +103,14 @@ class Alchemist:
         )
         if modification.pre_dependencies is not None:
             for pre_dependency in modification.pre_dependencies:
+                if pre_dependency not in self._modification_factories:
+                    raise ValueError(
+                        f"Pre-dependency {pre_dependency} of {modification.NAME} "
+                        "not found in the factories. Please make sure there are no "
+                        "typos in the name of this pre-dependency and that the target "
+                        "modification is implemented and registered as an entry point."
+                    )
+
                 factory = self._modification_factories[pre_dependency]
                 pre_modification = factory.create_modification()
                 self._graph.add_edge(pre_modification.NAME, modification.NAME)
@@ -110,6 +118,13 @@ class Alchemist:
 
         if modification.post_dependencies is not None:
             for post_dependency in modification.post_dependencies:
+                if post_dependency not in self._modification_factories:
+                    raise ValueError(
+                        f"Post-dependency {post_dependency} of {modification.NAME} "
+                        "not found in the factories. Please make sure there are no "
+                        "typos in the name of this post-dependency and that the target "
+                        "modification is implemented and registered as an entry point."
+                    )
                 factory = self._modification_factories[post_dependency]
                 post_modification = factory.create_modification()
                 self._graph.add_edge(modification.NAME, post_modification.NAME)

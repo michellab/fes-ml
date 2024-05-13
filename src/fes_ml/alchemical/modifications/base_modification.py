@@ -68,6 +68,70 @@ class BaseModification(ABC):
         """
         pass
 
+    @classmethod
+    def add_pre_dependency(cls, name: str, beggining: bool = False) -> None:
+        """
+        Add a pre-dependency to the modification.
+
+        Parameters
+        ----------
+        name : str
+            Name of the modification to add as a pre-dependency.
+        beggining : bool, optional
+            Add the pre-dependency to the beginning of the list.
+        """
+        if beggining:
+            cls.pre_dependencies.insert(0, name)
+        else:
+            cls.pre_dependencies.append(name)
+
+    @classmethod
+    def remove_pre_dependency(cls, name: str) -> None:
+        """
+        Remove a pre-dependency from the modification.
+
+        Parameters
+        ----------
+        name : str
+            Name of the modification to remove as a pre-dependency.
+        """
+        if name in cls.pre_dependencies:
+            cls.pre_dependencies.remove(name)
+        else:
+            raise ValueError(f"{name} is not a pre-dependency of {cls.NAME}.")
+
+    @classmethod
+    def add_post_dependency(cls, name: str, beggining: bool = False) -> None:
+        """
+        Add a post-dependency to the modification.
+
+        Parameters
+        ----------
+        name : str
+            Name of the modification to add as a post-dependency.
+        beggining : bool, optional
+            Add the post-dependency to the beginning of the list.
+        """
+        if beggining:
+            cls.post_dependencies.insert(0, name)
+        else:
+            cls.post_dependencies.append(name)
+
+    @classmethod
+    def remove_post_dependency(cls, name: str) -> None:
+        """
+        Remove a post-dependency from the modification.
+
+        Parameters
+        ----------
+        name : str
+            Name of the modification to remove as a post-dependency.
+        """
+        if name in cls.post_dependencies:
+            cls.post_dependencies.remove(name)
+        else:
+            raise ValueError(f"{name} is not a post-dependency of {cls.NAME}.")
+
 
 class BaseModificationFactory(ABC):
     """

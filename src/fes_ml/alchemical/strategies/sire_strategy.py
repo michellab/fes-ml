@@ -136,7 +136,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         self._report_energy_decomposition(omm_context, omm_system)
 
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
-        if "EMLEPotential" in lambda_schedule:
+        if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
             modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
                 "EMLEPotential", {}
             )
