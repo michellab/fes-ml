@@ -33,18 +33,18 @@ pip install -e .
 
 The following alchemical transformations can be performed in fes-ml:
 
-- `lambda_lj`: Turn on (`lambda_lj=1`) and off (`lambda_lj=0`) the Lennard-Jones 12-6 interactions by using a softcore potential.
-- `lambda_q`: Turn on (`lambda_q=1`) and off (`lambda_q=0`) the electrostatic interactions by scaling the charges.
-- `lambda_interpolate`: Interpolate between the ML (`lambda_interpolate=1`) and MM (`lambda_interpolate=0`) potentials.
-- `lambda_emle`: Interpolate between the EMLE (`lambda_emle=1`) and MM (`lambda_emle=0`) potentials.
-- `lambda_ml_correction`: Interpolate between the ML (`lambda_ml_correction=1`) and MM (`lambda_ml_correction=0`) potentials through a Δ correction.
+- `LJSoftCore`: Turn on (`LJSoftCore=1`) and off (`LJSoftCore=0`) the Lennard-Jones 12-6 interactions by using a softcore potential.
+- `ChargeScaling`: Turn on (`ChargeScaling=1`) and off (`ChargeScaling=0`) the electrostatic interactions by scaling the charges.
+- `MLInterpolation`: Interpolate between the ML (`MLInterpolation=1`) and MM (`MLInterpolation=0`) potentials.
+- `EMLEPotential`: Interpolate between the EMLE (`EMLEPotential=1`) and MM (`EMLEPotential=0`) potentials.
+- `MLCorrection`: Interpolate between the ML (`MLCorrection=1`) and MM (`MLCorrection=0`) potentials through a Δ correction.
 
 The lambda schedule to follow during the simulation is set in a dictionary. For example, to turn off the LJ 12-6 interactions in steps of 0.2 and subsequently turn off the charge in steps of 0.33, the following lambda schedule can be defined:
 
 ```python
 lambda_schedule = {
-    "lambda_lj": [1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "lambda_q": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.66, 0.33, 0.00]
+    "LJSoftCore": [1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "ChargeScaling": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.66, 0.33, 0.00]
 }
 ```
 
@@ -131,10 +131,18 @@ fes.create_alchemical_states(
 )
 ```
 
-## Log Level
+## Logging Settings
 
-By default, fes-ml logs messages at the `INFO` level. This means you will see informative messages about the overall progress but not necessarily detailed debugging information. You can control the verbosity of the logging output by setting the `FES_ML_LOG_LEVEL` environment variable:
+By default, fes-ml logs messages at the INFO level. This means you will see informative messages about the overall progress but not necessarily detailed debugging information. You can control the verbosity of the logging output by setting the FES_ML_LOG_LEVEL environment variable:
 
 ```bash
 export FES_ML_LOG_LEVEL="DEBUG"
 ```
+
+If you want to include log messages from packages other than fes-ml, set the `FES_ML_FILTER_LOGGERS` variable to 0:
+
+```bash
+export FES_ML_FILTER_LOGGERS=0
+```
+
+By default, this variable is set to 1, meaning only log messages coming from `fes-ml` are displayed.

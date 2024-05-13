@@ -3,10 +3,10 @@ MM(sol)->MM(gas) free energy calculation for benzene.
 
 This script demonstrates how to calculate a direct absolute hydration free energy at the MM level.
 The solute is alchemically modified using a lambda schedule that decouples the solute from the solvent.
-At lambda_q=1, the solute-solvent electrostatic interactions are fully turned on.
-At lambda_q=0, the solute-solvent electrostatic interactions are fully turned off.
-At lambda_lj=1, the solute-solvent van der Waals interactions are fully turned on.
-At lambda_lj=0, the solute-solvent van der Waals interactions are fully turned off.
+At ChargeScaling=1, the solute-solvent electrostatic interactions are fully turned on.
+At ChargeScaling=0, the solute-solvent electrostatic interactions are fully turned off.
+At LJSoftCore=1, the solute-solvent van der Waals interactions are fully turned on.
+At LJSoftCore=0, the solute-solvent van der Waals interactions are fully turned off.
 
 Authors: Joao Morado
 """
@@ -17,14 +17,14 @@ if __name__ == "__main__":
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
-    n_lambda_q = 5
-    n_lambda_lj = 11
-    q_windows = np.linspace(1.0, 0.0, n_lambda_q, endpoint=False)
-    lj_windows = np.linspace(1.0, 0.0, n_lambda_lj)
+    n_ChargeScaling = 5
+    n_LJSoftCore = 11
+    q_windows = np.linspace(1.0, 0.0, n_ChargeScaling, endpoint=False)
+    lj_windows = np.linspace(1.0, 0.0, n_LJSoftCore)
 
     lambda_schedule = {
-        "lambda_q": list(q_windows) + [0.0] * n_lambda_lj,
-        "lambda_lj": [1.0] * n_lambda_q + list(lj_windows),
+        "ChargeScaling": list(q_windows) + [0.0] * n_LJSoftCore,
+        "LJSoftCore": [1.0] * n_ChargeScaling + list(lj_windows),
     }
 
     plot_lambda_schedule(lambda_schedule)

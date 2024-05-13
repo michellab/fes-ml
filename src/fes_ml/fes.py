@@ -1,3 +1,4 @@
+"""Free Energy Simulation (FES) module."""
 import logging
 import os
 import pickle
@@ -24,7 +25,7 @@ class FES:
     top_file : str
         Path to the topology file.
     lambda_schedule : dict
-        Dictionary with the lambda values for the alchemical states.
+        Dictionary with the λ values for the alchemical states.
     alchemical_states : list of AlchemicalState
         List of alchemical states.
     alchemical_atoms : list of int
@@ -58,7 +59,6 @@ class FES:
     """
 
     __serializables__ = [
-        # Public variables
         "crd_file",
         "top_file",
         "lambda_schedule",
@@ -77,14 +77,6 @@ class FES:
         "_create_alchemical_states_args",
         "_create_alchemical_states_kwargs",
         "_force_groups",
-    ]
-
-    _LAMBDA_PARAMS = [
-        "lambda_lj",
-        "lambda_q",
-        "lambda_interpolate",
-        "lambda_emle",
-        "lambda_ml_correction",
     ]
 
     def __init__(
@@ -109,9 +101,9 @@ class FES:
         top_file : str
             Path to the topology file.
         lambda_schedule : dict, optional, default=None
-            Dictionary with the lambda values for the alchemical states.
-            The keys of the dictionary are the lambda parameters and the values are lists of lambda values.
-            Available lambda parameters are: "lambda_lj", "lambda_q", "lambda_interpolate", "lambda_emle".
+            Dictionary with the λ values for the alchemical states.
+            The keys of the dictionary are the names of the modifications
+            and the values are lists of λ values.
         alchemical_atoms : list of int, optional, default=None
             List of atom indices to be alchemically modified.
         output_prefix : str, optional, default="fes"
@@ -219,18 +211,34 @@ class FES:
         self,
         alchemical_atoms: List[int],
         lambda_schedule: Dict[str, List[Optional[float]]],
+        modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
+        strategy_name: str = "sire",
         *args,
         **kwargs,
     ) -> List[AlchemicalState]:
         """
-        Create a batch of alchemical states for the given lambda values.
+        Create a batch of alchemical states for the given λ values.
 
         Parameters
         ----------
         alchemical_atoms : list
             List of atom indices to be alchemically modified.
         lambda_schedule : dict
-            Dictionary with the lambda values for the alchemical states.
+            Dictionary with the λ values for the alchemical states.
+        modifications_kwargs : dict
+            A dictionary of keyword arguments for the modifications.
+            It is structured as follows:
+            {
+                "modification_name": {
+                    "key1": value1,
+                    "key2": value2,
+                    ...
+                },
+                ...
+            }
+        strategy_name : str, optional, default='sire'
+            The name of the strategy to create the alchemical state.
+            Available strategies are: "sire".
 
         Returns
         -------
@@ -244,13 +252,7 @@ class FES:
         self.lambda_schedule = lambda_schedule
         self.alchemical_atoms = alchemical_atoms
 
-        # Assert all keys in lambda_schedule are valid
-        for key in lambda_schedule:
-            assert (
-                key in self._LAMBDA_PARAMS
-            ), f"Invalid lambda parameter {key} in `lambda_schedule`. Valid lambdas are {self._LAMBDA_PARAMS}."
-
-        # Check that that each parameter has the same number of lambda values
+        # Check that that each parameter has the same number of λ values
         nstates_param = [
             len(lambda_schedule.get(lambda_param, []))
             for lambda_param in lambda_schedule
@@ -258,30 +260,19 @@ class FES:
 
         nstates = nstates_param[0]
         if not all([n == nstates for n in nstates_param]):
-            raise ValueError(
-                "All lambda parameters must have the same number of lambda values."
-            )
-
-        lambda_lj = lambda_schedule.get("lambda_lj", [None] * nstates)
-        lambda_q = lambda_schedule.get("lambda_q", [None] * nstates)
-        lambda_interpolate = lambda_schedule.get("lambda_interpolate", [None] * nstates)
-        lambda_emle = lambda_schedule.get("lambda_emle", [None] * nstates)
-        lambda_ml_correction = lambda_schedule.get(
-            "lambda_ml_correction", [None] * nstates
-        )
+            raise ValueError("All λ parameters must have the same number of λ values.")
 
         self.alchemical_states = []
-
         for i in range(nstates):
             alchemical_state = alchemical_factory.create_alchemical_state(
+                strategy_name,
                 top_file=self.top_file,
                 crd_file=self.crd_file,
                 alchemical_atoms=alchemical_atoms,
-                lambda_lj=lambda_lj[i],
-                lambda_q=lambda_q[i],
-                lambda_interpolate=lambda_interpolate[i],
-                lambda_emle=lambda_emle[i],
-                lambda_ml_correction=lambda_ml_correction[i],
+                lambda_schedule={
+                    k: v[i] for k, v in lambda_schedule.items() if v[i] is not None
+                },
+                modifications_kwargs=modifications_kwargs,
                 *args,
                 **kwargs,
             )
@@ -416,7 +407,9 @@ class FES:
         try:
             integrator_temperature = alchemical_state.integrator.getTemperature()
         except AttributeError:
-            integrator_temperature = alchemical_state.integrator.temperature
+            integrator_temperature = (
+                alchemical_state.integrator.temperature * _unit.kelvin
+            )
 
         kT = (
             _unit.AVOGADRO_CONSTANT_NA
@@ -447,10 +440,10 @@ class FES:
                 )
 
             # Compute energies at all alchemical states
-            for l, alc_ in enumerate(self.alchemical_states):
+            for alc_id, alc_ in enumerate(self.alchemical_states):
                 alc_.context.setPositions(self._positions)
                 alc_.context.setPeriodicBoxVectors(*self._pbc)
-                self._U_kl[l].append(
+                self._U_kl[alc_id].append(
                     alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT
                 )
 
@@ -524,8 +517,8 @@ class FES:
             Force group for the slow forces.
         force_group_dict : dict, optional, default=None
             Dictionary with the force group for each force.
-            If provided, it takes precedence over the other arguments and the force groups are set according to the dictionary.
-            Otherwise, the force groups are set according to the other arguments.
+            If provided, it takes precedence over the other arguments and the force groups are set
+            according to the dictionary. Otherwise, the force groups are set according to the other arguments.
 
         Returns
         -------
@@ -535,8 +528,10 @@ class FES:
         Notes
         -----
         The force groups are set as follows:
-        - If `force_group_dict` is provided, the force groups are set according to the dictionary. All forces not in the dictionary are set to `fast_force_group`.
-        - If `slow_forces` is provided, the forces in `slow_forces` are set to `slow_force_group` and the others to `fast_force_group`.
+        - If `force_group_dict` is provided, the force groups are set according to the dictionary.
+        All forces not in the dictionary are set to `fast_force_group`.
+        - If `slow_forces` is provided, the forces in `slow_forces` are set to `slow_force_group` and
+        the others to `fast_force_group`.
         - If `slow_forces` is not provided, all forces are set to `fast_force_group`.
         """
         if force_group_dict is not None:
