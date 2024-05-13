@@ -12,7 +12,6 @@ Authors: Joao Morado
 """
 if __name__ == "__main__":
     import numpy as np
-    import openmm as mm
 
     from fes_ml.alchemical.modifications.ml_interpolation import (
         MLInterpolationModification,
@@ -40,7 +39,8 @@ if __name__ == "__main__":
     }
 
     # Add the EMLEPotential as a post-dependency of the MLInterpolation
-    # This will apply the EMLEPotential modification after the MLInterpolation.
+    # This will apply the EMLEPotential modification after the MLInterpolation, so that
+    # the EMLEPotential will vary along the MLInterpolation (via the lambda_interpolation parameter)
     MLInterpolationModification.add_post_dependency("EMLEPotential")
 
     # Create the FES object to run the simulations
