@@ -93,9 +93,8 @@ class EMLEPotentialModification(BaseModification):
             # There must be a lambda_interpolate global variable available.
             # What we do is to find the lambda_interpolate value from the MLInterpolation force,
             # and use that to create the EMLECalculator.
-            # Because we also add the interpolation force as 1, we can be sure that the lambda_interpolate
+            # Because we also add the interpolation force, we are sure that the lambda_interpolate
             # does not scale the EMLE potential.
-
             cv_force = [
                 f for f in system.getForces() if f.getName() == "MLInterpolation"
             ]
@@ -116,6 +115,21 @@ class EMLEPotentialModification(BaseModification):
             logger.debug(
                 f"Using λ={lambda_value} to create EMLE potential. "
                 "This is the lambda_interpolate value of MLInterpolation force."
+            )
+
+            if backend is not None:
+                logger.warning(
+                    f"The EMLE potential backend is {backend}, but an MLInterpolation force is present. "
+                    "Typically, backend should be None when using MLInterpolation. "
+                    "Make sure this is the desired behavior."
+                )
+
+        if backend is not None and self.post_dependencies is None:
+            logger.warning(
+                f"The EMLE potential backend is {backend} but there are no post-dependencies. "
+                "This may cause the EMLE potential to not be applied correctly as the MM intramolecular "
+                "terms may not have been zeroed out in the OpenMM System. "
+                "Make sure this is the desired behavior."
             )
 
         # Create a calculator.
