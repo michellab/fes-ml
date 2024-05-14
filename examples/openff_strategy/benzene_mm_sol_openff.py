@@ -12,6 +12,8 @@ Authors: Joao Morado
 """
 if __name__ == "__main__":
     import numpy as np
+    import openff.units as offunit
+    import openmm.unit as unit
 
     from fes_ml.fes import FES
 
@@ -26,31 +28,41 @@ if __name__ == "__main__":
         "LJSoftCore": [1.0] * n_ChargeScaling + list(lj_windows),
     }
 
-    # Define the dynamics and EMLE parameters
-    dynamics_kwargs = {
-        "timestep": "1fs",
-        "cutoff_type": "PME",
-        "cutoff": "12A",
-        "constraint": "h_bonds",
-        "integrator": "langevin_middle",
-        "temperature": "298.15K",
-        "pressure": "1atm",
-        "platform": "cuda",
-        "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
-    }
+    # Modifications kwargs
+    modifications_kwargs = {}
 
-    emle_kwargs = None
+    # Set up the mdconfig dictionary for the simulations
+    # This is the default mdconfig dictionary, meaning that if this dictionary
+    # is not passed to the FES object, these values will be used.
+    mdconfig_dict = {
+        "periodic": True,
+        "constraints": "h-bonds",
+        "vdw_method": "cutoff",
+        "vdw_cutoff": offunit.Quantity(12.0, "angstrom"),
+        "mixing_rule": "lorentz-berthelot",
+        "switching_function": True,
+        "switching_distance": offunit.Quantity(11.0, "angstrom"),
+        "coul_method": "pme",
+        "coul_cutoff": offunit.Quantity(12.0, "angstrom"),
+    }
 
     # Create the FES object to run the simulations
     fes = FES()
 
     # Create the alchemical states
-    print("Creating alchemical states...")
     fes.create_alchemical_states(
         strategy_name="openff",
         lambda_schedule=lambda_schedule,
         smarts_ligand="c1ccccc1",
         smarts_solvent="[H:2][O:1][H:3]",
+        integrator=None,  # None means that the default integrator will be used (LangevinMiddleIntegrator as the temperature is set to 298.15 K)
+        forcefields=["openff-1.0.0.offxml"],
+        temperature=298.15 * unit.kelvin,
+        timestep=1.0 * unit.femtosecond,
+        pressure=1.0 * unit.atmospheres,
+        hydrogen_mass=1.007947 * unit.amu,
+        mdconfig_dict=mdconfig_dict,
+        modifications_kwargs=modifications_kwargs,
     )
 
     # Minimize
