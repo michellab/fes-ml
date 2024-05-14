@@ -94,7 +94,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         passed_args["dynamics_kwargs"] = dynamics_kwargs
 
         # Report the creation settings
-        self._report_creation_settings(passed_args)
+        self._report_dict(passed_args, dict_name="Sire creation settings")
 
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
