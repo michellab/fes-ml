@@ -1,4 +1,4 @@
-"""OpenMM alchemical state creation strategy."""
+"""OpenFF alchemical state creation strategy."""
 
 import logging
 import shutil as _shutil
@@ -295,8 +295,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         sdf_file_solvent: Optional[str] = None,
         smarts_ligand: Optional[str] = None,
         smarts_solvent: Optional[str] = "[H:2][O:1][H:3]",
-        temperature: Union[float, _unit.Quantity] = 298.15,
-        pressure: Union[float, _unit.Quantity, None] = 1.0,
+        temperature: Union[float, _unit.Quantity] = 298.15 * _unit.kelvin,
+        pressure: Union[float, _unit.Quantity, None] = 1.0 * _unit.atmosphere,
         mdconfig_dict: Optional[Dict[str, Any]] = None,
         packmol_kwargs: Optional[Dict[str, Any]] = None,
         hydrogen_mass: Optional[Union[float, _unit.Quantity]] = 1.007947 * _unit.amu,
@@ -331,6 +331,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             The temperature in Kelvin.
         mdconfig_dict
             A dictionary of keyword arguments for the MDConfig object.
+            See: https://docs.openforcefield.org/projects/interchange/en/stable/_autosummary/openff.interchange.components.mdconfig.MDConfig.html#openff.interchange.components.mdconfig.MDConfig
         packmol_kwargs : dict, optional, default=None
             A dictionary of keyword arguments for the Packmol pack_box function.
             The list of molecules is already passed and should not be provided.
@@ -345,12 +346,13 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         pressure : float or _unit.Quantity or None, optional, default=1.0
             The pressure in bar. If None, the Monte Carlo Barostat is not added.
         integrator : Any, optional, default=None
-            The OpenMM integrator to use. If None, the integrator is the one used in the dynamics_kwargs, if provided.
-            Otherwise, the default is a LangevinMiddle integrator with a 1 fs timestep and a 298.15 K temperature.
+            The OpenMM integrator to use. If None, the default is a LangevinMiddle integrator with a 1 fs
+            timestep and a 298.15 K temperature (if temperature is not None). Otherwise, a Verlet integrator
+            with the provided timestep is used.
         friction : float or _unit.Quantity, optional, default=1.0 / _unit.picosecond
-            The friction coefficient in 1/ps.
+            The friction coefficient in 1/ps. Only necessary for Langevin-type integrators.
         timestep : float or _unit.Quantity, optional, default=1.0 * _unit.femtosecond
-            The timestep.
+            The timestep in ps of the integrator.
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
         modifications_kwargs : dict
