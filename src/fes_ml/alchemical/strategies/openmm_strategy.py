@@ -111,8 +111,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         if removeConstraints:
             for constraints in root.findall("./Constraints"):
                 for constraint in constraints.findall("Constraint"):
-                    constraintAtoms = [int(constraint.attrib[p])
-                                       for p in ("p1", "p2")]
+                    constraintAtoms = [int(constraint.attrib[p]) for p in ("p1", "p2")]
                     if shouldRemove(constraintAtoms):
                         constraints.remove(constraint)
 
@@ -126,8 +125,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         print(f"solvating...")
 
         # make an OpenFF Topology of the ligand
-        ligand_off_topology = offTopology.from_molecules(
-            molecules=[self.ligand])
+        ligand_off_topology = offTopology.from_molecules(molecules=[self.ligand])
 
         # convert it to an OpenMM Topology
         ligand_omm_topology = ligand_off_topology.to_openmm()
@@ -165,8 +163,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 box_shape=UNIT_CUBE,
             )
 
-            interchange = Interchange.from_smirnoff(
-                force_field=ff, topology=topology)
+            interchange = Interchange.from_smirnoff(force_field=ff, topology=topology)
             modeller = _app.Modeller(
                 topology.to_openmm(), interchange.positions.to_openmm()
             )
@@ -192,8 +189,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         ff.registerTemplateGenerator(self.smirnoff.generator)
 
         # make an OpenFF Topology of the ligand
-        ligand_off_topology = offTopology.from_molecules(
-            molecules=[self.ligand])
+        ligand_off_topology = offTopology.from_molecules(molecules=[self.ligand])
 
         # convert it to an OpenMM Topology
         ligand_omm_topology = ligand_off_topology.to_openmm()
@@ -236,8 +232,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 key_list.append(key)
         system_kwarg_dict = {key: kwargs[key] for key in key_list}
 
-        self.system = self.ff.createSystem(
-            self.modeller.topology, **system_kwarg_dict)
+        self.system = self.ff.createSystem(self.modeller.topology, **system_kwarg_dict)
 
         if self.leg == "vacuum":
             pass
@@ -356,8 +351,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                     atomEpsilon[i] = epsilon
                 exceptions = {}
                 for i in range(force.getNumExceptions()):
-                    p1, p2, chargeProd, sigma, epsilon = force.getExceptionParameters(
-                        i)
+                    p1, p2, chargeProd, sigma, epsilon = force.getExceptionParameters(i)
                     exceptions[(p1, p2)] = (chargeProd, sigma, epsilon)
                 for p1 in self.ml_atoms:
                     for p2 in self.ml_atoms:
@@ -370,8 +364,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                         else:
                             chargeProd = atomCharge[p1] * atomCharge[p2]
                             sigma = 0.5 * (atomSigma[p1] + atomSigma[p2])
-                            epsilon = unit.sqrt(
-                                atomEpsilon[p1] * atomEpsilon[p2])
+                            epsilon = unit.sqrt(atomEpsilon[p1] * atomEpsilon[p2])
                         if chargeProd._value != 0 or epsilon._value != 0:
                             internalNonbonded.addBond(
                                 p1, p2, [chargeProd, sigma, epsilon]
@@ -386,8 +379,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         # set the CV force to be the correction term V_ml(ligand) - Vmm(ligand)
         cv.addCollectiveVariable("ml_force", self.ml_force)
 
-        cv_force_string = "ml_force - 1.0*(" + \
-            "+".join(mm_ligand_force_names) + ")"
+        cv_force_string = "ml_force - 1.0*(" + "+".join(mm_ligand_force_names) + ")"
 
         print(cv_force_string)
         cv.setEnergyFunction(cv_force_string)
@@ -555,8 +547,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
                 )
 
         if ml_potential:
-            raise NotImplementedError(
-                "currently not doing ML for openmm until plugin")
+            raise NotImplementedError("currently not doing ML for openmm until plugin")
 
         # TODO alchemify or plugin
         # self.system, ml_potential, alchemical_atoms, lambda_schedule
@@ -578,8 +569,7 @@ class OpenMMCreationStrategy(AlchemicalStateCreationStrategy):
         )
         simulation.context.setPositions(self.modeller.positions)
         try:
-            simulation.context.setVelocitiesToTemperature(
-                integrator.getTemperature())
+            simulation.context.setVelocitiesToTemperature(integrator.getTemperature())
         except AttributeError:
             simulation.context.setVelocitiesToTemperature(
                 float(dynamics_kwargs["temperature"][:-1])

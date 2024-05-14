@@ -2,7 +2,7 @@
 import logging
 import os
 import pickle
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import openmm as _mm
 import openmm.app as _app
@@ -214,7 +214,7 @@ class FES:
 
     def create_alchemical_states(
         self,
-        lambda_schedule: Dict[str, List[Optional[float]]],
+        lambda_schedule: Dict[str, List[Union[float, None]]],
         alchemical_atoms: List[int] = None,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         strategy_name: str = "sire",
