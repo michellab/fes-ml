@@ -50,9 +50,9 @@ if __name__ == "__main__":
     )
 
     # Minimize
-    fes.minimize_batch(1000)
+    fes.minimize(1000)
     # Equilibrate during 1 ns
-    fes.equilibrate_batch(1000000)
+    fes.equilibrate(1000000)
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
     U_kln = fes.run_production_batch(1000, 1000)
     # Save data

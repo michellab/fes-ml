@@ -65,7 +65,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         "protein": 1,
     }
 
-    _DEFAULT_FORCEFIELDS = ["openff_unconstrained-2.0.0.offxml"]
+    _DEFAULT_FORCEFIELDS = ["openff-2.0.0.offxml", "tip3p.offxml"]
 
     @staticmethod
     def _create_integrator(
@@ -524,4 +524,3 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
 
 # TODO: make interchage write parm7 for EMLE
-# TODO: move setVelocitiesToTemperature to FES

@@ -18,7 +18,7 @@ class MTS:
     ) -> None:
         """Initialize the MTS object."""
         self.alchemical_states = alchemical_states
-        self._force_groups = None
+        self._force_groups: Dict[str, int] = None
 
     def create_integrator(
         self,

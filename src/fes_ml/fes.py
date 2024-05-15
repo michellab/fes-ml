@@ -146,8 +146,8 @@ class FES:
         # Recreate the alchemical states
         self.alchemical_states = []
         self.create_alchemical_states(
-            self.alchemical_atoms,
             self.lambda_schedule,
+            self.alchemical_atoms,
             *self._create_alchemical_states_args,
             **self._create_alchemical_states_kwargs,
         )
@@ -159,10 +159,6 @@ class FES:
             alc.check_integrity()
             alc.context.setPositions(self._positions)
             alc.context.setPeriodicBoxVectors(*self._pbc)
-
-        # Set the force groups
-        if self._force_groups is not None:
-            self.set_force_groups(force_group_dict=self._force_groups)
 
     def _save_state(self) -> None:
         """Save the state of the object."""
@@ -244,40 +240,41 @@ class FES:
 
         return self.alchemical_states
 
-    def minimize_batch(
+    def set_velocities(
         self,
-        tolerance: _unit.Quantity = 10 * _unit.kilojoules_per_mole / _unit.nanometer,
-        max_iterations: int = 0,
-        reporter: Any = None,
+        temperature: Union[float, _unit.Quantity],
+        window: Optional[int] = None,
+        alchemical_state: Optional[AlchemicalState] = None,
     ) -> List[AlchemicalState]:
         """
-        Minimize a batch of alchemical states.
+        Set the velocities of the alchemical states.
 
         Parameters
         ----------
-        tolerance : openmm.unit.Quantity
-            The energy tolerance to which the system should be minimized.
-        max_iterations : int, optional, default=0
-            The maximum number of iterations to run the minimization.
-        reporter : OpenMM Minimization Report, optional, default=None
-            A reporter object to report the minimization progress.
-            See http://docs.openmm.org/latest/api-python/generated/openmm.openmm.MinimizationReporter.html
-
-        Returns
-        -------
-        alchemical_states : list of AlchemicalState
-            List of alchemical states.
+        temperature : openmm.unit.Quantity or float
+            Temperature of the system in Kelvin.
+        window : int, optional, default=None
+            Window index.
+        alchemical_state : AlchemicalState
+            Alchemical state to set the velocities.
         """
-        assert (
-            self.alchemical_states is not None
-        ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+        if isinstance(temperature, _unit.Quantity):
+            temperature = temperature.value_in_unit(_unit.kelvin)
+        elif not isinstance(temperature, float):
+            raise ValueError("Temperature must be a float or a Quantity.")
 
-        for alc in self.alchemical_states:
-            self.minimize_state(tolerance, max_iterations, alc, reporter=reporter)
+        if not window and not alchemical_state:
+            for alc in self.alchemical_states:
+                alc.context.setVelocitiesToTemperature(temperature)
+        else:
+            if alchemical_state is None:
+                alchemical_state = self.alchemical_states[window]
+
+            alchemical_state.context.setVelocitiesToTemperature(temperature)
 
         return self.alchemical_states
 
-    def minimize_state(
+    def _minimize_state(
         self,
         tolerance: _unit.Quantity = 10 * _unit.kilojoules_per_mole / _unit.nanometer,
         max_iterations: int = 0,
@@ -326,30 +323,52 @@ class FES:
 
         return alchemical_state
 
-    def equilibrate_batch(self, nsteps: int) -> List[AlchemicalState]:
+    def minimize(
+        self,
+        tolerance: _unit.Quantity = 10 * _unit.kilojoules_per_mole / _unit.nanometer,
+        max_iterations: int = 0,
+        reporter: Any = None,
+        window: int = None,
+        alchemical_state: AlchemicalState = None,
+    ) -> List[AlchemicalState]:
         """
-        Equilibrate batch of alchemical states..
+        Minimize
 
         Parameters
         ----------
-        nsteps : int
-            Number of steps to run each equilibration.
+        tolerance : openmm.unit.Quantity
+            The energy tolerance to which the system should be minimized.
+        max_iterations : int, optional, default=0
+            The maximum number of iterations to run the minimization.
+        reporter : OpenMM Minimization Report, optional, default=None
+            A reporter object to report the minimization progress.
+            See http://docs.openmm.org/latest/api-python/generated/openmm.openmm.MinimizationReporter.html
+        window : int, optional, default=None
+            Window index.
+        alchemical_state : AlchemicalState
+            Alchemical state to minimize.
 
         Returns
         -------
         alchemical_states : list of AlchemicalState
             List of alchemical states.
         """
-        assert (
-            self.alchemical_states is not None
-        ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+        if not window and not alchemical_state:
+            # Attempt batch minimization
+            assert (
+                self.alchemical_states is not None
+            ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
-        for alc in self.alchemical_states:
-            self.equilibrate_state(nsteps, alc)
+            for alc in self.alchemical_states:
+                self._minimize_state(tolerance, max_iterations, alc, reporter=reporter)
+        else:
+            self._minimize_state(
+                tolerance, max_iterations, alchemical_state, window, reporter
+            )
 
         return self.alchemical_states
 
-    def equilibrate_state(
+    def _equilibrate_state(
         self, nsteps: int, alchemical_state: AlchemicalState = None, window: int = None
     ) -> AlchemicalState:
         """
@@ -384,6 +403,42 @@ class FES:
         alchemical_state.simulation.step(nsteps)
 
         return alchemical_state
+
+    def equilibrate(
+        self,
+        nsteps: int,
+        window: int = None,
+        alchemical_state: AlchemicalState = None,
+    ) -> List[AlchemicalState]:
+        """
+        Equilibrate batch of alchemical states..
+
+        Parameters
+        ----------
+        nsteps : int
+            Number of steps to run each equilibration.
+        window : int, optional, default=None
+            Window index.
+        alchemical_state : AlchemicalState
+            Alchemical state to equilibrate.
+
+        Returns
+        -------
+        alchemical_states : list of AlchemicalState
+            List of alchemical states.
+        """
+        if not window and not alchemical_state:
+            # Attempt batch equilibration
+            assert (
+                self.alchemical_states is not None
+            ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+
+            for alc in self.alchemical_states:
+                self._equilibrate_state(nsteps, alc)
+        else:
+            self._equilibrate_state(nsteps, alchemical_state, window)
+
+        return self.alchemical_states
 
     def run_single_state(
         self,

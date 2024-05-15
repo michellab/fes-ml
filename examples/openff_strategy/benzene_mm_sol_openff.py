@@ -28,9 +28,6 @@ if __name__ == "__main__":
         "LJSoftCore": [1.0] * n_ChargeScaling + list(lj_windows),
     }
 
-    # Modifications kwargs
-    modifications_kwargs = {}
-
     # Set up the mdconfig dictionary for the simulations
     # This is the default mdconfig dictionary, meaning that if this dictionary
     # is not passed to the FES object, these values will be used.
@@ -62,11 +59,10 @@ if __name__ == "__main__":
         pressure=1.0 * unit.atmospheres,
         hydrogen_mass=1.007947 * unit.amu,
         mdconfig_dict=mdconfig_dict,
-        modifications_kwargs=modifications_kwargs,
     )
 
     # Minimize the batch of states
-    fes.minimize_batch()
+    fes.minimize()
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
     U_kln = fes.run_production_batch(300, 300)
     np.save("U_kln_mm_sol.npy", np.asarray(U_kln))
