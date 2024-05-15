@@ -1,8 +1,10 @@
 """Module that contains the MLModificationBase from which ML modifications can inherit."""
-import openmm as _mm
 from copy import deepcopy as _deepcopy
-from .intramolecular import IntraMolecularBondedRemovalModification
 from typing import List, Tuple
+
+import openmm as _mm
+
+from .intramolecular import IntraMolecularBondedRemovalModification
 
 
 class MLBaseModification:
@@ -20,7 +22,9 @@ class MLBaseModification:
         lambda_paramter_name: str = "lambda_interpolate",
         *args,
         **kwargs,
-    ) -> Tuple[_mm.CustomCVForce, List[str], List[str], List[_mm.Force], List[_mm.Force]]:
+    ) -> Tuple[
+        _mm.CustomCVForce, List[str], List[str], List[_mm.Force], List[_mm.Force]
+    ]:
         """
         Create a CustomCVForce that will contain the ML and bonded MM forces.
 
