@@ -19,164 +19,155 @@ if __name__ == "__main__":
     import sys
 
     import numpy as np
-    import openmm as mm
+    import openff.units as offunit
     import openmm.app as app
     import openmm.unit as unit
 
-    from fes_ml.fes import FES
-    from fes_ml.utils import plot_lambda_schedule
+    from fes_ml import FES, MTS
 
     if len(sys.argv) != 3:
         raise ValueError("must pass script and window as positional arguments")
 
-    script = sys.argv[1]
-    window = sys.argv[2]
+    script = str(sys.argv[1])
+    window = int(sys.argv[2])
 
     print(f"Script : {script}")
     print(f"Window : {window}")
 
-    sdf_file = ""  # path to sdf file
-
+    # --------------------------------------------------------------- #
+    # Define the parameters
+    # --------------------------------------------------------------- #
     # Set up the alchemical modifications
-    n_lambda_interpolate = 6
-
-    lambda_schedule = {}
-
-    # this is a diff no of windows than w the batch scripts
-    # Set up the alchemical modifications
-    # n_lambda_q = 5
-    # n_lambda_lj = 11tcctctc
-    # q_windows = np.linspace(1.0, 0.0, n_lambda_q, endpoint=False)
-    # lj_windows = np.linspace(1.0, 0.0, n_lambda_lj)
+    # Available modifications are:
+    # - ChargeScaling: scale the charges of the solute
+    # - LJSoftCore: add a LJ softcore potential to the solute-solvent interactions
+    # - MLCorrection: add a delta ML correction to the MM energy
+    # - MLInterpolation: interpolate between ML and MM potentials
+    # - EMLEPotential: add an EMLE potential to the system
+    n_ChargeScaling = 5
+    n_LJSoftCore = 11
+    q_windows = np.linspace(1.0, 0.0, n_ChargeScaling, endpoint=False)
+    lj_windows = np.linspace(1.0, 0.0, n_LJSoftCore)
 
     lambda_schedule = {
-        "lambda_interpolate": np.linspace(1.0, 0.0, n_lambda_interpolate),
-        "lambda_ml_correction": [1.0] * (n_lambda_interpolate),
+        "ChargeScaling": list(q_windows) + [0.0] * n_LJSoftCore,
+        "LJSoftCore": [1.0] * n_ChargeScaling + list(lj_windows),
+        # "MLCorrection": [1.0] * (n_ChargeScaling + n_LJSoftCore),
     }
 
-    # Define the dynamics and EMLE parameters
-    dynamics_kwargs = {
-        "timestep": "1fs",
-        "cutoff_type": "PME",
-        "cutoff": "12A",
-        "integrator": "langevin_middle",
-        "temperature": "298.15K",
-        "pressure": "1atm",
-        "platform": "cuda",
-        "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
+    # Modifications kwargs
+    # This dictionary is used to pass additional kwargs to the modifications
+    # The keys are the name of the modification and the values are dictionaries with kwargs
+    modifications_kwargs = {"MLPotential": {"name": "ani2x"}}
+
+    # Define variables that are used in several places to avoid errors
+    temperature = 298.15 * unit.kelvin
+    dt = 2.0 * unit.femtosecond
+
+    # Set up the mdconfig dictionary for the simulations
+    # This is the default mdconfig dictionary, meaning that if this dictionary
+    # is not passed to the FES object, these are the values that will be used.
+    mdconfig_dict = {
+        "periodic": True,
+        "constraints": "h-bonds",
+        "vdw_method": "cutoff",
+        "vdw_cutoff": offunit.Quantity(12.0, "angstrom"),
+        "mixing_rule": "lorentz-berthelot",
+        "switching_function": True,
+        "switching_distance": offunit.Quantity(11.0, "angstrom"),
+        "coul_method": "pme",
+        "coul_cutoff": offunit.Quantity(12.0, "angstrom"),
     }
 
-    create_system_kwargs = {
-        "ligand_forcefield": "openff",
-        "water_model": "OPC",
-        "HMR": True,
-    }
-
-    temperature = float(dynamics_kwargs["temperature"][:-1])
-    dt = float(dynamics_kwargs["timestep"][:-1])
-
-    innersteps = 2
-    innerinnersteps = 4
-
-    if dynamics_kwargs["integrator"] == "langevin_middle":
-        # 1. normal Langevin Middle. Just choose timestep:
-        integrator = mm.LangevinMiddleIntegrator(
-            temperature * unit.kelvin, 1 / unit.picosecond, dt * unit.femtosecond
+    # MTS logics
+    use_mts = False
+    intermediate_steps = 4
+    inner_steps = 2
+    if use_mts:
+        # Create the MTS class if intermediate steps are defined
+        mts = MTS()
+        # Multiple time step Langevin integrator
+        timestep_groups = [(0, 2), (1, intermediate_steps)]
+        if inner_steps:
+            timestep_groups.append((2, inner_steps))
+        integrator = mts.create_integrator(
+            dt=dt, groups=timestep_groups, temperature=temperature
         )
+    else:
+        # The strategy will know how to create the integrator
+        integrator = None
 
-    elif dynamics_kwargs["integrator"] == "MTS":
-        # 2. Multiple timestep langevin middle. Choose outer timestep and number of inner steps.
-        # group 0 is slow forces, group 1 is fast forces, group 2 is fastest forces
-        timestep_groups = [(0, 1), (1, innersteps)]
-        if innerinnersteps:
-            timestep_groups.append((2, innerinnersteps))
-        integrator = mm.MTSLangevinIntegrator(
-            temperature * unit.kelvin,
-            1.0 / unit.picosecond,
-            dt * unit.femtosecond,
-            timestep_groups,
+    # Define the kwargs for the creation of the alchemical states
+    # Alternatively, these kwargs can be passed directly to the create_alchemical_states method
+    # This uses OpenMM units
+    create_alchemical_states_kwargs = {
+        "smarts_ligand": "c1ccccc1",
+        "smarts_solvent": "[H:2][O:1][H:3]",
+        "integrator": integrator,
+        "forcefields": ["openff_unconstrained-2.0.0.offxml", "opc.offxml"],
+        "temperature": temperature,
+        "timestep": dt,  # ignored if integrator is passed
+        "pressure": 1.0 * unit.atmospheres,
+        "hydrogen_mass": 1.007947 * unit.amu,  # use this for HMR
+        "mdconfig_dict": mdconfig_dict,
+        "modifications_kwargs": modifications_kwargs,
+    }
+
+    # Simulation parameters
+    n_equil_steps = 10000  # 10 ps equilibration
+    n_iterations = 3000
+    n_steps_per_iter = 1000  # 1 ps per iteration
+    simulation_reporters = []
+    simulation_reporters.append(
+        app.StateDataReporter(
+            f"stdout_{window}.txt",
+            100,
+            step=True,
+            potentialEnergy=True,
+            kineticEnergy=True,
+            totalEnergy=True,
+            temperature=True,
+            speed=True,
+            volume=True,
+            density=True,
         )
-
-    # Create the FES object to run the simulations
-    fes = FES()
-
-    # Create the alchemical states
-    print("Creating alchemical states...")
-    fes.create_alchemical_states(
-        sdf_file=sdf_file,
-        strategy_name="openmm",
-        lambda_schedule=lambda_schedule,
-        dynamics_kwargs=dynamics_kwargs,
-        integrator=integrator,
-        ml_potential="mace",
-        create_system_kwargs=create_system_kwargs**dynamics_kwargs,
     )
 
-    # TODO how get the created system?
-    # TODO choose force groups from system so can set using set_force_groups
+    # --------------------------------------------------------------- #
+    # Prepare and run the simulations
+    # --------------------------------------------------------------- #
+    # Create the FES object and add the alchemical states
+    fes = FES()
+    fes.create_alchemical_states(
+        strategy_name="openff",
+        lambda_schedule=lambda_schedule,
+        **create_alchemical_states_kwargs,
+    )
 
-    force_group_dict = {}
+    # Set the force groups for the alchemical states
+    if use_mts:
+        mts.set_force_groups(
+            alchemical_states=fes.alchemical_states,
+            slow_forces=["MLCorrection"],
+            fast_force_group=0,
+            slow_force_group=1,
+        )
 
-    """
-    how the forces should set
-    print("system forces:")
-    for i, force in enumerate(system.getForces()):
+    # Minimize the state of interest
+    fes.minimize(window=window)
 
-        if isinstance(force, (mm.CustomCVForce)):
-            group = 'slow'
-        elif isinstance(force, mm.NonbondedForce):
-            if innerinnersteps:
-                group = 'fast'
-            else:
-                group = 'slow'
-            force.setReciprocalSpaceForceGroup(0)
-        else:
-            if innerinnersteps:
-                group = 'fastest'
-            else:
-                group = 'fast'
+    # Set initial velocities
+    fes.set_velocities(temperature=temperature, window=window)
 
-        print(i, force, group)
-        force.setForceGroup( {'fastest': 2, 'fast': 1, 'slow': 0}[group])
-        if isinstance(force, mm.NonbondedForce):
-            force.setReciprocalSpaceForceGroup(0)
+    # Equilibrate the state of interest
+    fes.equilibrate(n_equil_steps, window=window)
 
-    """
-
-    # Set the force groups
-    fes.set_force_groups(force_group_dict=force_group_dict)
-
-    # # Equilibrate during 1 ns
-    # fes.equilibrate_batch(10000) # 1000000
-    # # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
-    # U_kln = fes.run_production_batch( 10, 1000, # 1000, 1000, # niterations, nsteps
-    #                                  reporters=app.StateDataReporter(step=True, # f'{folderpath}/stdout_eq_{w}.txt', n_steps,
-    #                 potentialEnergy=True, kineticEnergy=True, totalEnergy=True, temperature=True,
-    #                 speed=True, volume=True, density=True))
-
-    # # Save data
-    # np.save("U_kln_mm_sol.npy", np.asarray(U_kln))
-
-    # Minimize
-    fes.minimize_batch(1000)
     # Run single state
     U_kn = fes.run_single_state(
-        1000,
-        1000,
+        niterations=n_iterations,
+        nsteps=n_steps_per_iter,
         window=int(window),
-        reporters=[
-            app.StateDataReporter(
-                f"stdout_{window}.txt",
-                100,
-                step=True,
-                potentialEnergy=True,
-                kineticEnergy=True,
-                totalEnergy=True,
-                temperature=True,
-                speed=True,
-                volume=True,
-                density=True,
-            )
-        ],
+        reporters=simulation_reporters,
     )
+
     np.save(f"{script}_{window}.npy", np.asarray(U_kn))
