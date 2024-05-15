@@ -19,20 +19,14 @@ class FES:
 
     Attributes
     ----------
-    lambda_schedule : dict
-        Dictionary with the λ values for the alchemical states.
     alchemical_states : list of AlchemicalState
         List of alchemical states.
-    alchemical_atoms : list of int
-        List of atom indices to be alchemically modified.
     output_prefix : str
         Prefix for the output files.
     checkpoint_frequency : int
         Frequency to save the state of the object.
     checkpoint_file : str
         Path to the checkpoint file.
-    write_frame_frequency : int
-        Frequency (in number of iterations) to write the frames to a DCD file.
     _iter : int
         Current iteration.
     _alc_id : int
@@ -49,54 +43,31 @@ class FES:
         Arguments to recreate the alchemical states upon deserialization.
     _create_alchemical_states_kwargs : dict
         Keyword arguments to recreate the alchemical states upon deserialization.
-    _force_groups : dict
-        Dictionary with the force group for each force.
+    _lambda_schedule : dict
+        Dictionary with the λ values for the alchemical states.
+    _alchemical_atoms : list of int
+        List of atom indices to be alchemically modified.
     """
 
-    __serializables__ = [
-        "lambda_schedule",
-        "alchemical_atoms",
-        "output_prefix",
-        "checkpoint_frequency",
-        "checkpoint_file",
-        "write_frame_frequency",
-        # Private variables
-        "_iter",
-        "_alc_id",
-        "_positions",
-        "_pbc",
-        "_U_kl",
-        "_U_kln",
-        "_create_alchemical_states_args",
-        "_create_alchemical_states_kwargs",
-        "_force_groups",
-    ]
+    __non_serializables__ = ["alchemical_states"]
 
     def __init__(
         self,
-        lambda_schedule: Optional[dict] = None,
-        alchemical_atoms: Optional[List[int]] = None,
         output_prefix: str = "fes",
         checkpoint_frequency: int = 100,
         checkpoint_file: Optional[str] = None,
-        write_frame_frequency: int = 0,
-        restart: bool = False,
+        restart: bool = True,
+        recreate_alchemical_states: bool = False,
     ) -> None:
         """
         Initialize the FES object.
 
         Parameters
         ----------
-        lambda_schedule : dict, optional, default=None
-            Dictionary with the λ values for the alchemical states.
-            The keys of the dictionary are the names of the modifications
-            and the values are lists of λ values.
-        alchemical_atoms : list of int, optional, default=None
-            List of atom indices to be alchemically modified.
         output_prefix : str, optional, default="fes"
             Prefix for the output files.
         checkpoint_frequency : int, optional, default=100
-            Frequency to save the state of the object.
+            Frequency to save the state of the FES object.
         checkpoint_file : str, optional, default=f"{output_prefix}.pickle"
             Path to the checkpoint file.
         write_frame_frequency : int, optional, default=0
@@ -104,14 +75,13 @@ class FES:
             If 0, the frames are not written.
         restart : bool, optional, default=False
             Whether to restart from the last checkpoint.
+        recreate_alchemical_states : bool, optional, default=False
+            Whether to recreate the alchemical states upon deserialization.
         """
-        self.lambda_schedule = lambda_schedule
-        self.alchemical_atoms = alchemical_atoms
         self.alchemical_states: List[AlchemicalState] = None
         self.output_prefix = output_prefix
         self.checkpoint_frequency = checkpoint_frequency
         self.checkpoint_file = checkpoint_file or f"{output_prefix}.pickle"
-        self.write_frame_frequency = write_frame_frequency
 
         # Checkpoint variables
         self._iter: Optional[int] = None
@@ -120,45 +90,61 @@ class FES:
         self._pbc: Optional[Any] = None
         self._U_kl: Optional[List[List[float]]] = None
         self._U_kln: Optional[List[List[List[float]]]] = None
+
+        # Variables to recreate the alchemical states
+        self._lambda_schedule: Dict[str, List[Union[float, None]]] = None
+        self._alchemical_atoms: List[int] = None
         self._create_alchemical_states_args: Optional[Tuple[Any, ...]] = None
         self._create_alchemical_states_kwargs: Optional[Dict[str, Any]] = None
-        self._force_groups: Optional[Dict[Any, int]] = None
 
-        if restart:
-            assert os.path.exists(
-                self.checkpoint_file
-            ), f"Checkpoint file {self.checkpoint_file} does not exist."
-            logger.info(f"Simulation will restart from {self.checkpoint_file}")
-            with open(self.checkpoint_file, "rb") as f:
-                state = pickle.load(f)
-            self.__setstate__(state)
+        # Automatically load the state if restart is True
+        if os.path.exists(self.checkpoint_file) and restart:
+            self._load_state(recreate_alchemical_states=recreate_alchemical_states)
+        elif restart and not os.path.exists(self.checkpoint_file):
+            logger.warning(
+                f"Attempted to restart from {self.checkpoint_file} but the file does not exist. "
+                "Restarting from scratch."
+            )
 
     def __getstate__(self) -> Dict[str, Any]:
         """Get the state of the object."""
-        state = {key: getattr(self, key) for key in self.__serializables__}
+        state = {
+            key: getattr(self, key)
+            for key in self.__dict__
+            if key not in self.__non_serializables__
+        }
         return state
 
-    def __setstate__(self, state: Dict[str, Any]) -> None:
+    def __setstate__(
+        self, state: Dict[str, Any], recreate_alchemical_states: bool = False
+    ) -> None:
         """Set the state of the object."""
         for key, value in state.items():
             setattr(self, key, value)
 
-        # Recreate the alchemical states
-        self.alchemical_states = []
-        self.create_alchemical_states(
-            self.lambda_schedule,
-            self.alchemical_atoms,
-            *self._create_alchemical_states_args,
-            **self._create_alchemical_states_kwargs,
-        )
+        if recreate_alchemical_states:
+            self.alchemical_states = []
+            self.create_alchemical_states(
+                self._lambda_schedule,
+                self._alchemical_atoms,
+                *self._create_alchemical_states_args,
+                **self._create_alchemical_states_kwargs,
+            )
 
-        for alc in self.alchemical_states:
-            assert isinstance(
-                alc, AlchemicalState
-            ), "alchemical_state must be an AlchemicalState object."
-            alc.check_integrity()
-            alc.context.setPositions(self._positions)
-            alc.context.setPeriodicBoxVectors(*self._pbc)
+            for alc in self.alchemical_states:
+                assert isinstance(
+                    alc, AlchemicalState
+                ), "alchemical_state must be an AlchemicalState object."
+                alc.check_integrity()
+                alc.context.setPositions(self._positions)
+                alc.context.setPeriodicBoxVectors(*self._pbc)
+
+    def _load_state(self, recreate_alchemical_states: bool) -> None:
+        """Reload the state of the object."""
+        logger.info(f"Simulation will restart from {self.checkpoint_file}")
+        with open(self.checkpoint_file, "rb") as f:
+            state = pickle.load(f)
+        self.__setstate__(state, recreate_alchemical_states)
 
     def _save_state(self) -> None:
         """Save the state of the object."""
@@ -210,8 +196,8 @@ class FES:
         # when the object is deserialized
         self._create_alchemical_states_args = args
         self._create_alchemical_states_kwargs = kwargs
-        self.lambda_schedule = lambda_schedule
-        self.alchemical_atoms = alchemical_atoms
+        self._lambda_schedule = lambda_schedule
+        self._alchemical_atoms = alchemical_atoms
 
         # Check that that each parameter has the same number of λ values
         nstates_param = [
@@ -525,7 +511,7 @@ class FES:
                 )
 
             # Save the checkpoint
-            if iteration % self.checkpoint_frequency == 0 and iteration > 0:
+            if iteration % (self.checkpoint_frequency - 1) == 0 and iteration > 0:
                 self._iter = iteration + 1
                 self._save_state()
 
