@@ -20,10 +20,6 @@ class FES:
 
     Attributes
     ----------
-    crd_file : str
-        Path to the coordinate file.
-    top_file : str
-        Path to the topology file.
     lambda_schedule : dict
         Dictionary with the λ values for the alchemical states.
     alchemical_states : list of AlchemicalState
@@ -59,9 +55,6 @@ class FES:
     """
 
     __serializables__ = [
-        "crd_file",
-        "top_file",
-        "sdf_file",
         "lambda_schedule",
         "alchemical_atoms",
         "output_prefix",
@@ -82,9 +75,6 @@ class FES:
 
     def __init__(
         self,
-        crd_file: Optional[str] = None,
-        top_file: Optional[str] = None,
-        sdf_file: Optional[str] = None,
         lambda_schedule: Optional[dict] = None,
         alchemical_atoms: Optional[List[int]] = None,
         output_prefix: str = "fes",
@@ -98,12 +88,6 @@ class FES:
 
         Parameters
         ----------
-        crd_file : str
-            Path to the coordinate file.
-        top_file : str
-            Path to the topology file.
-        sdf_file : str
-            Path to the sdf file. Used for the OpenMM creation strategy.
         lambda_schedule : dict, optional, default=None
             Dictionary with the λ values for the alchemical states.
             The keys of the dictionary are the names of the modifications
@@ -122,9 +106,6 @@ class FES:
         restart : bool, optional, default=False
             Whether to restart from the last checkpoint.
         """
-        self.crd_file = crd_file
-        self.top_file = top_file
-        self.sdf_file = sdf_file
         self.lambda_schedule = lambda_schedule
         self.alchemical_atoms = alchemical_atoms
         self.alchemical_states: List[AlchemicalState] = None
@@ -173,36 +154,16 @@ class FES:
         )
 
         for alc in self.alchemical_states:
-            self._check_alchemical_state_integrity(alc)
+            assert isinstance(
+                alc, AlchemicalState
+            ), "alchemical_state must be an AlchemicalState object."
+            alc.check_integrity()
             alc.context.setPositions(self._positions)
             alc.context.setPeriodicBoxVectors(*self._pbc)
 
         # Set the force groups
         if self._force_groups is not None:
             self.set_force_groups(force_group_dict=self._force_groups)
-
-    @staticmethod
-    def _check_alchemical_state_integrity(alchemical_state: AlchemicalState) -> None:
-        """
-        Check the integrity of the alchemical state.
-
-        Parameters
-        ----------
-        alchemical_state : AlchemicalState
-            Alchemical state to check.
-        """
-        assert isinstance(
-            alchemical_state, AlchemicalState
-        ), f"{alchemical_state} must be an instance of AlchemicalState."
-        assert (
-            alchemical_state.context is not None
-        ), f"{alchemical_state} context is `None`."
-        assert (
-            alchemical_state.integrator is not None
-        ), f"{alchemical_state} integrator is `None`."
-        assert (
-            alchemical_state.system is not None
-        ), f"{alchemical_state} system is `None`."
 
     def _save_state(self) -> None:
         """Save the state of the object."""
@@ -271,9 +232,6 @@ class FES:
         for i in range(nstates):
             alchemical_state = alchemical_factory.create_alchemical_state(
                 strategy_name,
-                top_file=self.top_file,
-                crd_file=self.crd_file,
-                sdf_file=self.sdf_file,
                 alchemical_atoms=alchemical_atoms,
                 lambda_schedule={
                     k: v[i] for k, v in lambda_schedule.items() if v[i] is not None
@@ -287,14 +245,14 @@ class FES:
 
         return self.alchemical_states
 
-    def run_minimization_batch(
+    def minimize_batch(
         self,
         tolerance: _unit.Quantity = 10 * _unit.kilojoules_per_mole / _unit.nanometer,
         max_iterations: int = 0,
         reporter: Any = None,
     ) -> List[AlchemicalState]:
         """
-        Run a batch of minimizations.
+        Minimize a batch of alchemical states.
 
         Parameters
         ----------
@@ -316,19 +274,62 @@ class FES:
         ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
         for alc in self.alchemical_states:
-            logger.info(
-                f"Minimizing {alc} with tolerance {tolerance} and max_iterations {max_iterations}"
-            )
-            self._check_alchemical_state_integrity(alc)
-            _mm.LocalEnergyMinimizer.minimize(
-                alc.context, tolerance, max_iterations, reporter
-            )
+            self.minimize_state(tolerance, max_iterations, alc, reporter=reporter)
 
         return self.alchemical_states
 
-    def run_equilibration_batch(self, nsteps: int) -> List[AlchemicalState]:
+    def minimize_state(
+        self,
+        tolerance: _unit.Quantity = 10 * _unit.kilojoules_per_mole / _unit.nanometer,
+        max_iterations: int = 0,
+        alchemical_state: AlchemicalState = None,
+        window: int = None,
+        reporter: Any = None,
+    ) -> AlchemicalState:
         """
-        Run a batch of equilibrations.
+        Run a single minimization.
+
+        Parameters
+        ----------
+        tolerance : openmm.unit.Quantity
+            The energy tolerance to which the system should be minimized.
+        max_iterations : int, optional, default=0
+            The maximum number of iterations to run the minimization.
+        alchemical_state : AlchemicalState
+            Alchemical state to minimize.
+        reporter: OpenMM Minimization Report, optional, default=None
+            A reporter object to report the minimization progress.
+            See http://docs.openmm.org/latest/api-python/generated/openmm.openmm.MinimizationReporter.html
+
+        Returns
+        -------
+        alchemical_state : AlchemicalState
+            Alchemical state.
+        """
+        # Initial checks
+        if alchemical_state is None:
+            if window is None:
+                raise ValueError("Either alchemical_state or window must be provided.")
+            else:
+                alchemical_state = self.alchemical_states[window]
+
+        assert isinstance(
+            alchemical_state, AlchemicalState
+        ), "alchemical_state must be an AlchemicalState object."
+        alchemical_state.check_integrity()
+
+        logger.info(
+            f"Minimizing {alchemical_state} with tolerance {tolerance} and max_iterations {max_iterations}"
+        )
+        _mm.LocalEnergyMinimizer.minimize(
+            alchemical_state.context, tolerance, max_iterations, reporter
+        )
+
+        return alchemical_state
+
+    def equilibrate_batch(self, nsteps: int) -> List[AlchemicalState]:
+        """
+        Equilibrate batch of alchemical states..
 
         Parameters
         ----------
@@ -345,13 +346,45 @@ class FES:
         ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
         for alc in self.alchemical_states:
-            logger.info(f"Equilibrating {alc}")
-            self._check_alchemical_state_integrity(alc)
-            alc.simulation.step(nsteps)
+            self.equilibrate_state(nsteps, alc)
 
         return self.alchemical_states
 
-    # TODO run equilibration and run minimisation single state
+    def equilibrate_state(
+        self, nsteps: int, alchemical_state: AlchemicalState = None, window: int = None
+    ) -> AlchemicalState:
+        """
+        Equilibrate a single alchemical state.
+
+        Parameters
+        ----------
+        nsteps : int
+            Number of steps to run the equilibration.
+        alchemical_state : AlchemicalState
+            Alchemical state to equilibrate.
+        window : int
+            Window index. alchemical_state takes precedence over window.
+
+        Returns
+        -------
+        alchemical_state : AlchemicalState
+            Alchemical state.
+        """
+        if alchemical_state is None:
+            if window is None:
+                raise ValueError("Either alchemical_state or window must be provided.")
+            else:
+                alchemical_state = self.alchemical_states[window]
+
+        assert isinstance(
+            alchemical_state, AlchemicalState
+        ), "alchemical_state must be an AlchemicalState object."
+        alchemical_state.check_integrity()
+
+        logger.info(f"Equilibrating {alchemical_state}")
+        alchemical_state.simulation.step(nsteps)
+
+        return alchemical_state
 
     def run_single_state(
         self,
@@ -389,7 +422,10 @@ class FES:
                 alchemical_state = self.alchemical_states[window]
 
         # Check the integrity of the alchemical state
-        self._check_alchemical_state_integrity(alchemical_state)
+        assert isinstance(
+            alchemical_state, AlchemicalState
+        ), "alchemical_state must be an AlchemicalState object."
+        alchemical_state.check_integrity()
 
         if not self._U_kl:
             self._iter = 0

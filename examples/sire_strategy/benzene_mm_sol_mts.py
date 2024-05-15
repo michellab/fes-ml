@@ -56,13 +56,12 @@ if __name__ == "__main__":
     )
 
     # Create the FES object to run the simulations
-    fes = FES(
-        top_file="../data/benzene/benzene_sage_water.prm7",
-        crd_file="../data/benzene/benzene_sage_water.rst7",
-    )
+    fes = FES()
 
     # Create the alchemical states
     fes.create_alchemical_states(
+        top_file="../data/benzene/benzene_sage_gas.prm7",
+        crd_file="../data/benzene/benzene_sage_gas.rst7",
         alchemical_atoms=list(range(12)),
         lambda_schedule=lambda_schedule,
         dynamics_kwargs=dynamics_kwargs,
@@ -78,7 +77,7 @@ if __name__ == "__main__":
     )
 
     # Equilibrate during 1 ns
-    fes.run_equilibration_batch(1000000)
+    fes.equilibrate_batch(1000000)
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
     U_kln = fes.run_production_batch(1000, 1000)
     np.save("U_kln_mm_sol.npy", np.asarray(U_kln))

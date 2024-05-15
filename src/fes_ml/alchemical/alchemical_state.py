@@ -37,3 +37,29 @@ class AlchemicalState:
 
     # Alchemical state parameters
     modifications: Dict[str, Union[float, int]] = field(repr=True, default=None)
+
+    def check_integrity(self):
+        """
+        Check the integrity of the alchemical state.
+
+        Parameters
+        ----------
+        alchemical_state : AlchemicalState
+            Alchemical state to check.
+        """
+        assert isinstance(self.system, _mm.System), "System is not an OpenMM System."
+        assert isinstance(
+            self.integrator, _mm.Integrator
+        ), "Integrator is not an OpenMM Integrator."
+        assert isinstance(
+            self.context, _mm.Context
+        ), "Context is not an OpenMM Context."
+        assert isinstance(
+            self.simulation, _app.Simulation
+        ), "Simulation is not an OpenMM Simulation."
+        assert isinstance(
+            self.topology, _mm.app.Topology
+        ), "Topology is not an OpenMM Topology."
+        assert isinstance(
+            self.modifications, dict
+        ), "Modifications is not a dictionary."

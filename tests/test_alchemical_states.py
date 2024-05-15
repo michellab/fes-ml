@@ -104,13 +104,12 @@ class TestAlchemicalStates:
             The lambda schedule for the alchemical states.
         """
         # Create the FES object to run the simulations
-        fes = FES(
-            top_file=top_file,
-            crd_file=crd_file,
-        )
+        fes = FES()
 
         # Create the alchemical state
         fes.create_alchemical_states(
+            top_file=top_file,
+            crd_file=crd_file,
             alchemical_atoms=alchemical_atoms,
             lambda_schedule=lambda_schedule,
             dynamics_kwargs=self._DYNAMICS_KWARGS,

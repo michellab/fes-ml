@@ -59,24 +59,23 @@ from fes_ml.fes import FES
 import numpy as np
 
 # Create the FES object to run the simulations
-fes = FES(
-    top_file="path_to_topology_file",
-    crd_file="path_to_coordinates_file",
-)
+fes = FES()
 
 # List with indexes of atoms to alchemify
 alchemical_atoms = [1, 2, 3]
 
 # Create the alchemical states
 fes.create_alchemical_states(
+    top_file="path_to_topology_file",
+    crd_file="path_to_coordinates_file",
     alchemical_atoms=alchemical_atoms,
     lambda_schedule=lambda_schedule,
 )
 
 # Minimize all intermediate states
-fes.run_minimization_batch(1000)
+fes.minimize_batch(1000)
 # Equilibrate all intermediate states for 1 ns
-fes.run_equilibration_batch(1000000)
+fes.equilibrate_batch(1000000)
 # Sample 1000 times every ps (i.e., 1 ns of simulation per state)
 U_kln = fes.run_production_batch(1000, 1000)
 # Save the data to be analysed

@@ -98,13 +98,12 @@ if __name__ == "__main__":
         )
 
     # Create the FES object to run the simulations
-    fes = FES(
-        sdf_file=sdf_file,
-    )
+    fes = FES()
 
     # Create the alchemical states
     print("Creating alchemical states...")
     fes.create_alchemical_states(
+        sdf_file=sdf_file,
         strategy_name="openmm",
         lambda_schedule=lambda_schedule,
         dynamics_kwargs=dynamics_kwargs,
@@ -148,7 +147,7 @@ if __name__ == "__main__":
     fes.set_force_groups(force_group_dict=force_group_dict)
 
     # # Equilibrate during 1 ns
-    # fes.run_equilibration_batch(10000) # 1000000
+    # fes.equilibrate_batch(10000) # 1000000
     # # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
     # U_kln = fes.run_production_batch( 10, 1000, # 1000, 1000, # niterations, nsteps
     #                                  reporters=app.StateDataReporter(step=True, # f'{folderpath}/stdout_eq_{w}.txt', n_steps,
@@ -159,7 +158,7 @@ if __name__ == "__main__":
     # np.save("U_kln_mm_sol.npy", np.asarray(U_kln))
 
     # Minimize
-    fes.run_minimization_batch(1000)
+    fes.minimize_batch(1000)
     # Run single state
     U_kn = fes.run_single_state(
         1000,

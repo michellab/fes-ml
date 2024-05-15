@@ -65,8 +65,8 @@ if __name__ == "__main__":
         modifications_kwargs=modifications_kwargs,
     )
 
-    # Minimize
-    fes.run_minimization_batch()
+    # Minimize the batch of states
+    fes.minimize_batch()
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
     U_kln = fes.run_production_batch(300, 300)
     np.save("U_kln_mm_sol.npy", np.asarray(U_kln))
