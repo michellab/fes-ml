@@ -1,6 +1,7 @@
 """Module for the Alchemist class."""
 import logging
 import sys
+from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional
 
 import networkx as nx
@@ -130,6 +131,17 @@ class Alchemist:
                 self._graph.add_edge(modification.NAME, post_modification.NAME)
                 self.add_modification_to_graph(post_modification, None)
 
+    def remove_modification_from_graph(self, modification: str) -> None:
+        """
+        Remove modification from the graph of alchemical modifications.
+
+        Parameters
+        ----------
+        modification
+            Name of the node to remove
+        """
+        self._graph.remove_node(modification)
+
     def create_alchemical_graph(
         self,
         lambda_schedule: Dict[str, float],
@@ -169,6 +181,15 @@ class Alchemist:
                     )
                 else:
                     raise ValueError(f"Modification {name} not found in the factories.")
+
+        # After the graph is created, removed dependencies to skip
+        ref_graph = _deepcopy(self._graph)
+        for _, data in ref_graph.nodes.data():
+            modification = data["modification"]
+            if modification.skip_dependencies:
+                for skip_dependency in modification.skip_dependencies:
+                    self.remove_modification_from_graph(skip_dependency)
+
         logger.debug("Created graph of alchemical modifications:\n")
         for line in nx.generate_network_text(
             self._graph, vertical_chains=False, ascii_only=True
