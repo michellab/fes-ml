@@ -430,19 +430,6 @@ class FES:
         if not self._U_kl:
             self._iter = 0
             self._U_kl = [[] for _ in range(len(self.alchemical_states))]
-            dcd_file_append = False
-        else:
-            dcd_file_append = True
-
-        if self.write_frame_frequency > 0:
-            alchemical_state_id = self.alchemical_states.index(alchemical_state)
-            dcd_file = self._create_dcd_file(
-                f"{self.output_prefix}_{alchemical_state_id}.dcd",
-                alchemical_state.topology,
-                alchemical_state.integrator.getStepSize(),
-                nsteps,
-                append=dcd_file_append,
-            )
 
         logger.info(
             f"Running production for {alchemical_state} with {niterations} iterations and {nsteps} steps per iteration"
@@ -474,14 +461,6 @@ class FES:
                 getPositions=True
             ).getPositions()
             self._pbc = alchemical_state.context.getState().getPeriodicBoxVectors()
-
-            if (
-                self.write_frame_frequency > 0
-                and iteration % self.write_frame_frequency == 0
-            ):
-                dcd_file.writeModel(
-                    positions=self._positions, periodicBoxVectors=self._pbc
-                )
 
             # Compute energies at all alchemical states
             for alc_id, alc_ in enumerate(self.alchemical_states):
@@ -631,63 +610,3 @@ class FES:
             logger.info(f"{force}: {group}")
 
         return self._force_groups
-
-    def _get_file_handle(self, filename: str, mode: str = "wb") -> Any:
-        """
-        Get a file handle.
-
-        Parameters
-        ----------
-        filename : str
-            Name of the file.
-        mode : str, default='wb'
-            Mode to open the file.
-
-        Returns
-        -------
-        file_handle : file handle
-            File handle.
-        """
-        return open(filename, mode)
-
-    def _create_dcd_file(
-        self, filename: str, topology, dt, interval, append=False, firstStep=0
-    ) -> _app.dcdfile.DCDFile:
-        """
-        Create a DCD file.
-
-        Parameters
-        ----------
-        filename : str
-            Name of the file.
-        topology : openmm.app.Topology
-            The OpenMM Topology.
-        dt : float
-            The time step used in the trajectory
-        interval : int
-            The frequency (measured in time steps) at which states are written to the trajectory
-        append : bool, optional, default=False
-             If True, open an existing DCD file to append to. If False, create a new file.
-        firstStep : int, optional, default=0
-            The index of the first step in the trajectory.
-
-        Returns
-        -------
-        dcdfile : openmm.app.dcdfile.DCDFile
-            DCD file.
-        """
-        mode = "r+b" if append else "w+b"
-
-        if topology is None:
-            raise ValueError("Topology must be provided to create a DCD file.")
-
-        logger.info(f"Opening DCD file {filename} in mode {mode}")
-
-        return _app.dcdfile.DCDFile(
-            self._get_file_handle(filename, mode=mode),
-            topology,
-            dt,
-            firstStep,
-            interval,
-            append,
-        )
