@@ -50,10 +50,10 @@ if __name__ == "__main__":
     fes.create_alchemical_states(
         strategy_name="openff",
         lambda_schedule=lambda_schedule,
-        smarts_ligand="c1ccccc1",
-        smarts_solvent="[H:2][O:1][H:3]",
+        smiles_ligand="c1ccccc1",
+        smiles_solvent="[H:2][O:1][H:3]",
         integrator=None,  # None means that the default integrator will be used (LangevinMiddleIntegrator as the temperature is set to 298.15 K)
-        forcefields=["openff-1.0.0.offxml"],
+        forcefields=["openff-2.0.0.offxml", "tip3p.offxml"],
         temperature=298.15 * unit.kelvin,
         timestep=1.0 * unit.femtosecond,
         pressure=1.0 * unit.atmospheres,
@@ -64,5 +64,5 @@ if __name__ == "__main__":
     # Minimize the batch of states
     fes.minimize()
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
-    U_kln = fes.run_production_batch(300, 300)
+    U_kln = fes.run_production_batch(1000, 1000)
     np.save("U_kln_mm_sol.npy", np.asarray(U_kln))

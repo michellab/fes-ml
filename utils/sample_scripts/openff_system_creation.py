@@ -101,8 +101,8 @@ if __name__ == "__main__":
     # Alternatively, these kwargs can be passed directly to the create_alchemical_states method
     # This uses OpenMM units
     create_alchemical_states_kwargs = {
-        "smarts_ligand": "c1ccccc1",
-        "smarts_solvent": "[H:2][O:1][H:3]",
+        "smiles_ligand": "c1ccccc1",
+        "smiles_solvent": "[H:2][O:1][H:3]",
         "integrator": integrator,
         "forcefields": ["openff_unconstrained-2.0.0.offxml", "opc.offxml"],
         "temperature": temperature,

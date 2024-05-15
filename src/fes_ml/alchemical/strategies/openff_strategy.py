@@ -111,7 +111,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             return _mm.VerletIntegrator(timestep)
 
     @staticmethod
-    def _create_ligand_molecule(sdf_file_ligand: str, smarts_ligand: str) -> _Molecule:
+    def _create_ligand_molecule(sdf_file_ligand: str, smiles_ligand: str) -> _Molecule:
         """
         Create a ligand molecule from an SDF file or a SMARTS pattern.
 
@@ -119,7 +119,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         ----------
         sdf_file_ligand : str
             The path to the SDF file containing the ligand.
-        smarts_ligand : str
+        smiles_ligand : str
             The SMARTS pattern for the ligand.
 
         Returns
@@ -129,8 +129,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         """
         if sdf_file_ligand is not None:
             ligand = _Molecule.from_file(sdf_file_ligand)
-        elif smarts_ligand is not None:
-            ligand = _Molecule.from_smiles(smarts_ligand)
+        elif smiles_ligand is not None:
+            ligand = _Molecule.from_smiles(smiles_ligand)
         else:
             raise ValueError(
                 "Please provide either an SDF file or a SMARTS pattern for the ligand."
@@ -139,7 +139,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
     @staticmethod
     def _create_solvent_molecule(
-        sdf_file_solvent: str, smarts_solvent: str
+        sdf_file_solvent: str, smiles_solvent: str
     ) -> Union[_Molecule, None]:
         """
         Create a solvent molecule from an SDF file or a SMARTS pattern.
@@ -148,7 +148,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         ----------
         sdf_file_solvent : str
             The path to the SDF file containing the solvent.
-        smarts_solvent : str
+        smiles_solvent : str
             The SMARTS pattern for the solvent.
 
         Returns
@@ -158,8 +158,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         """
         if sdf_file_solvent is not None:
             solvent = _Molecule.from_file(sdf_file_solvent)
-        elif smarts_solvent is not None:
-            solvent = _Molecule.from_smiles(smarts_solvent)
+        elif smiles_solvent is not None:
+            solvent = _Molecule.from_smiles(smiles_solvent)
         else:
             solvent = None
             logger.debug("No solvent provided. Assuming the ligand is in vacuum.")
@@ -293,8 +293,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         lambda_schedule: Dict[str, Union[float, int]],
         sdf_file_ligand: Optional[str] = None,
         sdf_file_solvent: Optional[str] = None,
-        smarts_ligand: Optional[str] = None,
-        smarts_solvent: Optional[str] = "[H:2][O:1][H:3]",
+        smiles_ligand: Optional[str] = None,
+        smiles_solvent: Optional[str] = "[H:2][O:1][H:3]",
         temperature: Union[float, _unit.Quantity] = 298.15 * _unit.kelvin,
         pressure: Union[float, _unit.Quantity, None] = 1.0 * _unit.atmosphere,
         mdconfig_dict: Optional[Dict[str, Any]] = None,
@@ -323,9 +323,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             The path to the SDF file containing the ligand.
         sdf_file_solvent : str, optional, default=None
             The path to the SDF file containing a solvent molecule.
-        smarts_ligand : str, optional, default=None
+        smiles_ligand : str, optional, default=None
             The SMARTS pattern for the ligand.
-        smarts_solvent : str, optional, default='[H:2][O:1][H:3]'
+        smiles_solvent : str, optional, default='[H:2][O:1][H:3]'
             The SMARTS pattern for the solvent. Default is water.
         temperature : float or _unit.Quantity, optional, default=298.15
             The temperature in Kelvin.
@@ -384,9 +384,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         molecules: Dict[str, Union[_Molecule, None]] = {}
 
         # Create the ligand and solvent molecules
-        ligand = self._create_ligand_molecule(sdf_file_ligand, smarts_ligand)
+        ligand = self._create_ligand_molecule(sdf_file_ligand, smiles_ligand)
         protein = self._create_protein_molecule()
-        solvent = self._create_solvent_molecule(sdf_file_solvent, smarts_solvent)
+        solvent = self._create_solvent_molecule(sdf_file_solvent, smiles_solvent)
 
         # Set the molecules
         molecules["ligand"] = ligand
