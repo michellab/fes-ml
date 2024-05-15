@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the number of windows to submit
-NUM_WINDOWS=16
+NUM_WINDOWS=15
 SCRIPT="run_fes"
 
 # Loop to submit jobs
