@@ -3,6 +3,7 @@
 import logging
 import shutil as _shutil
 from copy import deepcopy as _deepcopy
+import os as _os
 from typing import Any, Dict, List, Optional, Union
 
 # OpenMM imports
@@ -438,32 +439,16 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             if force is not None:
                 system.addForce(force)
 
-        # Create the integrator
-        if integrator is None:
-            integrator = self._create_integrator(temperature, friction, timestep)
-        else:
-            assert isinstance(
-                integrator, _mm.Integrator
-            ), "integrator must be an OpenMM Integrator."
-            integrator = _deepcopy(integrator)
-
-        # Create the simulation
-        simulation = _app.Simulation(
-            topology=interchange.to_openmm_topology(),
-            system=system,
-            integrator=integrator,
-        )
-
-        # Set the positions
-        simulation.context.setPositions(
-            _to_openmm_positions(interchange, include_virtual_sites=True),
-        )
-
         # Infer the alchemical atoms if not provided
         alchemical_atoms = self._get_alchemical_atoms(topology, alchemical_atoms)
 
         # Report the energy decomposition before applying the alchemical modifications
-        self._report_energy_decomposition(simulation.context, simulation.system)
+        positions = _to_openmm_positions(interchange, include_virtual_sites=True)
+        tmp_context = _mm.Context(system, _mm.VerletIntegrator(1))
+        tmp_context.setPositions(positions)
+        
+        if int(_os.getenv("FES_ML_LOG_DEVEL", False)):
+            self._report_energy_decomposition(tmp_context, system)
 
         # Remove constraints involving the alchemical atoms
         if remove_constraints:
@@ -497,17 +482,35 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Run the Alchemist
         self._run_alchemist(
-            simulation.system,
+            system,
             alchemical_atoms,
             lambda_schedule,
             modifications_kwargs=modifications_kwargs,
         )
 
-        # Reinitialize the context so that the alchemical modifications take effect
-        simulation.context.reinitialize(preserveState=True)
+        # Create the integrator
+        if integrator is None:
+            integrator = self._create_integrator(temperature, friction, timestep)
+        else:
+            assert isinstance(
+                integrator, _mm.Integrator
+            ), "integrator must be an OpenMM Integrator."
+            integrator = _deepcopy(integrator)
 
-        # Report the energy decomposition after applying the alchemical modifications
-        self._report_energy_decomposition(simulation.context, simulation.system)
+        # Create the simulation
+        simulation = _app.Simulation(
+            topology=interchange.to_openmm_topology(),
+            system=system,
+            integrator=integrator,
+        )
+
+        # Set the positions
+        simulation.context.setPositions(positions)
+
+        if int(_os.getenv("FES_ML_LOG_DEVEL", False)):
+            # Report the energy decomposition after applying the alchemical modifications
+            # Expensive!
+            self._report_energy_decomposition(simulation.context, simulation.system)
 
         # Create the AlchemicalState
         alc_state = AlchemicalState(

@@ -133,3 +133,5 @@ class AlchemicalStateCreationStrategy(ABC):
             p1, p2, _ = system.getConstraintParameters(i)
             if p1 in atoms or p2 in atoms:
                 system.removeConstraint(i)
+
+        return system
