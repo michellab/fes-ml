@@ -339,7 +339,7 @@ class FES:
         alchemical_states : list of AlchemicalState
             List of alchemical states.
         """
-        if not window and not alchemical_state:
+        if window is None and alchemical_state is None:
             # Attempt batch minimization
             assert (
                 self.alchemical_states is not None
@@ -413,7 +413,7 @@ class FES:
         alchemical_states : list of AlchemicalState
             List of alchemical states.
         """
-        if not window and not alchemical_state:
+        if window is None and alchemical_state is None:
             # Attempt batch equilibration
             assert (
                 self.alchemical_states is not None

@@ -445,6 +445,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             assert isinstance(
                 integrator, _mm.Integrator
             ), "integrator must be an OpenMM Integrator."
+            integrator = _deepcopy(integrator)
 
         # Create the simulation
         simulation = _app.Simulation(
@@ -470,6 +471,11 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Create/update the modifications kwargs
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
+        if any(key in lambda_schedule for key in ["EMLEPotential"]):
+            raise NotImplementedError(
+                "The EMLEPotential is not yet supported in the OpenFF strategy."
+            )
+
         if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
             modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
                 "EMLEPotential", {}

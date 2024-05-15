@@ -58,16 +58,16 @@ class MTS:
             MTS integrator.
         """
         if type.lower() == "langevin":
-            if isinstance(temperature, _unit.Quantity):
-                temperature = temperature.value_in_unit(_unit.kelvin)
-            elif not isinstance(temperature, float):
+            if isinstance(temperature, float):
+                temperature = temperature * _unit.kelvin
+            elif not isinstance(temperature, _unit.Quantity):
                 raise ValueError("Temperature must be a float or a Quantity.")
 
-            if isinstance(friction, _unit.Quantity):
-                friction = friction.value_in_unit(_unit.picosecond**-1)
-            elif not isinstance(friction, float):
+            if isinstance(friction, float):
+                friction = friction / _unit.picosecond
+            elif not isinstance(friction,  _unit.Quantity):
                 raise ValueError("Friction must be a float or a Quantity.")
-
+            
             integrator = _mm.MTSLangevinIntegrator(
                 temperature,
                 friction,

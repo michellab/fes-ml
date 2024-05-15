@@ -5,7 +5,6 @@ from typing import List
 import numpy as _np
 import openmm as _mm
 import sire as _sr
-from emle.calculator import EMLECalculator as _EMLECalculator
 
 from .base_modification import BaseModification, BaseModificationFactory
 
@@ -88,6 +87,8 @@ class EMLEPotentialModification(BaseModification):
         system : openmm.System
             The modified OpenMM System with the EMLE potential added.
         """
+        from emle.calculator import EMLECalculator as _EMLECalculator
+
         if lambda_value is None:
             # This can only occur when MLInterpolation is also being used.
             # There must be a lambda_interpolate global variable available.
