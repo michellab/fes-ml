@@ -20,7 +20,7 @@ if __name__ == "__main__":
     import openmm as mm
     import openmm.unit as unit
 
-    from fes_ml.fes import FES
+    from fes_ml import FES, MTS
 
     # Set up the alchemical modifications
     n_ChargeScaling = 5
@@ -49,12 +49,13 @@ if __name__ == "__main__":
 
     emle_kwargs = None
 
+    # Create the MTS class
+    mts = MTS()
     # Multiple time step Langevin integrator
     # Force group 0, 2 steps (fast forces)
     # Force group 1, 1 step (slow forces)
-    groups = [(0, 2), (1, 1)]
-    integrator = mm.MTSLangevinIntegrator(
-        298.15 * unit.kelvin, 1.0 / unit.picosecond, 1 * unit.femtosecond, groups
+    integrator = mts.create_integrator(
+        dt=1.0 * unit.femtosecond, groups=[(0, 2), (1, 1)]
     )
 
     # Create the FES object to run the simulations
@@ -73,9 +74,10 @@ if __name__ == "__main__":
         ml_potential="ani2x",
     )
 
-    # Set the force groups
-    fes.set_force_groups(
-        slow_forces=["MLCorrectionForce"],
+    # Set the force groups for MTS integration
+    mts.set_force_groups(
+        alchemical_states=fes.alchemical_states,
+        slow_forces=["CustomCVForce"],
         fast_force_group=0,
         slow_force_group=1,
     )

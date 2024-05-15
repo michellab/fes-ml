@@ -13,10 +13,9 @@ Authors: Joao Morado
 
 if __name__ == "__main__":
     import numpy as np
-    import openmm as mm
     import openmm.unit as unit
 
-    from fes_ml.fes import FES
+    from fes_ml import FES, MTS
     from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
@@ -47,13 +46,17 @@ if __name__ == "__main__":
 
     emle_kwargs = None
 
+    # Create the MTS class
+    mts = MTS()
     # Multiple time step Langevin integrator
     # Force group 0, 2 steps (fast forces)
     # Force group 1, 1 step (slow forces)
-    groups = [(0, 2), (1, 1)]
-    integrator = mm.MTSLangevinIntegrator(
-        300.0 * unit.kelvin, 1.0 / unit.picosecond, 1 * unit.femtosecond, groups
+    integrator = mts.create_integrator(
+        dt=1.0 * unit.femtosecond, groups=[(0, 2), (1, 1)]
     )
+
+    # Create the FES object to run the simulations
+    fes = FES()
 
     # Create the FES object to run the simulations
     fes = FES()
@@ -69,9 +72,10 @@ if __name__ == "__main__":
         integrator=integrator,
     )
 
-    # Set the force groups
-    fes.set_force_groups(
-        slow_forces=["NonbondedForce", "CustomNonbondedForce"],
+    # Set the force groups for the MTS integrator
+    mts.set_force_groups(
+        alchemical_states=fes.alchemical_states,
+        slow_forces=["CustomCVForce"],
         fast_force_group=0,
         slow_force_group=1,
     )
