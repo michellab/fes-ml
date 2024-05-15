@@ -37,8 +37,8 @@ class EMLEPotentialModification(BaseModification):
     """Modification to add the EMLE potential to the OpenMM System."""
 
     NAME = "EMLEPotential"
-    pre_dependencies = None
-    post_dependencies = None
+    pre_dependencies: List[str] = None
+    post_dependencies: List[str] = None
 
     def apply(
         self,

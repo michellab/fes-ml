@@ -1,10 +1,16 @@
 """Module for the MLCorrectionModification class and its factory."""
 import logging
-from copy import deepcopy as _deepcopy
+from typing import List
 
 import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory
+from .intramolecular import (
+    IntraMolecularBondedRemovalModification,
+    IntraMolecularNonBondedExceptionsModification,
+)
+from .ml_base_modification import MLBaseModification
+from .ml_potential import MLPotentialModification
 
 logger = logging.getLogger(__name__)
 
@@ -30,19 +36,22 @@ class MLCorrectionModificationFactory(BaseModificationFactory):
         return MLCorrectionModification(*args, **kwargs)
 
 
-class MLCorrectionModification(BaseModification):
+class MLCorrectionModification(MLBaseModification, BaseModification):
     """Class to add a CustomCVForce that is a Δ ML correction."""
 
     NAME = "MLCorrection"
-    pre_dependencies = ["MLPotential"]
-    post_dependencies = [
-        "IntraMolecularNonBondedExceptions",
-        "IntraMolecularBondedRemoval",
+    pre_dependencies: List[str] = [MLPotentialModification.NAME]
+    post_dependencies: List[str] = [
+        IntraMolecularNonBondedExceptionsModification.NAME,
+    ]
+    skip_dependencies: List[str] = [
+        IntraMolecularBondedRemovalModification.NAME,
     ]
 
     def apply(
         self,
         system: _mm.System,
+        alchemical_atoms: List[int],
         lambda_value: float,
         *args,
         **kwargs,
@@ -72,38 +81,12 @@ class MLCorrectionModification(BaseModification):
         -----
         This code is heavily inspired on this https://github.com/openmm/openmm-ml/blob/main/openmmml/mlpotential.py#L190-L351.
         """
-        cv = _mm.CustomCVForce("")
-        cv.addGlobalParameter("lambda_interpolate", lambda_value)
+        # Create the CustomCVForce
+        cv, mm_vars, ml_vars, _, ml_forces = self.create_cv(
+            system, alchemical_atoms, lambda_value, *args, **kwargs
+        )
 
-        # Add ML forces to the CV
-        ml_forces = []
-        for force_id, force in enumerate(system.getForces()):
-            if force.getName() == "TorchForce":
-                ml_forces.append((force_id, force))
-
-        ml_vars = []
-        for i, (force_id, force) in enumerate(ml_forces):
-            name = f"mlForce{i+1}"
-            cv.addCollectiveVariable(name, _deepcopy(force))
-            ml_vars.append(name)
-
-        # Add bonded forces to the CV
-        bonded_forces = []
-        for force in system.getForces():
-            if (
-                hasattr(force, "addBond")
-                or hasattr(force, "addAngle")
-                or hasattr(force, "addTorsion")
-            ):
-                bonded_forces.append(force)
-
-        mm_vars = []
-        for i, force in enumerate(bonded_forces):
-            name = f"mmForce{i+1}"
-            cv.addCollectiveVariable(name, _deepcopy(force))
-            mm_vars.append(name)
-
-        # Remove forces from the system
+        # Remove all ML forces from the system as we are interested in the correction
         forces_to_remove = sorted([force_id for force_id, _ in ml_forces], reverse=True)
         for force_id in forces_to_remove:
             system.removeForce(force_id)
@@ -111,9 +94,7 @@ class MLCorrectionModification(BaseModification):
         # Set the energy function
         ml_sum = "+".join(ml_vars) if len(ml_vars) > 0 else "0"
         mm_sum = "+".join(mm_vars) if len(mm_vars) > 0 else "0"
-        ml_interpolation_function = (
-            f"lambda_interpolate*({ml_sum}) - (1-lambda_interpolate)*({mm_sum})"
-        )
+        ml_interpolation_function = f"lambda_interpolate*({ml_sum} - ({mm_sum}))"
         cv.setEnergyFunction(ml_interpolation_function)
         cv.setName(self.NAME)
         system.addForce(cv)
