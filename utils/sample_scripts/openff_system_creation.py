@@ -28,6 +28,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         raise ValueError("must pass script and window as positional arguments")
 
+    # TODO what is the script actually for? don't remember
     script = str(sys.argv[1])
     window = int(sys.argv[2])
 
@@ -52,13 +53,13 @@ if __name__ == "__main__":
     lambda_schedule = {
         "ChargeScaling": list(q_windows) + [0.0] * n_LJSoftCore,
         "LJSoftCore": [1.0] * n_ChargeScaling + list(lj_windows),
-        # "MLCorrection": [1.0] * (n_ChargeScaling + n_LJSoftCore),
+        "MLCorrection": [1.0] * (n_ChargeScaling + n_LJSoftCore),
     }
 
     # Modifications kwargs
     # This dictionary is used to pass additional kwargs to the modifications
     # The keys are the name of the modification and the values are dictionaries with kwargs
-    modifications_kwargs = {"MLPotential": {"name": "ani2x"}}
+    modifications_kwargs = {"MLPotential": {"name": "mace"}}
 
     # Define variables that are used in several places to avoid errors
     temperature = 298.15 * unit.kelvin
@@ -148,9 +149,9 @@ if __name__ == "__main__":
     if use_mts:
         mts.set_force_groups(
             alchemical_states=fes.alchemical_states,
-            slow_forces=["MLCorrection"],
-            fast_force_group=0,
-            slow_force_group=1,
+            force_group_dict={"MLCorrection": 0,
+                              "NonBondedForce": 1},
+            set_reciprocal_space_force_groups=0,
         )
 
     # Minimize the state of interest

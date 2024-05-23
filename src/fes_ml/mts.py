@@ -19,6 +19,7 @@ class MTS:
         """Initialize the MTS object."""
         self.alchemical_states = alchemical_states
         self._force_groups: Dict[str, int] = None
+        self._groups: List[Tuple[int, int]] = None
 
     def create_integrator(
         self,
@@ -44,6 +45,7 @@ class MTS:
             The first element of each tuple is the force group index,
             and the second element is the number of times that force
             group should be evaluated in one time step.
+            0 should be the slowest force group.
         temperature
             The temperature of the system.
         friction
@@ -67,7 +69,7 @@ class MTS:
                 friction = friction / _unit.picosecond
             elif not isinstance(friction,  _unit.Quantity):
                 raise ValueError("Friction must be a float or a Quantity.")
-            
+
             integrator = _mm.MTSLangevinIntegrator(
                 temperature,
                 friction,
@@ -79,15 +81,15 @@ class MTS:
         else:
             raise ValueError(f"Invalid MTS integrator type: {type}")
 
+        self._groups = groups
+
         return integrator
 
     def set_force_groups(
         self,
         alchemical_states: Optional[List[AlchemicalState]] = None,
-        slow_forces: Optional[List[Any]] = None,
-        fast_force_group: int = 0,
-        slow_force_group: int = 1,
         force_group_dict: Optional[Dict[Any, int]] = None,
+        set_reciprocal_space_force_groups: Optional[int] = None,
     ) -> Dict[Any, int]:
         """
         Set the force groups for the alchemical states.
@@ -97,16 +99,10 @@ class MTS:
         alchemical_states : list of AlchemicalState, optional, default=None
             List of alchemical states to set the force groups.
             If not provided, the alchemical states set in the object initialization are used.
-        slow_forces : list of names of OpenMM forces, optional, default=None
-            List of forces to be considered slow.
-        fast_force_group : int
-            Force group for the fast forces.
-        slow_force_group : int, optional, default=1
-            Force group for the slow forces.
         force_group_dict : dict, optional, default=None
             Dictionary with the force group for each force.
-            If provided, it takes precedence over the other arguments and the force groups are set
-            according to the dictionary. Otherwise, the force groups are set according to the other arguments.
+        set_reciprocal_space_force_groups: int, Optional, default=None
+            Which group to set the reciprocal space force group to. By default, this is not set seperately.
 
         Returns
         -------
@@ -115,12 +111,7 @@ class MTS:
 
         Notes
         -----
-        The force groups are set as follows:
-        - If `force_group_dict` is provided, the force groups are set according to the dictionary.
-        All forces not in the dictionary are set to `fast_force_group`.
-        - If `slow_forces` is provided, the forces in `slow_forces` are set to `slow_force_group` and
-        the others to `fast_force_group`.
-        - If `slow_forces` is not provided, all forces are set to `fast_force_group`.
+        - If a group is not provided, all forces are set to the fastest force group.
         """
         if alchemical_states is not None:
             assert isinstance(
@@ -138,46 +129,35 @@ class MTS:
             ), "alchemical_states must be provided to set the force groups."
 
         if force_group_dict is not None:
+
+            # get the fastest force group for the unassigned forces
+            for s in self._groups:
+                if s[1] == max([s[1] for s in self._groups]):
+                    fastest_group = s[0]
+
             for state in self.alchemical_states:
-                unassigned_slow_forces = list(force_group_dict.keys())
+                unassigned_dict_forces = list(force_group_dict.keys())
 
                 for force in state.system.getForces():
+                    print(force.getName())
                     try:
                         force.setForceGroup(force_group_dict[force.getName()])
-                        unassigned_slow_forces.remove(force.getName())
+                        unassigned_dict_forces.remove(force.getName())
                     except KeyError:
-                        force.setForceGroup(fast_force_group)
+                        force.setForceGroup(fastest_group)
 
-                if unassigned_slow_forces:
+                if unassigned_dict_forces:
                     logger.warning(
-                        f"Warning: the following forces {unassigned_slow_forces} were not found in {state}."
+                        f"Warning: the following forces {unassigned_dict_forces} were not found in {state}."
                     )
 
+                # set the reciprocal force group to the defined group
+                if set_reciprocal_space_force_groups is not None:
+                    if isinstance(force, _mm.NonbondedForce):
+                        force.setReciprocalSpaceForceGroup(
+                            set_reciprocal_space_force_groups)
+
                 state.context.reinitialize(preserveState=True)
-        else:
-            if slow_forces is not None:
-                for state in self.alchemical_states:
-                    unassigned_slow_forces = list(slow_forces)
-
-                    for force in state.system.getForces():
-                        if force.getName() in slow_forces:
-                            force.setForceGroup(slow_force_group)
-                            unassigned_slow_forces.remove(force.getName())
-                        else:
-                            force.setForceGroup(fast_force_group)
-
-                    if unassigned_slow_forces:
-                        logger.warning(
-                            f"Warning: the following forces {unassigned_slow_forces} were not found in {state}."
-                        )
-
-                    state.context.reinitialize(preserveState=True)
-            else:
-                for state in self.alchemical_states:
-                    for force in state.system.getForces():
-                        force.setForceGroup(fast_force_group)
-
-                    state.context.reinitialize(preserveState=True)
 
         # Store the force groups
         self._force_groups = {
