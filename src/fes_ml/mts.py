@@ -67,7 +67,7 @@ class MTS:
 
             if isinstance(friction, float):
                 friction = friction / _unit.picosecond
-            elif not isinstance(friction,  _unit.Quantity):
+            elif not isinstance(friction, _unit.Quantity):
                 raise ValueError("Friction must be a float or a Quantity.")
 
             integrator = _mm.MTSLangevinIntegrator(
@@ -129,7 +129,6 @@ class MTS:
             ), "alchemical_states must be provided to set the force groups."
 
         if force_group_dict is not None:
-
             # get the fastest force group for the unassigned forces
             for s in self._groups:
                 if s[1] == max([s[1] for s in self._groups]):
@@ -154,7 +153,8 @@ class MTS:
                 if set_reciprocal_space_force_groups is not None:
                     if isinstance(force, _mm.NonbondedForce):
                         force.setReciprocalSpaceForceGroup(
-                            set_reciprocal_space_force_groups)
+                            set_reciprocal_space_force_groups
+                        )
 
                 state.context.reinitialize(preserveState=True)
 

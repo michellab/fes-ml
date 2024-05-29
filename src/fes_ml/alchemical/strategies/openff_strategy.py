@@ -1,9 +1,9 @@
 """OpenFF alchemical state creation strategy."""
 
 import logging
+import os as _os
 import shutil as _shutil
 from copy import deepcopy as _deepcopy
-import os as _os
 from typing import Any, Dict, List, Optional, Union
 
 # OpenMM imports
@@ -446,7 +446,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         positions = _to_openmm_positions(interchange, include_virtual_sites=True)
         tmp_context = _mm.Context(system, _mm.VerletIntegrator(1))
         tmp_context.setPositions(positions)
-        
+
         if int(_os.getenv("FES_ML_LOG_DEVEL", False)):
             self._report_energy_decomposition(tmp_context, system)
 

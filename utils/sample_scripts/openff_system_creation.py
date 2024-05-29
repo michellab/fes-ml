@@ -20,20 +20,17 @@ if __name__ == "__main__":
 
     import numpy as np
     import openff.units as offunit
+    import openmm as mm
     import openmm.app as app
     import openmm.unit as unit
-    import openmm as mm
 
     from fes_ml import FES, MTS
 
-    if len(sys.argv) != 3:
-        raise ValueError("must pass script and window as positional arguments")
+    if len(sys.argv) != 1:
+        raise ValueError("must pass window as positional arguments")
 
-    # TODO what is the script actually for? don't remember
-    script = str(sys.argv[1])
-    window = int(sys.argv[2])
+    window = int(sys.argv[1])
 
-    print(f"Script : {script}")
     print(f"Window : {window}")
 
     # --------------------------------------------------------------- #
@@ -60,8 +57,7 @@ if __name__ == "__main__":
     # Modifications kwargs
     # This dictionary is used to pass additional kwargs to the modifications
     # The keys are the name of the modification and the values are dictionaries with kwargs
-    modifications_kwargs = {"MLPotential": {
-        "name": "mace-off23-small"}}  # mace-off23-small
+    modifications_kwargs = {"MLPotential": {"name": "mace-off23-small"}}
 
     # Define variables that are used in several places to avoid errors
     temperature = 298.15 * unit.kelvin
@@ -183,4 +179,4 @@ if __name__ == "__main__":
         reporters=simulation_reporters,
     )
 
-    np.save(f"{script}_{window}.npy", np.asarray(U_kn))
+    np.save(f"{window}.npy", np.asarray(U_kn))

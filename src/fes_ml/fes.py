@@ -478,8 +478,8 @@ class FES:
         try:
             integrator_temperature = alchemical_state.integrator.getTemperature()
         except AttributeError:
-            integrator_temperature = alchemical_state.integrator.temperature 
-            
+            integrator_temperature = alchemical_state.integrator.temperature
+
         kT = (
             _unit.AVOGADRO_CONSTANT_NA
             * _unit.BOLTZMANN_CONSTANT_kB

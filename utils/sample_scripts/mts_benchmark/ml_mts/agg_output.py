@@ -1,5 +1,6 @@
-import numpy as np
 import glob
+
+import numpy as np
 
 U_kln = []
 frames_disc = 10
@@ -7,7 +8,7 @@ step = 1
 for i in range(100):
     out = f"OUTPUT_{i}"
     try:
-        f = glob.glob(out+"/*npy")[0]
+        f = glob.glob(out + "/*npy")[0]
     except:
         break
     U_kln.append(np.load(f)[:, frames_disc::step])
