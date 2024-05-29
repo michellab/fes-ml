@@ -8,6 +8,7 @@ dependencies:
   - ambertools
   - ase
   - compilers
+  - cudatoolkit<11.9
   - deepmd-kit
   - eigen
   - loguru

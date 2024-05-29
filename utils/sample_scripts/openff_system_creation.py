@@ -22,6 +22,7 @@ if __name__ == "__main__":
     import openff.units as offunit
     import openmm.app as app
     import openmm.unit as unit
+    import openmm as mm
 
     from fes_ml import FES, MTS
 
@@ -59,7 +60,8 @@ if __name__ == "__main__":
     # Modifications kwargs
     # This dictionary is used to pass additional kwargs to the modifications
     # The keys are the name of the modification and the values are dictionaries with kwargs
-    modifications_kwargs = {"MLPotential": {"name": "mace"}}
+    modifications_kwargs = {"MLPotential": {
+        "name": "mace-off23-small"}}  # mace-off23-small
 
     # Define variables that are used in several places to avoid errors
     temperature = 298.15 * unit.kelvin
@@ -81,14 +83,15 @@ if __name__ == "__main__":
     }
 
     # MTS logics
-    use_mts = False
-    intermediate_steps = 4
-    inner_steps = 2
+    use_mts = True
+    intermediate_steps = 2
+    inner_steps = 4
+    print("setting up mts")
     if use_mts:
         # Create the MTS class if intermediate steps are defined
         mts = MTS()
         # Multiple time step Langevin integrator
-        timestep_groups = [(0, 2), (1, intermediate_steps)]
+        timestep_groups = [(0, 1), (1, intermediate_steps)]
         if inner_steps:
             timestep_groups.append((2, inner_steps))
         integrator = mts.create_integrator(
@@ -138,22 +141,31 @@ if __name__ == "__main__":
     # Prepare and run the simulations
     # --------------------------------------------------------------- #
     # Create the FES object and add the alchemical states
+    print("createing fes")
     fes = FES()
     fes.create_alchemical_states(
         strategy_name="openff",
         lambda_schedule=lambda_schedule,
         **create_alchemical_states_kwargs,
     )
+    force_group_dict = {"MLCorrection": 0}
+    for force in fes.alchemical_states[1].system.getForces():
+        if isinstance(force, mm.NonbondedForce):
+            if inner_steps:
+                force_group_dict[force.getName()] = 1
+            else:
+                force_group_dict[force.getName()] = 0
 
-    # Set the force groups for the alchemical states
+    print("setting force ggroups")
+    # Set the  force groups for the alchemical states
     if use_mts:
         mts.set_force_groups(
             alchemical_states=fes.alchemical_states,
-            force_group_dict={"MLCorrection": 0,
-                              "NonBondedForce": 1},
+            force_group_dict=force_group_dict,
             set_reciprocal_space_force_groups=0,
         )
 
+    print("minimising")
     # Minimize the state of interest
     fes.minimize(window=window)
 

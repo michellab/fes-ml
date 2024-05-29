@@ -139,7 +139,6 @@ class MTS:
                 unassigned_dict_forces = list(force_group_dict.keys())
 
                 for force in state.system.getForces():
-                    print(force.getName())
                     try:
                         force.setForceGroup(force_group_dict[force.getName()])
                         unassigned_dict_forces.remove(force.getName())
