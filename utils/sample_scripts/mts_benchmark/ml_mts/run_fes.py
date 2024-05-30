@@ -70,7 +70,7 @@ if __name__ == "__main__":
         # Create the MTS class if intermediate steps are defined
         mts = MTS()
         # Multiple time step Langevin integrator
-        timestep_groups = [(0, 2), (1, intermediate_steps)]
+        timestep_groups = [(0, 1), (1, intermediate_steps)]
         if inner_steps:
             timestep_groups.append((2, inner_steps))
         integrator = mts.create_integrator(

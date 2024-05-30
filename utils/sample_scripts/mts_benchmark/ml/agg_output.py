@@ -13,6 +13,6 @@ for i in range(100):
         break
     U_kln.append(np.load(f)[:, frames_disc::step])
 
-U_kln = np.asarray(U_kln)
-print(U_kln.shape)
-np.save("U_kln_agg.npy", U_kln)
+U_kln_array = np.asarray(U_kln)
+print(U_kln_array.shape)
+np.save("U_kln_agg.npy", U_kln_array)
