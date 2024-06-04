@@ -189,27 +189,32 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         Returns
         -------
         _Topology
-            The solvated topology.
+            The solvated (or not) topology.
         """
-        logger.debug("Solvating the system.")
+        if molecules["solvent"] is None:
+            logger.debug("Not solvating the system.")
+            topology_off = molecules["ligand"].to_topology()
+        else:
+            logger.debug("Solvating the system.")
 
-        mols = [mol for _, mol in molecules.items() if mol is not None]
+            mols = [mol for _, mol in molecules.items() if mol is not None]
 
-        if packmol_kwargs is None:
-            packmol_kwargs = _deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)
+            if packmol_kwargs is None:
+                packmol_kwargs = _deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)
 
-        if "number_of_copies" not in packmol_kwargs:
-            number_of_copies = [
-                OpenFFCreationStrategy._N_MOLECULES[mol_name]
-                for mol_name, mol in molecules.items()
-                if mol is not None
-            ]
+            if "number_of_copies" not in packmol_kwargs:
+                number_of_copies = [
+                    OpenFFCreationStrategy._N_MOLECULES[mol_name]
+                    for mol_name, mol in molecules.items()
+                    if mol is not None
+                ]
 
-        topology_off = _pack_box(
-            molecules=mols,
-            number_of_copies=number_of_copies,
-            **packmol_kwargs,
-        )
+            topology_off = _pack_box(
+                molecules=mols,
+                number_of_copies=number_of_copies,
+                **packmol_kwargs,
+            )
+
         return topology_off
 
     @staticmethod
@@ -295,7 +300,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         sdf_file_ligand: Optional[str] = None,
         sdf_file_solvent: Optional[str] = None,
         smiles_ligand: Optional[str] = None,
-        smiles_solvent: Optional[str] = "[H:2][O:1][H:3]",
+        smiles_solvent: Optional[str] = None,
         temperature: Union[float, _unit.Quantity] = 298.15 * _unit.kelvin,
         pressure: Union[float, _unit.Quantity, None] = 1.0 * _unit.atmosphere,
         mdconfig_dict: Optional[Dict[str, Any]] = None,
@@ -306,6 +311,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         integrator: Optional[Any] = None,
         friction: Union[float, _unit.Quantity] = 1.0 / _unit.picosecond,
         timestep: Union[float, _unit.Quantity] = 1.0 * _unit.femtosecond,
+        write_pdb: bool = True,
         keep_tmp_files: bool = True,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         *args,
@@ -326,8 +332,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             The path to the SDF file containing a solvent molecule.
         smiles_ligand : str, optional, default=None
             The SMARTS pattern for the ligand.
-        smiles_solvent : str, optional, default='[H:2][O:1][H:3]'
-            The SMARTS pattern for the solvent. Default is water.
+        smiles_solvent : str, optional
+            The SMARTS pattern for the solvent. If None, the ligand is assumed to be in vacuum.
+            For water use '[H:2][O:1][H:3]'.
         temperature : float or _unit.Quantity, optional, default=298.15
             The temperature in Kelvin.
         mdconfig_dict
@@ -354,6 +361,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             The friction coefficient in 1/ps. Only necessary for Langevin-type integrators.
         timestep : float or _unit.Quantity, optional, default=1.0 * _unit.femtosecond
             The timestep in ps of the integrator.
+        write_pdb : bool, optional, default=True
+            Save coordinates and topology to a PDB file.
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
         modifications_kwargs : dict
@@ -368,11 +377,18 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug("=" * 100)
 
         # Generate local copies of the system generator kwargs
-        mdconfig_dict = (
-            _deepcopy(self._MDCONFIG_DICT)
-            if mdconfig_dict is None
-            else _deepcopy(mdconfig_dict)
-        )
+        if any([sdf_file_solvent, smiles_solvent]):
+            mdconfig_dict = (
+                _deepcopy(self._MDCONFIG_DICT)
+                if mdconfig_dict is None
+                else _deepcopy(mdconfig_dict)
+            )
+        else:
+            mdconfig_dict = (
+                _deepcopy(self._MDCONFIG_DICT_VACUUM)
+                if mdconfig_dict is None
+                else _deepcopy(mdconfig_dict)
+            )
 
         passed_args = locals()
         passed_args["mdconfig_kwargs"] = mdconfig_dict
@@ -380,11 +396,14 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         # Report the creation settings
         self._report_dict(passed_args, dict_name="OpenFF creation settings")
 
+        # Create temporary directory if it does not exist
+        _os.makedirs(self._TMP_DIR, exist_ok=True)
+
         # Create local variables
         additional_forces: List[Union[_mm.Force, None]] = []
         molecules: Dict[str, Union[_Molecule, None]] = {}
 
-        # Create the ligand and solvent molecules
+        # Create the ligand, protein, and solvent molecules
         ligand = self._create_ligand_molecule(sdf_file_ligand, smiles_ligand)
         protein = self._create_protein_molecule()
         solvent = self._create_solvent_molecule(sdf_file_solvent, smiles_solvent)
@@ -408,9 +427,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         interchange = _ForceField(*ffs).create_interchange(topology_off)
 
         # Apply the MDConfig settings to the Interchange object
-        # TODO: add support for vacuum (_MDCONFIG_DICT_VACUUM is already defined at class level)
         mdconfig = _MDConfig()
-        for key, value in self._MDCONFIG_DICT.items():
+        for key, value in mdconfig_dict.items():
             setattr(mdconfig, key, value)
         mdconfig.apply(interchange)
 
@@ -433,8 +451,13 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             hydrogen_mass=hmr,
         )
 
-        # Create barostat and add if if necessary
-        additional_forces.append(self._create_barostat(pressure, temperature))
+        # Create barostat (only if system is periodic)
+        if (
+            topology.getPeriodicBoxVectors() is not None
+        ) or system.usesPeriodicBoundaryConditions():
+            additional_forces.append(self._create_barostat(pressure, temperature))
+
+        # Add additional forces
         for force in additional_forces:
             if force is not None:
                 system.addForce(force)
@@ -522,14 +545,18 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             modifications=lambda_schedule,
         )
 
+        # Save the topology and positions to a PDB file
+        if write_pdb:
+            topology_off.to_file(
+                _os.path.join(self._TMP_DIR, "topology.pdb"),
+                _to_openmm_positions(interchange, include_virtual_sites=False),
+            )
+
+        # Clean up the temporary directory
         if not keep_tmp_files:
-            # Clean up the temporary directory
             _shutil.rmtree(self._TMP_DIR)
 
         logger.debug("Alchemical state created successfully.")
         logger.debug("=" * 100)
 
         return alc_state
-
-
-# TODO: make interchage write parm7 for EMLE
