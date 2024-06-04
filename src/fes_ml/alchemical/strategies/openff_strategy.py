@@ -312,7 +312,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         friction: Union[float, _unit.Quantity] = 1.0 / _unit.picosecond,
         timestep: Union[float, _unit.Quantity] = 1.0 * _unit.femtosecond,
         write_pdb: bool = True,
-        partial_charges_method: str = "gasteiger",
+        partial_charges_method: str = "am1bcc",
         keep_tmp_files: bool = True,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         *args,
