@@ -312,6 +312,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         friction: Union[float, _unit.Quantity] = 1.0 / _unit.picosecond,
         timestep: Union[float, _unit.Quantity] = 1.0 * _unit.femtosecond,
         write_pdb: bool = True,
+        partial_charges_method: str = "gasteiger",
         keep_tmp_files: bool = True,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         *args,
@@ -363,6 +364,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             The timestep in ps of the integrator.
         write_pdb : bool, optional, default=True
             Save coordinates and topology to a PDB file.
+        partial_charges_method : str, optional, default="am1bcc"
+            The method to use for assigning partial charges to the ligand.
+            See: https://docs.openforcefield.org/projects/toolkit/en/latest/api/generated/openff.toolkit.topology.Molecule.html#openff.toolkit.topology.Molecule.assign_partial_charges
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
         modifications_kwargs : dict
@@ -413,8 +417,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         molecules["protein"] = protein
         molecules["solvent"] = solvent
 
-        # Generate conformers for the ligand
-        ligand.generate_conformers()
+        # Generate conformers for the ligand and assign partial charges
+        if molecules["ligand"] is not None:
+            molecules["ligand"].generate_conformers()
+            molecules["ligand"].assign_partial_charges(partial_charges_method)
 
         # Solvate the system
         topology_off = self._solvate(molecules, packmol_kwargs)
