@@ -19,6 +19,7 @@ from openff.interchange.interop.openmm._positions import (
 
 # OpenFF imports
 from openff.toolkit import Molecule as _Molecule
+from openff.toolkit import Topology as _Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField as _ForceField
 from openff.units import unit as _offunit
 
@@ -311,6 +312,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         integrator: Optional[Any] = None,
         friction: Union[float, _unit.Quantity] = 1.0 / _unit.picosecond,
         timestep: Union[float, _unit.Quantity] = 1.0 * _unit.femtosecond,
+        topology_pdb: Optional[str] = None,
         write_pdb: bool = True,
         partial_charges_method: str = "am1bcc",
         keep_tmp_files: bool = True,
@@ -362,6 +364,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             The friction coefficient in 1/ps. Only necessary for Langevin-type integrators.
         timestep : float or _unit.Quantity, optional, default=1.0 * _unit.femtosecond
             The timestep in ps of the integrator.
+        topology_pdb : str, optional, default=None
+            The path to the PDB file containing the topology.
+            If not None, the topology is created from this file, which is assumed to contain all the molecules.
         write_pdb : bool, optional, default=True
             Save coordinates and topology to a PDB file.
         partial_charges_method : str, optional, default="am1bcc"
@@ -422,8 +427,13 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             molecules["ligand"].generate_conformers()
             molecules["ligand"].assign_partial_charges(partial_charges_method)
 
-        # Solvate the system
-        topology_off = self._solvate(molecules, packmol_kwargs)
+        if topology_pdb:
+            logger.debug("Creating topology from PDB file.")
+            mols = [mol for _, mol in molecules.items() if mol is not None]
+            topology_off = _Topology.from_pdb(topology_pdb, unique_molecules=mols)
+        else:
+            # Solvate the system
+            topology_off = self._solvate(molecules, packmol_kwargs)
 
         # Convert topology to OpenMM
         topology = topology_off.to_openmm()
