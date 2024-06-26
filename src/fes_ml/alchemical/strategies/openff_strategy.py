@@ -513,12 +513,12 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             interchange.to_gromacs(prefix=files_prefix)
 
             # Read back those files using Sire
-            mols = _sr.load(
+            sr_mols = _sr.load(
                 files_prefix + ".top", files_prefix + ".gro", show_warnings=True
             )
 
             # Select the alchemical subsystem
-            alchemical_subsystem = mols.atoms(alchemical_atoms)
+            alchemical_subsystem = sr_mols.atoms(alchemical_atoms)
 
             # Write the alchemical subsystem and full system parm7 to temp files
             alchemical_prm7 = _sr.save(
@@ -529,10 +529,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             )
 
             # Add required EMLEPotential kwargs to the modifications_kwargs dict
-            modifications_kwargs["EMLEPotential"]["mols"] = mols
+            modifications_kwargs["EMLEPotential"]["mols"] = sr_mols
             modifications_kwargs["EMLEPotential"]["parm7"] = alchemical_prm7[0]
             modifications_kwargs["EMLEPotential"]["mm_charges"] = _np.asarray(
-                [atom.charge().value() for atom in mols.atoms(alchemical_atoms)]
+                [atom.charge().value() for atom in sr_mols.atoms(alchemical_atoms)]
             )
         if any(
             key in lambda_schedule
