@@ -10,14 +10,14 @@ from typing import Any, Dict, List, Optional, Union
 import openmm as _mm
 import openmm.app as _app
 import openmm.unit as _unit
+
+# OpenFF imports
 from openff.interchange.components._packmol import UNIT_CUBE as _UNIT_CUBE
 from openff.interchange.components._packmol import pack_box as _pack_box
 from openff.interchange.components.mdconfig import MDConfig as _MDConfig
 from openff.interchange.interop.openmm._positions import (
     to_openmm_positions as _to_openmm_positions,
 )
-
-# OpenFF imports
 from openff.toolkit import Molecule as _Molecule
 from openff.toolkit.typing.engines.smirnoff import ForceField as _ForceField
 from openff.units import unit as _offunit
@@ -433,7 +433,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             hydrogen_mass=hmr,
         )
 
-        # Create barostat and add if if necessary
+        # Create barostat and add it to the System if necessary
         additional_forces.append(self._create_barostat(pressure, temperature))
         for force in additional_forces:
             if force is not None:
@@ -456,21 +456,45 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Create/update the modifications kwargs
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
-        if any(key in lambda_schedule for key in ["EMLEPotential"]):
-            raise NotImplementedError(
-                "The EMLEPotential is not yet supported in the OpenFF strategy."
-            )
 
         if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
             modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
                 "EMLEPotential", {}
             )
-            # TODO: make interchage write parm7 for EMLE
-            # modifications_kwargs["EMLEPotential"]["mols"] = mols
-            # modifications_kwargs["EMLEPotential"]["parm7"] = alchemical_prm7[0]
-            # modifications_kwargs["EMLEPotential"]["mm_charges"] = _np.asarray(
-            #    [atom.charge().value() for atom in mols.atoms(alchemical_atoms)]
-            # )
+
+            # Import required
+            import numpy as _np
+            import sire as _sr
+
+            # Write .top and .gro files via the OpenFF interchange
+            if _os.path.exists(self._TMP_DIR):
+                _shutil.rmtree(self._TMP_DIR)
+            _os.makedirs(self._TMP_DIR, exist_ok=True)
+            files_prefix = _os.path.join(self._TMP_DIR, "interchange")
+            interchange.to_gromacs(prefix=files_prefix)
+
+            # Read back those files using Sire
+            mols = _sr.load(
+                files_prefix + ".top", files_prefix + ".gro", show_warnings=True
+            )
+
+            # Select the alchemical subsystem
+            alchemical_subsystem = mols.atoms(alchemical_atoms)
+
+            # Write the alchemical subsystem and full system parm7 to temp files
+            alchemical_prm7 = _sr.save(
+                alchemical_subsystem,
+                directory=self._TMP_DIR,
+                filename="alchemical_subsystem.prm7",
+                format=["prm7"],
+            )
+
+            # Add required EMLEPotential kwargs to the modifications_kwargs dict
+            modifications_kwargs["EMLEPotential"]["mols"] = mols
+            modifications_kwargs["EMLEPotential"]["parm7"] = alchemical_prm7[0]
+            modifications_kwargs["EMLEPotential"]["mm_charges"] = _np.asarray(
+                [atom.charge().value() for atom in mols.atoms(alchemical_atoms)]
+            )
         if any(
             key in lambda_schedule
             for key in ["MLPotential", "MLInterpolation", "MLCorrection"]
@@ -530,6 +554,3 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug("=" * 100)
 
         return alc_state
-
-
-# TODO: make interchage write parm7 for EMLE
