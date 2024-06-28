@@ -2,6 +2,7 @@
 
 import logging
 import os as _os
+import re as _re
 import shutil as _shutil
 from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Union
@@ -68,6 +69,27 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
     }
 
     _DEFAULT_FORCEFIELDS = ["openff-2.0.0.offxml", "tip3p.offxml"]
+
+    @staticmethod
+    def is_mapped_smiles(smiles: str) -> bool:
+        """
+        Check if the given SMILES string is a mapped SMILES.
+
+        Parameters
+        ----------
+        smiles
+            The smiles to check.
+
+        Returns
+        -------
+        bool
+            Whether the smiles is mapped or not.
+        """
+        # Regular expression to find atom mapping numbers (e.g., :1, :2, etc.)
+        pattern = _re.compile(r":[0-9]+")
+
+        # Search for the pattern in the SMILES string
+        return bool(pattern.search(smiles))
 
     @staticmethod
     def _create_integrator(
@@ -161,7 +183,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         if sdf_file_solvent is not None:
             solvent = _Molecule.from_file(sdf_file_solvent)
         elif smiles_solvent is not None:
-            solvent = _Molecule.from_smiles(smiles_solvent)
+            if OpenFFCreationStrategy.is_mapped_smiles(smiles_solvent):
+                solvent = _Molecule.from_mapped_smiles(smiles_solvent)
+            else:
+                solvent = _Molecule.from_smiles(smiles_solvent)
         else:
             solvent = None
             logger.debug("No solvent provided. Assuming the ligand is in vacuum.")
