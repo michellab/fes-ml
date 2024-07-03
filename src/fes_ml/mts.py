@@ -18,7 +18,6 @@ class MTS:
     ) -> None:
         """Initialize the MTS object."""
         self.alchemical_states = alchemical_states
-        self._force_groups: Dict[str, int] = None
         self._groups: List[Tuple[int, int]] = None
 
     def create_integrator(
@@ -104,11 +103,6 @@ class MTS:
         set_reciprocal_space_force_groups: int, Optional, default=None
             Which group to set the reciprocal space force group to. By default, this is not set seperately.
 
-        Returns
-        -------
-        force_groups : dict
-            Dictionary with the force group for each force.
-
         Notes
         -----
         - If a group is not provided, all forces are set to the fastest force group.
@@ -156,14 +150,10 @@ class MTS:
 
                 state.context.reinitialize(preserveState=True)
 
-        # Store the force groups
-        self._force_groups = {
-            force.getName(): force.getForceGroup()
-            for force in self.alchemical_states[0].system.getForces()
-        }
-
-        logger.info("Force groups set to:")
-        for force, group in self._force_groups.items():
-            logger.info(f"{force}: {group}")
-
-        return self._force_groups
+            force_groups = {
+                            force.getName(): force.getForceGroup()
+                            for force in state.system.getForces()
+                            }
+            logger.info(f"Force groups for state index {self.alchemical_states.index(state)} set to:")
+            for force, group in force_groups.items():
+                logger.info(f"{force}: {group}")
