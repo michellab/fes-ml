@@ -130,9 +130,7 @@ class MTS:
 
         if force_group_dict is not None:
             # get the fastest force group for the unassigned forces
-            for s in self._groups:
-                if s[1] == max([s[1] for s in self._groups]):
-                    fastest_group = s[0]
+            fastest_group = max(self._groups, key=lambda fg_dt: fg_dt[1])[0]
 
             for state in self.alchemical_states:
                 unassigned_dict_forces = list(force_group_dict.keys())
