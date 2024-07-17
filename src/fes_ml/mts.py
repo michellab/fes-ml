@@ -151,9 +151,13 @@ class MTS:
                 state.context.reinitialize(preserveState=True)
 
             force_groups = {
-                            force.getName(): force.getForceGroup()
-                            for force in state.system.getForces()
-                            }
-            logger.info(f"Force groups for state index {self.alchemical_states.index(state)} set to:")
+                force.getName(): force.getForceGroup()
+                for force in state.system.getForces()
+            }
+            logger.info(
+                f"Force groups for state index {self.alchemical_states.index(state)} set to:"
+            )
             for force, group in force_groups.items():
                 logger.info(f"{force}: {group}")
+
+        return force_groups
