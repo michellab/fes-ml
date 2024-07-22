@@ -47,6 +47,7 @@ class EMLEPotentialModification(BaseModification):
         mols: _sr.mol.Molecule,
         parm7: str,
         mm_charges: _np.ndarray,
+        openmm_charges: List[float] = None,
         backend: str = None,
         method: str = "electrostatic",
         *args,
@@ -149,6 +150,10 @@ class EMLEPotentialModification(BaseModification):
         mols, engine = _sr.qm.emle(
             mols, mols.atoms(alchemical_atoms), calculator, "12A", 20
         )
+
+        # Set the system charges explicitly if they are provided.
+        if openmm_charges is not None:
+            engine.set_charges(openmm_charges)
 
         # Get the OpenMM EMLEForce object.
         emle_force, interpolation_force = engine.get_forces()

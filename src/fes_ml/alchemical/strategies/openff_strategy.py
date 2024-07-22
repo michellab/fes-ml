@@ -319,6 +319,44 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             return _mm.MonteCarloBarostat(pressure, temperature, frequency)
         return None
 
+    @staticmethod
+    def _get_openmm_charges(system) -> List[float]:
+        """
+        Get the original charges of the OpenMM system.
+
+        Parameters
+        ----------
+        system : openmm.System
+            The OpenMM System.
+
+        Returns
+        -------
+        list : float
+            The charges of the system.
+        """
+        nb_forces = [
+            force
+            for force in system.getForces()
+            if isinstance(force, _mm.NonbondedForce)
+        ]
+        if len(nb_forces) > 1:
+            raise ValueError(
+                "The system must not contain more than one NonbondedForce."
+            )
+        elif len(nb_forces) == 0:
+            logger.warning(
+                "The system does not contain a NonbondedForce and therefore no charge scaling will be applied."
+            )
+            return system
+        else:
+            force = nb_forces[0]
+            charges = []
+            for index in range(system.getNumParticles()):
+                charge, _, _ = force.getParticleParameters(index)
+                charges.append(charge.value_in_unit(_unit.elementary_charge))
+
+        return charges
+
     def create_alchemical_state(
         self,
         alchemical_atoms: List[int],
@@ -559,6 +597,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             modifications_kwargs["EMLEPotential"]["mm_charges"] = _np.asarray(
                 [atom.charge().value() for atom in sr_mols.atoms(alchemical_atoms)]
             )
+
+            # Get the original charges of the OpenMM system
+            openmm_charges = self._get_openmm_charges(system)
+            modifications_kwargs["EMLEPotential"]["openmm_charges"] = openmm_charges
         if any(
             key in lambda_schedule
             for key in ["MLPotential", "MLInterpolation", "MLCorrection"]
