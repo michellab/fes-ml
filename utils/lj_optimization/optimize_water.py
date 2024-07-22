@@ -49,10 +49,7 @@ if __name__ == "__main__":
     crd_file = "data/benzene_water_dimer.rst7"
 
     # Create the FES object
-    fes = FES(
-        top_file=top_file,
-        crd_file=crd_file,
-    )
+    fes = FES()
 
     benzene_atoms = list(range(3, 3 + 12))
     logger.info(f"Alchemical atoms: {benzene_atoms}")
@@ -64,6 +61,8 @@ if __name__ == "__main__":
         dynamics_kwargs=dynamics_kwargs,
         emle_kwargs=emle_kwargs,
         minimise_iterations=0,
+        top_file=top_file,
+        crd_file=crd_file,
     )
 
     # ------------------------------------------------------------------------------------------

@@ -12,9 +12,10 @@ Authors: Joao Morado
 """
 if __name__ == "__main__":
     import numpy as np
+    import openff.units as offunit
+    import openmm.unit as unit
 
     from fes_ml.fes import FES
-    from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
     n_ChargeScaling = 5
@@ -27,41 +28,41 @@ if __name__ == "__main__":
         "LJSoftCore": [1.0] * n_ChargeScaling + list(lj_windows),
     }
 
-    plot_lambda_schedule(lambda_schedule)
-
-    # Define the dynamics and EMLE parameters
-    dynamics_kwargs = {
-        "timestep": "1fs",
-        "cutoff_type": "PME",
-        "cutoff": "12A",
-        "constraint": "h_bonds",
-        "integrator": "langevin_middle",
-        "temperature": "298.15K",
-        "pressure": "1atm",
-        "platform": "cuda",
-        "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
+    # Set up the mdconfig dictionary for the simulations
+    # This is the default mdconfig dictionary, meaning that if this dictionary
+    # is not passed to the FES object, these values will be used.
+    mdconfig_dict = {
+        "periodic": True,
+        "constraints": "h-bonds",
+        "vdw_method": "cutoff",
+        "vdw_cutoff": offunit.Quantity(12.0, "angstrom"),
+        "mixing_rule": "lorentz-berthelot",
+        "switching_function": True,
+        "switching_distance": offunit.Quantity(11.0, "angstrom"),
+        "coul_method": "pme",
+        "coul_cutoff": offunit.Quantity(12.0, "angstrom"),
     }
 
-    emle_kwargs = None
-
     # Create the FES object to run the simulations
-    fes = FES(
-        top_file="../data/benzene/benzene_sage_water.prm7",
-        crd_file="../data/benzene/benzene_sage_water.rst7",
-    )
+    fes = FES()
 
     # Create the alchemical states
     fes.create_alchemical_states(
-        alchemical_atoms=list(range(12)),
+        strategy_name="openff",
         lambda_schedule=lambda_schedule,
-        dynamics_kwargs=dynamics_kwargs,
-        emle_kwargs=emle_kwargs,
+        smiles_ligand="c1ccccc1",
+        smiles_solvent="[H:2][O:1][H:3]",
+        integrator=None,  # None means that the default integrator will be used (LangevinMiddleIntegrator as the temperature is set to 298.15 K)
+        forcefields=["openff-2.0.0.offxml", "tip3p.offxml"],
+        temperature=298.15 * unit.kelvin,
+        timestep=1.0 * unit.femtosecond,
+        pressure=1.0 * unit.atmospheres,
+        hydrogen_mass=1.007947 * unit.amu,
+        mdconfig_dict=mdconfig_dict,
     )
 
-    # Minimize
-    fes.run_minimization_batch(1000)
-    # Equilibrate during 1 ns
-    fes.run_equilibration_batch(1000000)
+    # Minimize the batch of states
+    fes.minimize()
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
     U_kln = fes.run_production_batch(1000, 1000)
     np.save("U_kln_mm_sol.npy", np.asarray(U_kln))

@@ -18,6 +18,8 @@ class BaseModification(ABC):
       class-level attribute.
     - If modification A requires B, add B to A's ``pre_dependencies``
       class-level attribute.
+    - If modification A is incompatible with B being present in the graph,
+      add B to A's ``skip_depencies`` class-level attribute.
     - If multiple modifications imply B, B is applied only once.
     - Modification are applied in topologically sorted order based on
       the dependency graph.
@@ -37,8 +39,9 @@ class BaseModification(ABC):
     """
 
     NAME: str = NotImplemented
-    pre_dependencies: List[str] = []
-    post_dependencies: List[str] = []
+    pre_dependencies: List[str] = None
+    post_dependencies: List[str] = None
+    skip_dependencies: List[str] = None
 
     def __init_subclass__(cls, **kwargs):
         """

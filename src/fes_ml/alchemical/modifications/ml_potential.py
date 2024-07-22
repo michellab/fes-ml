@@ -13,6 +13,7 @@ from .intramolecular import (
     IntraMolecularNonBondedExceptionsModification,
     IntraMolecularNonBondedForcesModification,
 )
+from .ml_base_modification import MLBaseModification
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class MLPotentialModificationFactory(BaseModificationFactory):
         return MLPotentialModification(*args, **kwargs)
 
 
-class MLPotentialModification(BaseModification):
+class MLPotentialModification(MLBaseModification, BaseModification):
     """Class to add a ML potential to the System."""
 
     NAME = "MLPotential"

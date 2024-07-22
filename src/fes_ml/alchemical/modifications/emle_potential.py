@@ -5,7 +5,6 @@ from typing import List
 import numpy as _np
 import openmm as _mm
 import sire as _sr
-from emle.calculator import EMLECalculator as _EMLECalculator
 
 from .base_modification import BaseModification, BaseModificationFactory
 
@@ -37,8 +36,8 @@ class EMLEPotentialModification(BaseModification):
     """Modification to add the EMLE potential to the OpenMM System."""
 
     NAME = "EMLEPotential"
-    pre_dependencies = None
-    post_dependencies = None
+    pre_dependencies: List[str] = None
+    post_dependencies: List[str] = None
 
     def apply(
         self,
@@ -48,6 +47,7 @@ class EMLEPotentialModification(BaseModification):
         mols: _sr.mol.Molecule,
         parm7: str,
         mm_charges: _np.ndarray,
+        openmm_charges: List[float] = None,
         backend: str = None,
         method: str = "electrostatic",
         *args,
@@ -88,6 +88,8 @@ class EMLEPotentialModification(BaseModification):
         system : openmm.System
             The modified OpenMM System with the EMLE potential added.
         """
+        from emle.calculator import EMLECalculator as _EMLECalculator
+
         if lambda_value is None:
             # This can only occur when MLInterpolation is also being used.
             # There must be a lambda_interpolate global variable available.
@@ -148,6 +150,10 @@ class EMLEPotentialModification(BaseModification):
         mols, engine = _sr.qm.emle(
             mols, mols.atoms(alchemical_atoms), calculator, "12A", 20
         )
+
+        # Set the system charges explicitly if they are provided.
+        if openmm_charges is not None:
+            engine.set_charges(openmm_charges)
 
         # Get the OpenMM EMLEForce object.
         emle_force, interpolation_force = engine.get_forces()

@@ -8,11 +8,13 @@ dependencies:
   - ambertools
   - ase
   - compilers
+  - cudatoolkit<11.9
   - deepmd-kit
   - eigen
   - loguru
   - openmm>=8.1
   - openmm-torch
+  - openmmforcefields
   - nnpops
   - pip
   - pybind11

@@ -2,7 +2,11 @@
 import logging
 
 from .alchemical_state import AlchemicalState
-from .strategies import AlchemicalStateCreationStrategy, SireCreationStrategy
+from .strategies import (
+    AlchemicalStateCreationStrategy,
+    OpenFFCreationStrategy,
+    SireCreationStrategy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,3 +86,4 @@ class AlchemicalStateFactory:
 # Create the alchemical factory and register the available strategies
 alchemical_factory = AlchemicalStateFactory()
 alchemical_factory.register_strategy("sire", SireCreationStrategy())
+alchemical_factory.register_strategy("openff", OpenFFCreationStrategy())

@@ -1,26 +1,22 @@
 """
-ML(sol)->ML(gas) free energy calculation for benzene.
+MM(sol)->MM(gas) free energy calculation for benzene using a multiple time step Langevin integrator.
 
-This script demonstrates how to calculate a direct absolute hydration free energy at the ML level using MTS integration.
+This script demonstrates how to calculate a direct absolute hydration free energy at the MM level.
 The solute is alchemically modified using a lambda schedule that decouples the solute from the solvent.
 At ChargeScaling=1, the solute-solvent electrostatic interactions are fully turned on.
 At ChargeScaling=0, the solute-solvent electrostatic interactions are fully turned off.
 At LJSoftCore=1, the solute-solvent van der Waals interactions are fully turned on.
 At LJSoftCore=0, the solute-solvent van der Waals interactions are fully turned off.
 
-Furthermore, MLCorrection is used at full strength for all states (i.e., MLCorrection=1.0) to introduce a
-delta ML correction to the MM energy. This correction is considered part of the slow forces and is integrated twice as
-slowly as the fast forces.
-
 Authors: Joao Morado
 """
 
 if __name__ == "__main__":
     import numpy as np
-    import openmm as mm
     import openmm.unit as unit
 
-    from fes_ml.fes import FES
+    from fes_ml import FES, MTS
+    from fes_ml.utils import plot_lambda_schedule
 
     # Set up the alchemical modifications
     n_ChargeScaling = 5
@@ -31,8 +27,9 @@ if __name__ == "__main__":
     lambda_schedule = {
         "ChargeScaling": list(q_windows) + [0.0] * n_LJSoftCore,
         "LJSoftCore": [1.0] * n_ChargeScaling + list(lj_windows),
-        "MLCorrection": [1.0] * (n_ChargeScaling + n_LJSoftCore),
     }
+
+    plot_lambda_schedule(lambda_schedule)
 
     # Define the dynamics and EMLE parameters
     dynamics_kwargs = {
@@ -43,47 +40,48 @@ if __name__ == "__main__":
         "integrator": "langevin_middle",
         "temperature": "298.15K",
         "pressure": "1atm",
-        "platform": "reference",
+        "platform": "cuda",
         "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
     }
 
     emle_kwargs = None
 
+    # Create the MTS class
+    mts = MTS()
     # Multiple time step Langevin integrator
     # Force group 0, 2 steps (fast forces)
     # Force group 1, 1 step (slow forces)
-    groups = [(0, 2), (1, 1)]
-    integrator = mm.MTSLangevinIntegrator(
-        298.15 * unit.kelvin, 1.0 / unit.picosecond, 1 * unit.femtosecond, groups
+    integrator = mts.create_integrator(
+        dt=1.0 * unit.femtosecond, groups=[(0, 2), (1, 1)]
     )
 
     # Create the FES object to run the simulations
-    fes = FES(
-        top_file="../data/benzene/benzene_sage_water.prm7",
-        crd_file="../data/benzene/benzene_sage_water.rst7",
-    )
+    fes = FES()
+
+    # Create the FES object to run the simulations
+    fes = FES()
 
     # Create the alchemical states
-    print("Creating alchemical states...")
     fes.create_alchemical_states(
+        top_file="../data/benzene/benzene_sage_gas.prm7",
+        crd_file="../data/benzene/benzene_sage_gas.rst7",
         alchemical_atoms=list(range(12)),
         lambda_schedule=lambda_schedule,
         dynamics_kwargs=dynamics_kwargs,
         emle_kwargs=emle_kwargs,
         integrator=integrator,
-        ml_potential="ani2x",
     )
 
-    # Set the force groups
-    fes.set_force_groups(
-        slow_forces=["MLCorrectionForce"],
+    # Set the force groups for the MTS integrator
+    mts.set_force_groups(
+        alchemical_states=fes.alchemical_states,
+        slow_forces=["CustomCVForce"],
         fast_force_group=0,
         slow_force_group=1,
     )
 
     # Equilibrate during 1 ns
-    fes.run_equilibration_batch(1000000)
+    fes.equilibrate(1000000)
     # Sample 1000 times every ps (i.e. 1 ns of simulation per state)
     U_kln = fes.run_production_batch(1000, 1000)
-    # Save data
     np.save("U_kln_mm_sol.npy", np.asarray(U_kln))

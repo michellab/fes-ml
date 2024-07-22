@@ -1,7 +1,7 @@
 """Base strategy for alchemical state creation."""
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import openmm as _mm
 
@@ -61,15 +61,30 @@ class AlchemicalStateCreationStrategy(ABC):
         )
 
     @staticmethod
-    def _report_creation_settings(passed_args: Dict[str, Any]) -> None:
-        logger.debug("Creating alchemical state with the following parameters:")
-        for key, value in passed_args.items():
+    def _report_dict(
+        dict_to_report: Dict[str, Any],
+        dict_name: Optional[str] = None,
+        indentation: int = 0,
+        initial=True,
+    ) -> None:
+        if initial:
+            logger.debug("")
+            logger.debug("+" + "-" * 98 + "+")
+        if dict_name is not None:
+            logger.debug(f"{dict_name}")
+            logger.debug("+" + "-" * 98 + "+")
+
+        for key, value in dict_to_report.items():
             if isinstance(value, dict):
                 logger.debug(f"{key}:")
-                for k, v in value.items():
-                    logger.debug(f"    {k}: {v}")
+                AlchemicalStateCreationStrategy._report_dict(
+                    value, None, indentation + 4, False
+                )
             else:
-                logger.debug(f"{key}: {value}")
+                logger.debug(f"{' '*indentation}{key}: {value}")
+
+        if initial:
+            logger.debug("+" + "-" * 98 + "+")
 
     @staticmethod
     def _report_energy_decomposition(context, system) -> None:
@@ -95,3 +110,28 @@ class AlchemicalStateCreationStrategy(ABC):
             logger.debug(f"{force}: {energy}")
         logger.debug("-" * 100)
         logger.debug("")
+
+    @staticmethod
+    def _remove_constraints(system: _mm.System, atoms: List[int]) -> _mm.System:
+        """
+        Remove constraints involving alchemical atoms from the system.
+
+        Parameters
+        ----------
+        system : openmm.System
+            The OpenMM system.
+        atoms : list of int
+            The list of atoms to remove constraints from.
+
+        Returns
+        -------
+        openmm.System
+            The modified OpenMM system.
+        """
+        # Remove constraints involving alchemical atoms
+        for i in range(system.getNumConstraints() - 1, -1, -1):
+            p1, p2, _ = system.getConstraintParameters(i)
+            if p1 in atoms or p2 in atoms:
+                system.removeConstraint(i)
+
+        return system

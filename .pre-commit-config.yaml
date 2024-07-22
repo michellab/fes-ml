@@ -37,5 +37,5 @@ repos:
     rev: v1.1.1
     hooks:
     -   id: mypy
-        args: [--no-strict-optional, --ignore-missing-imports, --no-namespace-packages]
+        args: [--no-strict-optional, --ignore-missing-imports, --namespace-packages, --explicit-package-bases]
         additional_dependencies: ["types-PyYAML"]

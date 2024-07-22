@@ -4,5 +4,6 @@ __author__ = "Joao Morado"
 
 from .fes import FES
 from .log import config_logger
+from .mts import MTS
 
-__all__ = ["FES"]
+__all__ = ["FES", "MTS"]
