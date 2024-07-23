@@ -1,3 +1,4 @@
+"""Integration tests for the fes-ml package."""
 import os
 from typing import Dict, List, Optional, Tuple
 
@@ -26,6 +27,8 @@ test_data_dir = os.path.join(test_data_dir, "test_data")
     ],
 )
 class TestAlchemicalStates:
+    """Test the creation of alchemical states."""
+
     _DYNAMICS_KWARGS = {
         "timestep": "1fs",
         "cutoff_type": "PME",
@@ -101,13 +104,12 @@ class TestAlchemicalStates:
             The lambda schedule for the alchemical states.
         """
         # Create the FES object to run the simulations
-        fes = FES(
-            top_file=top_file,
-            crd_file=crd_file,
-        )
+        fes = FES()
 
         # Create the alchemical state
         fes.create_alchemical_states(
+            top_file=top_file,
+            crd_file=crd_file,
             alchemical_atoms=alchemical_atoms,
             lambda_schedule=lambda_schedule,
             dynamics_kwargs=self._DYNAMICS_KWARGS,
@@ -122,7 +124,7 @@ class TestAlchemicalStates:
         top_file: str,
         crd_file: str,
         ml_atoms: Optional[List[int]] = None,
-        lambda_interpolate: Optional[float] = None,
+        MLInterpolation: Optional[float] = None,
     ) -> Tuple[_mm.System, _mm.Context]:
         """
         Create an OpenMM system.
@@ -136,7 +138,7 @@ class TestAlchemicalStates:
         ml_atoms : iterable of int, optional
             The list of atoms to be treated with the ML potential.
             If None, the system is fully treated at the MM level.
-        lambda_interpolate : float, optional
+        MLInterpolation : float, optional
             The value of the lambda interpolation parameter.
 
         Returns
@@ -145,7 +147,7 @@ class TestAlchemicalStates:
             The OpenMM system.
         """
         prmtop = _app.AmberPrmtopFile(top_file)
-        inpcrd = _app.AmberInpcrdFile(crd_file)
+        _ = _app.AmberInpcrdFile(crd_file)
 
         system = prmtop.createSystem(
             nonbondedMethod=_app.PME,
@@ -168,8 +170,8 @@ class TestAlchemicalStates:
             _mm.Platform.getPlatformByName("Reference"),
         )
 
-        if ml_atoms is None and lambda_interpolate is not None:
-            context.setParameter("lambda_interpolate", lambda_interpolate)
+        if ml_atoms is None and MLInterpolation is not None:
+            context.setParameter("MLInterpolation", MLInterpolation)
 
         return system, context
 
@@ -180,7 +182,8 @@ class TestAlchemicalStates:
         lambda_schedule: Dict[str, List[Optional[float]]],
         alchemical_atoms: List[int],
         ml_atoms: Optional[List[int]] = None,
-        lambda_interpolate: Optional[float] = None,
+        MLInterpolation: Optional[float] = None,
+        **kwargs,
     ) -> None:
         """
         Test the energy decomposition of a system.
@@ -198,7 +201,7 @@ class TestAlchemicalStates:
         ml_atoms : iterable of int, optional
             The list of atoms to be treated with the ML potential.
             If None, the system is fully treated at the MM level.
-        lambda_interpolate : float, optional
+        MLInterpolation : float, optional
             The value of the lambda interpolation parameter.
         """
         # Create the alchemical state
@@ -207,6 +210,7 @@ class TestAlchemicalStates:
             crd_file=crd_file,
             alchemical_atoms=alchemical_atoms,
             lambda_schedule=lambda_schedule,
+            **kwargs,
         )
         alc = fes.alchemical_states[0]
 
@@ -215,7 +219,7 @@ class TestAlchemicalStates:
 
         # Create a system fully treated at the MM level using OpenMM
         system, context = self._create_openmm_system(
-            top_file, crd_file, ml_atoms=ml_atoms, lambda_interpolate=lambda_interpolate
+            top_file, crd_file, ml_atoms=ml_atoms, MLInterpolation=MLInterpolation
         )
         context.setPositions(alc.context.getState(getPositions=True).getPositions())
 
@@ -261,8 +265,8 @@ class TestAlchemicalStates:
 
         Notes
         -----
-        This test compares the energy components of a system created with LJ (lambda_lj=1),
-        and/or charges (lambda_q=1) fully turned on, to the energy components of a system fully
+        This test compares the energy components of a system created with LJ (LJSoftCore=1),
+        and/or charges (ChargeScaling=1) fully turned on, to the energy components of a system fully
         treated at the MM level
 
         Parameters
@@ -277,8 +281,8 @@ class TestAlchemicalStates:
         print("Testing function: test_alchemical_lj_charges")
         # Create a system where LJ and charges are alchemified and fully turned on
         lambda_schedule_lj_q: Dict[str, List[Optional[float]]] = {
-            "lambda_lj": [1],
-            "lambda_q": [1],
+            "LJSoftCore": [1],
+            "ChargeScaling": [1],
         }
         ml_atoms = None
         self._test_energy_decomposition(
@@ -286,21 +290,19 @@ class TestAlchemicalStates:
         )
 
         # Create a system where LJ is alchemified and fully turned on
-        lambda_schedule_lj: Dict[str, List[Optional[float]]] = {"lambda_lj": [1]}
+        lambda_schedule_lj: Dict[str, List[Optional[float]]] = {"LJSoftCore": [1]}
         ml_atoms = None
         self._test_energy_decomposition(
             top_file, crd_file, lambda_schedule_lj, alchemical_atoms, ml_atoms
         )
 
         # Create a system where charges are alchemified and fully turned on
-        lambda_schedule_q: Dict[str, List[Optional[float]]] = {"lambda_q": [1]}
+        lambda_schedule_q: Dict[str, List[Optional[float]]] = {"ChargeScaling": [1]}
         ml_atoms = None
         self._test_energy_decomposition(
             top_file, crd_file, lambda_schedule_q, alchemical_atoms, ml_atoms
         )
 
-    '''
-    # TODO: make this faster so that CI doesn't take too long
     def test_alchemical_ml(
         self, top_file: str, crd_file: str, alchemical_atoms: List[int]
     ) -> None:
@@ -309,8 +311,8 @@ class TestAlchemicalStates:
 
         Notes
         -----
-        This test compares the energy components of a system created with the MLP (lambda_interpolate=1)
-        (lambda_interpolate=0) fully turned on (off), to the energy components of a system fully treated
+        This test compares the energy components of a system created with the MLP (MLInterpolation=1)
+        (MLInterpolation=0) fully turned on (off), to the energy components of a system fully treated
         at the ML/MM (MM) level.
 
         Parameters
@@ -323,20 +325,25 @@ class TestAlchemicalStates:
             The list of alchemical atoms.
         """
         print("Testing function: test_alchemical_ml")
-        # Create a system where the MLP is turned off and compare it to the energy of
+        # Create a system where the MLP is turned on and compare it to the energy of
         # the system fully treated at the MM/ML level
         lambda_schedule_intp_1: Dict[str, List[Optional[float]]] = {
-            "lambda_interpolate": [1]
+            "MLInterpolation": [1]
         }
         ml_atoms = alchemical_atoms
         self._test_energy_decomposition(
-            top_file, crd_file, lambda_schedule_intp_1, alchemical_atoms, ml_atoms
+            top_file,
+            crd_file,
+            lambda_schedule_intp_1,
+            alchemical_atoms,
+            ml_atoms,
+            MLInterpolation=lambda_schedule_intp_1["MLInterpolation"][0],
         )
 
         # Create a system where the MLP is turned off and compare it to the energy of
         # the system fully treated at the MM level
         lambda_schedule_intp_0: Dict[str, List[Optional[float]]] = {
-            "lambda_interpolate": [0]
+            "MLInterpolation": [0]
         }
         ml_atoms = alchemical_atoms
         self._test_energy_decomposition(
@@ -345,7 +352,7 @@ class TestAlchemicalStates:
             lambda_schedule_intp_0,
             alchemical_atoms,
             ml_atoms,
-            lambda_interpolate=lambda_schedule_intp_0["lambda_interpolate"][0],
+            MLInterpolation=lambda_schedule_intp_0["MLInterpolation"][0],
         )
 
     def test_alchemical_ml_lj_charges(
@@ -356,8 +363,8 @@ class TestAlchemicalStates:
 
         Notes
         -----
-        This test compares the energy components of a system created with LJ (lambda_lj=1),
-        charges (lambda_q=1), and/or MLP (lambda_interpolate=1) (lambda_interpolate=0) fully
+        This test compares the energy components of a system created with LJ (LJSoftCore=1),
+        charges (ChargeScaling=1), and/or MLP (MLInterpolation=1) (MLInterpolation=0) fully
         turned on/off, to the energy components of a system fully treated at the ML/MM (MM) level.
 
         Parameters
@@ -372,9 +379,9 @@ class TestAlchemicalStates:
         print("Testing function: test_alchemical_ml_lj_charges")
         # Create a system where LJ, charges, and the MLP are fully turned on
         lambda_schedule_intp_1: Dict[str, List[Optional[float]]] = {
-            "lambda_interpolate": [1],
-            "lambda_lj": [1],
-            "lambda_q": [1],
+            "MLInterpolation": [1],
+            "LJSoftCore": [1],
+            "ChargeScaling": [1],
         }
 
         ml_atoms = alchemical_atoms
@@ -384,15 +391,15 @@ class TestAlchemicalStates:
             lambda_schedule_intp_1,
             alchemical_atoms,
             ml_atoms,
-            lambda_interpolate=lambda_schedule_intp_1["lambda_interpolate"][0],
+            MLInterpolation=lambda_schedule_intp_1["MLInterpolation"][0],
         )
 
         # Create a system where LJ and charges are fully turned on but the MLP is turned off
         # and compare it to the energy of the system fully treated at the ML/MM level
         lambda_schedule_intp_0: Dict[str, List[Optional[float]]] = {
-            "lambda_interpolate": [0],
-            "lambda_lj": [1],
-            "lambda_q": [1],
+            "MLInterpolation": [0],
+            "LJSoftCore": [1],
+            "ChargeScaling": [1],
         }
 
         ml_atoms = alchemical_atoms
@@ -402,6 +409,119 @@ class TestAlchemicalStates:
             lambda_schedule_intp_0,
             alchemical_atoms,
             ml_atoms,
-            lambda_interpolate=lambda_schedule_intp_0["lambda_interpolate"][0],
+            MLInterpolation=lambda_schedule_intp_0["MLInterpolation"][0],
         )
+
+    '''
+    def test_alchemical_emle(
+            self, top_file: str, crd_file: str, alchemical_atoms: List[int]
+        ):
+        """
+        Test that a system with EMLE is created correctly.
+
+        Notes
+        -----
+        This test compares the energy components of a system created with LJ (lambda_lj=1),
+        charges (lambda_q=1), and MLP (lambda_interpolate=1) fully turned on, to the energy
+        components of a system fully treated at the ML/MM level
+
+        Parameters
+        ----------
+        top_file : str
+            The topology file of the system.
+        crd_file : str
+            The coordinate file of the system.
+        alchemical_atoms : iterable of int
+            The list of alchemical atoms.
+        """
+        from fes_ml.utils import write_system_to_xml
+        print("Testing function: test_alchemical_emle")
+        # Create a system where LJ, charges, and the MLP are fully turned on
+        lambda_schedule: Dict[str, List[Any]] = {
+            "EMLEPotential": [1],
+        }
+
+        # Set pure mechanical embedding scheme
+        self._EMLE_KWARGS["method"] = "electrostatic"
+
+        # Create the alchemical state
+        fes = self._create_alchemical_states(
+            top_file=top_file,
+            crd_file=crd_file,
+            alchemical_atoms=alchemical_atoms,
+            lambda_schedule=lambda_schedule,
+            topology=_app.AmberPrmtopFile(top_file).topology,
+        )
+        alc = fes.alchemical_states[0]
+
+        """
+        for i, force in enumerate(alc.system.getForces()):
+            print(force.getName())
+            if force.getName() == "N10SireOpenMM9EMLEForceE":
+                alc.system.removeForce(i)
+            if force.getName() == "NonbondedForce":
+                for e in range(force.getNumExceptions()):
+                    p1, p2, chargeProd, sigma, epsilon = force.getExceptionParameters(e)
+                    if p1 in alchemical_atoms or p2 in alchemical_atoms:
+                        force.setExceptionParameters(e, p1, p2, 0.0, sigma, 0.0)
+
+                for i in range(len(alchemical_atoms)):
+                    for j in range(i):
+                        force.addException(alchemical_atoms[i], alchemical_atoms[j], 0, 1, 0, True)
+        alc.context.reinitialize(preserveState=True)
+
+        write_system_to_xml(alc.system, "alc.xml")
+        """
+        # Energy decomposition of the alchemical state
+        alc_energy_decom = self._get_energy_decomposition(alc.system, alc.context)
+        # ---------------------------------------------------------------------------- #
+        # ML ENERGY DECOMP
+        # ---------------------------------------------------------------------------- #
+
+        # Create a system fully treated at the MM level using OpenMM
+        prmtop = _app.AmberPrmtopFile(top_file)
+        inpcrd = _app.AmberInpcrdFile(crd_file)
+
+        system = prmtop.createSystem(
+            nonbondedMethod=_app.PME,
+            nonbondedCutoff=1.2 * _unit.nanometer,
+            rigidWater=True,
+        )
+
+        potential = MLPotential("ani2x")
+        ml_system = potential.createMixedSystem(
+            prmtop.topology, system, alchemical_atoms, interpolate=1
+        )
+        system = ml_system
+        """
+        for i, force in enumerate(system.getForces()):
+            if force.getName() == "NonbondedForce":
+                for p in range(force.getNumParticles()):
+                    charge, sigma, epsilon = force.getParticleParameters(p)
+                    if p in alchemical_atoms:
+                        force.setParticleParameters(p, 0.0, sigma, epsilon)
+
+                for i in range(len(alchemical_atoms)):
+                    for j in range(i):
+                        force.addException(alchemical_atoms[i], alchemical_atoms[j], 0, 1, 0, True)
+
+        write_system_to_xml(system, "system.xml")
+        """
+        context = _mm.Context(
+            system,
+            _mm.LangevinMiddleIntegrator(
+                298.15 * _unit.kelvin, 1.0 / _unit.picosecond, 1.0 * _unit.femtosecond
+            ),
+            _mm.Platform.getPlatformByName("CUDA"),
+        )
+
+        context.setPositions(alc.context.getState(getPositions=True).getPositions())
+        context.setParameter("lambda_interpolate", 1)
+
+        # Energy decomposition of the ML/MM system
+        mm_energy_decom = self._get_energy_decomposition(system, context)
+
+        # Compare total energy
+        print("Total energy EMLE", alc.context.getState(getEnergy=True).getPotentialEnergy())
+        print("Total energy OPENMM-ML", context.getState(getEnergy=True).getPotentialEnergy())
     '''

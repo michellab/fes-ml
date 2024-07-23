@@ -1,10 +1,9 @@
-"""Script to calculate free energy differences using MBAR."""
 import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 from openmm import unit
-from pymbar import MBAR
+from pymbar import MBAR, timeseries
 
 if len(sys.argv) != 3 or sys.argv[1] in ["-h", "--help"]:
     print("Usage: python analyse.py <file_name> <temperature>")
@@ -22,15 +21,17 @@ U_kn = np.load(sys.argv[1])
 # where l (superscript) is the alchemical state at which the potential energy is evaluated
 # and k (subscript) the alchemical state at which it is sampled
 nstates, nstates, nsamples = U_kn.shape
-U_kn = U_kn.transpose(1, 0, 2)[::-1, :, :]
+U_kn = U_kn.transpose(1, 0, 2)
 U_kn = U_kn.reshape(nstates, nstates * nsamples)
+
+U_kn = U_kn[::-1, ::-1]
 
 # Keep it in here to contemplate case where number of samples per alchemical state differs
 # N_k = [ U_kn.shape[1]//nstates for _ in range(nstates)]
 N_k = [nsamples for _ in range(nstates)]
 
 # Compute the overal
-mbar = MBAR(U_kn, N_k)
+mbar = MBAR(U_kn, N_k, solver_protocol="robust")
 overlap = mbar.compute_overlap()
 plt.figure()
 plt.title("Overlap")

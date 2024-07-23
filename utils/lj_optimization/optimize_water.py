@@ -1,3 +1,5 @@
+"""Script to optimize the LJ parameters of the TIP3P water model."""
+
 if __name__ == "__main__":
     import logging
     import os
@@ -19,9 +21,9 @@ if __name__ == "__main__":
     logger.info("Setting up the alchemical system")
     # Set up the alchemical modifications
     lambda_schedule = {
-        "lambda_q": [1.0],
-        "lambda_lj": [1.0],
-        "lambda_emle": [1.0],
+        "ChargeScaling": [1.0],
+        "LJSoftCore": [1.0],
+        "EMLEPotential": [1.0],
     }
 
     # Define the dynamics and EMLE parameters
@@ -47,10 +49,7 @@ if __name__ == "__main__":
     crd_file = "data/benzene_water_dimer.rst7"
 
     # Create the FES object
-    fes = FES(
-        top_file=top_file,
-        crd_file=crd_file,
-    )
+    fes = FES()
 
     benzene_atoms = list(range(3, 3 + 12))
     logger.info(f"Alchemical atoms: {benzene_atoms}")
@@ -62,6 +61,8 @@ if __name__ == "__main__":
         dynamics_kwargs=dynamics_kwargs,
         emle_kwargs=emle_kwargs,
         minimise_iterations=0,
+        top_file=top_file,
+        crd_file=crd_file,
     )
 
     # ------------------------------------------------------------------------------------------

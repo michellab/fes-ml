@@ -1,3 +1,4 @@
+"""Module for the LJOptimizer class."""
 import logging
 from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple
@@ -299,7 +300,21 @@ class LJOptimizer:
         return energy
 
     def loss_function(self, params: np.ndarray, force_type: mm.Force) -> float:
-        """Compute the loss function for the optimization."""
+        """
+        Compute the loss function for the optimization.
+
+        Parameters
+        ----------
+        params : np.ndarray
+            Parameters to be optimized.
+        force_type : openmm.Force
+            The OpenMM force containing the LJ parameters.
+
+        Returns
+        -------
+        float
+            The loss function value.
+        """
         assert self._configurations is not None, "No configurations provided."
         assert self._energy_offset is not None, "No reference energy provided."
 
@@ -323,7 +338,8 @@ class LJOptimizer:
 
             for i in range(len(energy)):
                 logger.info(
-                    f"{energy[i]:<16.4f} | {self._energy_qm[i]:<16.4f} | {self._energy_offset[i]:<16.4f} | {squared_diff[i]:<16.4f}"
+                    f"{energy[i]:<16.4f} | {self._energy_qm[i]:<16.4f} | "
+                    f"{self._energy_offset[i]:<16.4f} | {squared_diff[i]:<16.4f}"
                 )
 
             logger.info(f"Loss function: {loss}")
@@ -436,6 +452,7 @@ class LJOptimizer:
     ) -> Tuple[mm.System, mm.Context]:
         """
         Update the parameters of the system with the parameters in the file.
+
         The context is also updated with the new parameters.
 
         Parameters

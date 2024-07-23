@@ -8,16 +8,18 @@ dependencies:
   - ambertools
   - ase
   - compilers
+  - cudatoolkit<11.9
   - deepmd-kit
   - eigen
   - loguru
-  - openmm >= 8.1
-  - openmm-ml
+  - openmm>=8.1
+  - openmm-torch
+  - openmmforcefields
   - nnpops
   - pip
   - pybind11
   - pytorch
-  - python < 3.11
+  - python<3.11
   - pyyaml
   - sire
   - torchani
@@ -25,4 +27,6 @@ dependencies:
   - pip:
     - git+https://github.com/lab-cosmo/librascal.git
     - git+https://github.com/chemle/emle-engine.git
+    - git+https://github.com/openmm/openmm-ml.git@main
     - coloredlogs
+    - mace-torch
