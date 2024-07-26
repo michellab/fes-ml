@@ -126,7 +126,7 @@ make -j32 install
 
 Some packages are needed for RDKit to work.
 
-2. **Compile AmberTools:**
+2. Compile AmberTools:
 
 First, install the X11 libraries:
 
