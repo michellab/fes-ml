@@ -1,13 +1,11 @@
-# Fes-ml Installation on Bede (POWER9 System, ppc64le)
+# Fes-ml Installation on Isambard AI (aarch64)
 
 ## Create the Base Conda Environment
 
 This will install Python, PyTorch, cudatoolkit, OpenFF, ASE, TorchANI, EMLE, among other packages.
 
 ```bash
-conda config --set channel_priority flexible
-conda env create -f environment_ppc64le.yaml
-conda config --set channel_priority strict
+conda env create -f environment_aarch64.yaml
 conda activate fes-ml
 ```
 
@@ -16,7 +14,7 @@ conda activate fes-ml
 1. Load Modules and Install Necessary Packages to Compile OpenMM:
 
 ```bash
-module load cuda/12.0.1
+module load cudatoolkit/21.9_11.8
 conda install -c conda-forge swig doxygen cython
 ```
 
@@ -173,7 +171,7 @@ First, install as many additional dependencies as possible:
 
 ```bash
 conda install -c conda-forge tbb tbb-devel libnetcdf gsl rich zlib
-pip install gemmi lazy_import
+pip install gemmi lazy_import 
 ```
 
 Most of the other dependencies were already included in the base conda environment. Then proceed to compile Sire:
