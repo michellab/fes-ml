@@ -130,6 +130,12 @@ First, install the X11 libraries:
 conda install -c conda-forge xorg-libxt xorg-libx11 xorg-libxrender xorg-libxext
 ```
 
+You may also need to install `libnetcdf`:
+
+```bash
+conda install -c conda-forge libnetcdf
+```
+
 Then, download AmberTools from [AmberMD](https://ambermd.org/GetAmber.php). Once you've got `AmberTools24.tar.bz2` on Bede, execute the following commands:
 
 ```bash
@@ -170,7 +176,7 @@ echo "source $CONDA_PREFIX/amber24/amber.sh" >> ~/.bashrc
 First, install as many additional dependencies as possible:
 
 ```bash
-conda install -c conda-forge tbb tbb-devel libnetcdf gsl rich zlib
+conda install -c conda-forge tbb tbb-devel libnetcdf gsl rich zlib qt
 pip install gemmi lazy_import 
 ```
 
