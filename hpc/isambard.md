@@ -198,12 +198,6 @@ cd fes-ml
 pip install -e .
 ```
 
-Fix some dependencies:
-
-```bash
-pip install networkx==3.3
-```
-
 If necessary, reinstall emle-engine using the `feature_aev` branch:
 
 ```bash
