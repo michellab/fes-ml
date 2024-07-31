@@ -14,7 +14,7 @@ conda activate fes-ml
 1. Load Modules and Install Necessary Packages to Compile OpenMM:
 
 ```bash
-module load cudatoolkit/21.9_11.8
+module load cudatoolkit/23.9_11.8
 conda install -c conda-forge swig doxygen cython
 ```
 
@@ -63,7 +63,7 @@ Executing `ccmake ..` will open a configuration menu. Press `c` to configure and
 
 - `CMAKE_INSTALL_PREFIX`: Output of `$CONDA_PREFIX`
 - `OPENMM_DIR`: Output of `$CONDA_PREFIX`
-- `PYTORCH_DIR`: `$CONDA_PREFIX/lib/python3.10/site-packages/torch`
+- `PYTORCH_DIR`: `$CONDA_PREFIX/lib/python3.9/site-packages/torch`
 - `Torch_DIR`: Output of `python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)'`
 
 Press `g` to generate the installation configuration. Then compile openmm-torch:
@@ -76,7 +76,7 @@ make PythonInstall
 For OpenMM to load the OpenMMTorch kernels successfully, add the path where LibTorch is installed to `LD_LIBRARY_PATH`:
 
 ```bash
-export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/python3.10/site-packages/torch/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/python3.9/site-packages/torch/lib:$LD_LIBRARY_PATH
 ```
 
 5. Compile openmm-ml:
