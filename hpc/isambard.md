@@ -124,7 +124,13 @@ make -j32 install
 
 2. Compile AmberTools:
 
-First, install the X11 libraries:
+**Note:** Compilation using gcc=11.4.0 leads to issues on Isambard AI, so before proceeding, upgrade gcc to version 12.4.0:
+
+```bash
+conda install -c conda-forge gcc=12.4.0
+```
+
+Then, install the X11 libraries:
 
 ```bash
 conda install -c conda-forge xorg-libxt xorg-libx11 xorg-libxrender xorg-libxext
