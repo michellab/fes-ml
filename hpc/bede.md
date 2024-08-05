@@ -27,7 +27,7 @@ git clone https://github.com/openmm/openmm.git
 cd openmm
 mkdir build && cd build
 cmake -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX ..
-make -j32 install 
+make -j32 install
 make PythonInstall
 python -m openmm.testInstallation
 ```
@@ -41,7 +41,7 @@ mkdir build && cd build
 cmake .. \
     -DTorch_DIR=$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')/Torch \
     -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
-make -j32 install 
+make -j32 install
 ```
 
 **Note:** If you encounter errors like `error: expected template-name before ‘<’ token`, downgrade gcc to version 11.4.0:
@@ -71,7 +71,7 @@ Executing `ccmake ..` will open a configuration menu. Press `c` to configure and
 Press `g` to generate the installation configuration. Then compile openmm-torch:
 
 ```bash
-make -j32 install 
+make -j32 install
 make PythonInstall
 ```
 
@@ -208,4 +208,3 @@ cd emle-engine
 git checkout feature_aev
 pip install -e .
 ```
-
