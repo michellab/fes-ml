@@ -14,7 +14,7 @@ conda activate fes-ml
 1. Load Modules and Install Necessary Packages to Compile OpenMM:
 
 ```bash
-module load cudatoolkit/21.9_11.8
+module load cudatoolkit/23.9_11.8
 conda install -c conda-forge swig doxygen cython
 ```
 
@@ -63,7 +63,7 @@ Executing `ccmake ..` will open a configuration menu. Press `c` to configure and
 
 - `CMAKE_INSTALL_PREFIX`: Output of `$CONDA_PREFIX`
 - `OPENMM_DIR`: Output of `$CONDA_PREFIX`
-- `PYTORCH_DIR`: `$CONDA_PREFIX/lib/python3.10/site-packages/torch`
+- `PYTORCH_DIR`: `$CONDA_PREFIX/lib/python3.9/site-packages/torch`
 - `Torch_DIR`: Output of `python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)'`
 
 Press `g` to generate the installation configuration. Then compile openmm-torch:
@@ -76,7 +76,7 @@ make PythonInstall
 For OpenMM to load the OpenMMTorch kernels successfully, add the path where LibTorch is installed to `LD_LIBRARY_PATH`:
 
 ```bash
-export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/python3.10/site-packages/torch/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib/python3.9/site-packages/torch/lib:$LD_LIBRARY_PATH
 ```
 
 5. Compile openmm-ml:
@@ -124,10 +124,22 @@ make -j32 install
 
 2. Compile AmberTools:
 
-First, install the X11 libraries:
+**Note:** Compilation using gcc=11.4.0 leads to issues on Isambard AI, so before proceeding, upgrade gcc to version 12.4.0:
+
+```bash
+conda install -c conda-forge gcc=12.4.0
+```
+
+Then, install the X11 libraries:
 
 ```bash
 conda install -c conda-forge xorg-libxt xorg-libx11 xorg-libxrender xorg-libxext
+```
+
+You may also need to install `libnetcdf`:
+
+```bash
+conda install -c conda-forge libnetcdf
 ```
 
 Then, download AmberTools from [AmberMD](https://ambermd.org/GetAmber.php). Once you've got `AmberTools24.tar.bz2` on Bede, execute the following commands:
@@ -170,8 +182,8 @@ echo "source $CONDA_PREFIX/amber24/amber.sh" >> ~/.bashrc
 First, install as many additional dependencies as possible:
 
 ```bash
-conda install -c conda-forge tbb tbb-devel libnetcdf gsl rich zlib
-pip install gemmi lazy_import
+conda install -c conda-forge tbb tbb-devel libnetcdf gsl rich zlib qt
+pip install gemmi lazy_import 
 ```
 
 Most of the other dependencies were already included in the base conda environment. Then proceed to compile Sire:
@@ -190,12 +202,6 @@ python setup.py install --skip-deps -N 32
 git clone git@github.com:michellab/fes-ml.git
 cd fes-ml
 pip install -e .
-```
-
-Fix some dependencies:
-
-```bash
-pip install networkx==3.3
 ```
 
 If necessary, reinstall emle-engine using the `feature_aev` branch:
