@@ -70,6 +70,17 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
     _DEFAULT_FORCEFIELDS = ["openff-2.0.0.offxml", "tip3p.offxml"]
 
+    _OFF_TO_OMM_MAPPING = {
+        # Constraints
+        "h-bonds": _app.HBonds,
+        "all-bonds": _app.AllBonds,
+        "all-angles": _app.HAngles,
+        # Nonbonded methods
+        "no-cutoff": _app.NoCutoff,
+        "pme": _app.PME,
+        "cutoff": _app.CutoffPeriodic,
+    }
+
     @staticmethod
     def is_mapped_smiles(smiles: str) -> bool:
         """
@@ -112,6 +123,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         Returns
         -------
         _mm.Integrator
+
             The OpenMM integrator.
         """
         if temperature is not None:
@@ -379,6 +391,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         write_pdb: bool = True,
         partial_charges_method: str = "am1bcc",
         keep_tmp_files: bool = True,
+        omm_small_molecule_ff: Optional[str] = None,
+        omm_forcefields: Optional[List[str]] = None,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         *args,
         **kwargs,
@@ -437,6 +451,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             See: https://docs.openforcefield.org/projects/toolkit/en/latest/api/generated/openff.toolkit.topology.Molecule.html#openff.toolkit.topology.Molecule.assign_partial_charges
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
+        omm_small_molecule_ff : str, optional, default=None
+            The OpenMM forcefield for small molecules. Overrides the default inference from the forcefields.
+        omm_forcefields : list of str, optional, default=None
+            The OpenMM forcefields to use. Overrides the default inference from the forcefields.
         modifications_kwargs : dict
             A dictionary of keyword arguments for the modifications.
 
@@ -505,18 +523,6 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         ffs = forcefields or self._DEFAULT_FORCEFIELDS
         interchange = _ForceField(*ffs).create_interchange(topology_off)
 
-        # Apply the MDConfig settings to the Interchange object
-        mdconfig = _MDConfig()
-        for key, value in mdconfig_dict.items():
-            setattr(mdconfig, key, value)
-        mdconfig.apply(interchange)
-
-        self._report_dict(
-            {attr: getattr(mdconfig, attr) for attr in vars(mdconfig)},
-            dict_name="MDConfig settings",
-        )
-
-        # Create the simulation from the Interchange object
         if isinstance(hydrogen_mass, _unit.Quantity):
             hmr = hydrogen_mass.value_in_unit(_unit.amu)
         elif isinstance(hydrogen_mass, float):
@@ -524,11 +530,90 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         else:
             raise ValueError("Hydrogen mass must be a float or a Quantity.")
 
-        system = interchange.to_openmm_system(
-            combine_nonbonded_forces=True,
-            add_constrained_forces=True,
-            hydrogen_mass=hmr,
-        )
+        if abs(hmr - 1.007947) > 1e-6:
+            logger.debug(
+                f"Hydrogen mass is {hydrogen_mass}. This is different from the default value of 1.007947 amu."
+            )
+            logger.debug(
+                "Applying hydrogen mass repartitioning and using OpenMM's SystemGenerator to create the system."
+            )
+
+            from openmmforcefields.generators import (
+                SMIRNOFFTemplateGenerator as _SMIRNOFFTemplateGenerator,
+            )
+
+            if omm_small_molecule_ff is None:
+                omm_small_molecule_ff = (
+                    [ff for ff in ffs if "openff" in ff.lower()][0]
+                    .rstrip(".offxml")
+                    .replace("_unconstrained", "")
+                )
+
+            logger.debug(f"Small molecule forcefield: {omm_small_molecule_ff}")
+
+            if omm_forcefields is None:
+                # The forcefields are assumed to be in the format "tip4p_ew.offxml"
+                # TODO: This works to map water forcefields to the correct OpenMM forcefield, but it is not general.
+                omm_forcefields = [
+                    ff.replace("offxml", "xml").replace("_", "")
+                    for ff in ffs
+                    if "openff" not in ff.lower()
+                ]
+
+            # Create the OpenMM Modeller object
+            modeller = _app.Modeller(topology, interchange.positions.to_openmm())
+
+            # Create the OpenMM ForceField object
+            omm_ff = _app.ForceField(*omm_forcefields)
+
+            # Register the template generator
+            omm_ff.registerTemplateGenerator(
+                _SMIRNOFFTemplateGenerator(
+                    molecules=ligand, forcefield=omm_small_molecule_ff
+                ).generator
+            )
+
+            # Add extra particles if needed
+            modeller.addExtraParticles(omm_ff)
+
+            # Map MDConfig settings to the createSystem method
+            create_system_kwargs = {
+                "nonbondedMethod": OpenFFCreationStrategy._OFF_TO_OMM_MAPPING[
+                    str(mdconfig_dict["coul_method"])
+                ],
+                "nonbondedCutoff": _offunit.Quantity(
+                    mdconfig_dict["coul_cutoff"]
+                ).to_openmm(),
+                "constraints": OpenFFCreationStrategy._OFF_TO_OMM_MAPPING[
+                    str(mdconfig_dict["constraints"])
+                ],
+                "rigidWater": True,
+                "hydrogenMass": hmr,
+                "removeCMMotion": True,
+            }
+
+            system = omm_ff.createSystem(modeller.topology, **create_system_kwargs)
+        else:
+            logger.debug(
+                "Using the default hydrogen mass of 1.007947 amu. No hydrogen mass repartitioning will be applied."
+            )
+            # Apply the MDConfig settings to the Interchange object
+            mdconfig = _MDConfig()
+            for key, value in mdconfig_dict.items():
+                setattr(mdconfig, key, value)
+            mdconfig.apply(interchange)
+
+            self._report_dict(
+                {attr: getattr(mdconfig, attr) for attr in vars(mdconfig)},
+                dict_name="MDConfig settings",
+            )
+            # Create the simulation from the Interchange object
+
+            system = interchange.to_openmm_system(
+                combine_nonbonded_forces=True,
+                add_constrained_forces=True,
+                hydrogen_mass=hmr,
+            )
 
         # Create barostat (only if system is periodic)
         if (
@@ -658,6 +743,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 _os.path.join(self._TMP_DIR, "topology.pdb"),
                 _to_openmm_positions(interchange, include_virtual_sites=False),
             )
+            with open("system.xml", "w") as f:
+                f.write(_mm.XmlSerializer.serialize(simulation.system))
 
         # Clean up the temporary directory
         if not keep_tmp_files:
