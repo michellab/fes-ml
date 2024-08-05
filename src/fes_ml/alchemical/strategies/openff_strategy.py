@@ -619,7 +619,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             )
         except _UnsupportedExportError as e:
             logger.warning(
-                "The OpenFF Interchange object does not HMR on models with virtual sites."
+                "The OpenFF Interchange object cannot apply HMR on models with virtual sites."
             )
             logger.warning(f"OpenFF error: {e}")
 
