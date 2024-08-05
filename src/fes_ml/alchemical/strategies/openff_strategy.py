@@ -16,6 +16,9 @@ import openmm.unit as _unit
 from openff.interchange.components._packmol import UNIT_CUBE as _UNIT_CUBE
 from openff.interchange.components._packmol import pack_box as _pack_box
 from openff.interchange.components.mdconfig import MDConfig as _MDConfig
+from openff.interchange.exceptions import (
+    UnsupportedExportError as _UnsupportedExportError,
+)
 from openff.interchange.interop.openmm._positions import (
     to_openmm_positions as _to_openmm_positions,
 )
@@ -101,6 +104,71 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Search for the pattern in the SMILES string
         return bool(pattern.search(smiles))
+
+    @staticmethod
+    def _apply_hmr(
+        interchange: Any, system: _mm.System, hydrogen_mass: _unit.Quantity
+    ) -> _mm.System:
+        """
+        Apply hydrogen mass repartitioning to the system.
+
+        Parameters
+        ----------
+        interchange : openff.interchange.Interchange
+            The Interchange object.
+        system : openmm.System
+            The OpenMM System.
+        hmr : float
+            The mass of the hydrogen atom.
+
+        Returns
+        -------
+        openmm.System
+            The OpenMM System.
+
+        Notes
+        -----
+        This method assumes that the water molecule is rigid and that the virtual sites are not involved in the HMR.
+        Code adapted from https://github.com/openforcefield/openff-interchange/blob/426e3ebc630604b2f15fab014410fac0e48aa514/openff/interchange/interop/openmm/__init__.py#L173-L226.
+        """
+        logger.warning(
+            "Applying hydrogen mass repartitioning on a system with virtual sites!"
+        )
+        logger.warning("Assuming the water molecule is rigid.")
+        water = _Molecule.from_smiles("O")
+
+        def _is_water(molecule: _Molecule) -> bool:
+            return molecule.is_isomorphic_with(water)
+
+        for bond in interchange.topology.bonds:
+            heavy_atom, hydrogen_atom = bond.atoms
+            if heavy_atom.atomic_number == 1:
+                heavy_atom, hydrogen_atom = hydrogen_atom, heavy_atom
+            if (
+                (hydrogen_atom.atomic_number == 1)
+                and (heavy_atom.atomic_number != 1)  # noqa: W503
+                and not (_is_water(hydrogen_atom.molecule))  # noqa: W503
+            ):
+                hydrogen_index = interchange.topology.atom_index(hydrogen_atom)
+                heavy_index = interchange.topology.atom_index(heavy_atom)
+
+                # This will need to be wired up through the OpenFF-OpenMM particle index map
+                # when virtual sites + HMR are supported
+                mass_to_transfer = hydrogen_mass - system.getParticleMass(
+                    hydrogen_index
+                )
+
+                system.setParticleMass(
+                    hydrogen_index,
+                    hydrogen_mass,
+                )
+
+                system.setParticleMass(
+                    heavy_index,
+                    system.getParticleMass(heavy_index) - mass_to_transfer,
+                )
+
+        return system
 
     @staticmethod
     def _create_integrator(
@@ -389,10 +457,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         timestep: Union[float, _unit.Quantity] = 1.0 * _unit.femtosecond,
         topology_pdb: Optional[str] = None,
         write_pdb: bool = True,
+        write_system_xml: bool = False,
         partial_charges_method: str = "am1bcc",
         keep_tmp_files: bool = True,
-        omm_small_molecule_ff: Optional[str] = None,
-        omm_forcefields: Optional[List[str]] = None,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         *args,
         **kwargs,
@@ -446,6 +513,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             If not None, the topology is created from this file, which is assumed to contain all the molecules.
         write_pdb : bool, optional, default=True
             Save coordinates and topology to a PDB file.
+        write_system_xml : bool, optional, default=False
+            Save the OpenMM system to an XML file.
         partial_charges_method : str, optional, default="am1bcc"
             The method to use for assigning partial charges to the ligand.
             See: https://docs.openforcefield.org/projects/toolkit/en/latest/api/generated/openff.toolkit.topology.Molecule.html#openff.toolkit.topology.Molecule.assign_partial_charges
@@ -523,6 +592,17 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         ffs = forcefields or self._DEFAULT_FORCEFIELDS
         interchange = _ForceField(*ffs).create_interchange(topology_off)
 
+        # Apply the MDConfig settings to the Interchange object
+        mdconfig = _MDConfig()
+        for key, value in mdconfig_dict.items():
+            setattr(mdconfig, key, value)
+        mdconfig.apply(interchange)
+
+        self._report_dict(
+            {attr: getattr(mdconfig, attr) for attr in vars(mdconfig)},
+            dict_name="MDConfig settings",
+        )
+
         if isinstance(hydrogen_mass, _unit.Quantity):
             hmr = hydrogen_mass.value_in_unit(_unit.amu)
         elif isinstance(hydrogen_mass, float):
@@ -530,90 +610,25 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         else:
             raise ValueError("Hydrogen mass must be a float or a Quantity.")
 
-        if abs(hmr - 1.007947) > 1e-6:
-            logger.debug(
-                f"Hydrogen mass is {hydrogen_mass}. This is different from the default value of 1.007947 amu."
-            )
-            logger.debug(
-                "Applying hydrogen mass repartitioning and using OpenMM's SystemGenerator to create the system."
-            )
-
-            from openmmforcefields.generators import (
-                SMIRNOFFTemplateGenerator as _SMIRNOFFTemplateGenerator,
-            )
-
-            if omm_small_molecule_ff is None:
-                omm_small_molecule_ff = (
-                    [ff for ff in ffs if "openff" in ff.lower()][0]
-                    .rstrip(".offxml")
-                    .replace("_unconstrained", "")
-                )
-
-            logger.debug(f"Small molecule forcefield: {omm_small_molecule_ff}")
-
-            if omm_forcefields is None:
-                # The forcefields are assumed to be in the format "tip4p_ew.offxml"
-                # TODO: This works to map water forcefields to the correct OpenMM forcefield, but it is not general.
-                omm_forcefields = [
-                    ff.replace("offxml", "xml").replace("_", "")
-                    for ff in ffs
-                    if "openff" not in ff.lower()
-                ]
-
-            # Create the OpenMM Modeller object
-            modeller = _app.Modeller(topology, interchange.positions.to_openmm())
-
-            # Create the OpenMM ForceField object
-            omm_ff = _app.ForceField(*omm_forcefields)
-
-            # Register the template generator
-            omm_ff.registerTemplateGenerator(
-                _SMIRNOFFTemplateGenerator(
-                    molecules=ligand, forcefield=omm_small_molecule_ff
-                ).generator
-            )
-
-            # Add extra particles if needed
-            modeller.addExtraParticles(omm_ff)
-
-            # Map MDConfig settings to the createSystem method
-            create_system_kwargs = {
-                "nonbondedMethod": OpenFFCreationStrategy._OFF_TO_OMM_MAPPING[
-                    str(mdconfig_dict["coul_method"])
-                ],
-                "nonbondedCutoff": _offunit.Quantity(
-                    mdconfig_dict["coul_cutoff"]
-                ).to_openmm(),
-                "constraints": OpenFFCreationStrategy._OFF_TO_OMM_MAPPING[
-                    str(mdconfig_dict["constraints"])
-                ],
-                "rigidWater": True,
-                "hydrogenMass": hmr,
-                "removeCMMotion": True,
-            }
-
-            system = omm_ff.createSystem(modeller.topology, **create_system_kwargs)
-        else:
-            logger.debug(
-                "Using the default hydrogen mass of 1.007947 amu. No hydrogen mass repartitioning will be applied."
-            )
-            # Apply the MDConfig settings to the Interchange object
-            mdconfig = _MDConfig()
-            for key, value in mdconfig_dict.items():
-                setattr(mdconfig, key, value)
-            mdconfig.apply(interchange)
-
-            self._report_dict(
-                {attr: getattr(mdconfig, attr) for attr in vars(mdconfig)},
-                dict_name="MDConfig settings",
-            )
-            # Create the simulation from the Interchange object
-
+        # Create the simulation from the Interchange object
+        try:
             system = interchange.to_openmm_system(
                 combine_nonbonded_forces=True,
                 add_constrained_forces=True,
                 hydrogen_mass=hmr,
             )
+        except _UnsupportedExportError as e:
+            logger.warning(
+                "The OpenFF Interchange object does not HMR on models with virtual sites."
+            )
+            logger.warning(f"OpenFF error: {e}")
+
+            system = interchange.to_openmm_system(
+                combine_nonbonded_forces=True,
+                add_constrained_forces=True,
+            )
+            # Apply HMR
+            system = self._apply_hmr(interchange, system, hydrogen_mass)
 
         # Create barostat (only if system is periodic)
         if (
@@ -743,8 +758,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 _os.path.join(self._TMP_DIR, "topology.pdb"),
                 _to_openmm_positions(interchange, include_virtual_sites=False),
             )
-            with open("system.xml", "w") as f:
-                f.write(_mm.XmlSerializer.serialize(simulation.system))
+
+        if write_system_xml:
+            with open(_os.path.join(self._TMP_DIR, "system.xml"), "w") as f:
+                f.write(_mm.XmlSerializer.serialize(system))
 
         # Clean up the temporary directory
         if not keep_tmp_files:
