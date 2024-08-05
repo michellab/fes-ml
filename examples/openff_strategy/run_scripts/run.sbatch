@@ -17,10 +17,15 @@ source $env
 
 export FES_ML_LOG_LEVEL="DEBUG"
 
+run_dir=test
 smiles="c1ccccc1" # $1
 #smiles="c1ccc2c(c1)C(=O)c3c(ccc(c3C2=O)N)N"
 
-python $scripts_dir/create_run_system.py --smiles $smiles --folder $scripts_dir/test --timestep 2 --use-mts --inner-steps 4 --intermediate-steps 2 --use-hmr
+python $scripts_dir/create_run_system.py --smiles $smiles --folder $run_dir --timestep 2 --use-mts --inner-steps 4 --intermediate-steps 2 # --use-hmr
+
+python $scripts_dir/agg_ouput.py --folder $run_dir
+
+python $scripts_dir/analyse.py --folder $run_dir
 
 echo "done."
 

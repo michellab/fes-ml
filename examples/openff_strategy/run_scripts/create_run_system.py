@@ -91,9 +91,10 @@ def main(args):
         # Create the MTS class if intermediate steps are defined
         mts = MTS()
         # Multiple time step Langevin integrator
-        timestep_groups = [(0, 1), (1, intermediate_steps)]
-        if inner_steps:
-            timestep_groups.append((2, inner_steps))
+        # can always add all force groups, as unassigned are later just assigned to the fastest group
+        timestep_groups = [(0, 1), (2, inner_steps)]
+        if intermediate_steps:
+            timestep_groups.append((1, intermediate_steps))
         integrator = mts.create_integrator(
             dt=dt, groups=timestep_groups, temperature=temperature
         )
@@ -144,10 +145,11 @@ def main(args):
         force_group_dict = {"MLCorrection": 0}
         for force in fes.alchemical_states[1].system.getForces():
             if isinstance(force, mm.NonbondedForce):
-                if inner_steps:
+                if intermediate_steps:
                     force_group_dict[force.getName()] = 1
                 else:
                     force_group_dict[force.getName()] = 0
+        # by default, the rest of the forces are set to the fastest group
 
         logger.info(f"using the follwing force group dictionary: {force_group_dict}")
         mts.set_force_groups(
@@ -181,8 +183,8 @@ def main(args):
         )
 
         # logger.info("minimising...")
-        # # Minimize the state of interest
-        # fes.minimize(window=window)
+        # Minimize the state of interest
+        fes.minimize(window=window)
 
         # Set initial velocities
         fes.set_velocities(temperature=temperature, window=window)
@@ -259,7 +261,7 @@ if __name__ == "__main__":
         "--intermediate-steps",
         dest="intermediate_steps",
         type=int,
-        default=2,
+        default=0,
         help="Number of intermediate steps. Put as 0 to not use.",
     )
     parser.add_argument(
