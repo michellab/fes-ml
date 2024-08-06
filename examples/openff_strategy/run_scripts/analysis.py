@@ -1,12 +1,12 @@
+from argparse import ArgumentParser
+
 import matplotlib.pyplot as plt
 import numpy as np
 from openmm import unit
 from pymbar import MBAR, timeseries
 
-from argparse import ArgumentParser
 
 def main(args):
-
     temperature = args.temperature
     U_kn = np.load(f"{args.folder}/U_kln_agg.npy")
 
@@ -36,10 +36,17 @@ def main(args):
     results = mbar.compute_free_energy_differences(compute_uncertainty=True)
 
     # Calculate the free energy
-    kT = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA * unit.kelvin * temperature
+    kT = (
+        unit.BOLTZMANN_CONSTANT_kB
+        * unit.AVOGADRO_CONSTANT_NA
+        * unit.kelvin
+        * temperature
+    )
     print(
         "Free energy = {}".format(
-            (results["Delta_f"][nstates - 1, 0] * kT).in_units_of(unit.kilocalorie_per_mole)
+            (results["Delta_f"][nstates - 1, 0] * kT).in_units_of(
+                unit.kilocalorie_per_mole
+            )
         )
     )
     print(
@@ -50,14 +57,14 @@ def main(args):
         )
     )
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     # accept all options as arguments
     parser = ArgumentParser(description="analyse the aggregated the output")
     parser.add_argument(
         "-f",
         "--folder",
-        dest = "folder",
+        dest="folder",
         type=str,
         default=None,
         help="folder path for the run. Should have the aggregated output file. ",
@@ -65,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-T",
         "--temperature",
-        dest = "temperature",
+        dest="temperature",
         type=float,
         default=298.15,
         help="temperature of the aggregated runs",
