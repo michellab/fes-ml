@@ -1,6 +1,6 @@
 """Module for the EMLEPotentialModification class and its factory."""
 import logging
-from typing import List
+from typing import List, Optional
 
 import numpy as _np
 import openmm as _mm
@@ -50,6 +50,10 @@ class EMLEPotentialModification(BaseModification):
         openmm_charges: List[float] = None,
         backend: str = None,
         method: str = "electrostatic",
+        torch_model: bool = False,
+        cutoff: str = "12A",
+        neighbour_list_frequency: int = 20,
+        device: Optional[str] = None,
         *args,
         **kwargs,
     ) -> _mm.System:
@@ -79,8 +83,17 @@ class EMLEPotentialModification(BaseModification):
             The backend to use for the EMLE calculation.
         method : str, optional, default="electrostatic"
             The method to use for the EMLE calculation.
+        torch_model : bool, optional, default=False
+            Whether to use a PyTorch model for the EMLE calculation.
+            Requires the feature_aev branch of the emle package.
+        cutoff : str, optional, default="12A"
+            The cutoff to use for the EMLE calculation.
+        neighbour_list_frequency : int, optional, default=20
+            The frequency at which to update the neighbour list.
+        device : str, optional, default=None
+            The device to use for the EMLE calculation.
         kwargs : dict
-            Additional keyword arguments to be passed to the EMLECalculator.
+            Additional keyword arguments to be passed to the EMLECalculator or EMLE Torch model.
             See https://github.com/chemle/emle-engine/blob/main/emle/calculator.py#L399-L519.
 
         Returns
@@ -134,21 +147,36 @@ class EMLEPotentialModification(BaseModification):
                 "Make sure this is the desired behavior."
             )
 
-        # Create a calculator.
-        calculator = _EMLECalculator(
-            backend=backend,
-            method=method,
-            parm7=parm7,
-            mm_charges=mm_charges,
-            lambda_interpolate=lambda_value,
-            qm_indices=alchemical_atoms,
-            *args,
-            **kwargs,
-        )
+        if torch_model:
+            try:
+                from emle.models import EMLE as _EMLE
+
+                calculator = _EMLE(*args, **kwargs).to(device)
+            except ImportError:
+                raise ImportError(
+                    "The feature_aev branch of the emle package is required when using an EMLE torch model."
+                )
+        else:
+            # Create a calculator.
+            calculator = _EMLECalculator(
+                backend=backend,
+                method=method,
+                parm7=parm7,
+                mm_charges=mm_charges,
+                lambda_interpolate=lambda_value,
+                qm_indices=alchemical_atoms,
+                device=device,
+                *args,
+                **kwargs,
+            )
 
         # Create a perturbable molecular system and EMLEEngine. (First molecule is QM region.)
         mols, engine = _sr.qm.emle(
-            mols, mols.atoms(alchemical_atoms), calculator, "12A", 20
+            mols,
+            mols.atoms(alchemical_atoms),
+            calculator,
+            cutoff,
+            neighbour_list_frequency,
         )
 
         # Set the system charges explicitly if they are provided.
