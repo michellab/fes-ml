@@ -1,6 +1,6 @@
 """
 Script to run a performance benchmark of the FES-ML code using the OpenFF strategy.
-The modifications used are MLCorrection and MLInterpolation. 
+The modifications used are MLCorrection and MLInterpolation.
 Only 1 window is run for 1 ns to test the performance of the code.
 
 Authors: Joao Morado
@@ -8,6 +8,7 @@ Authors: Joao Morado
 
 if __name__ == "__main__":
     import sys
+    import time
 
     import numpy as np
     import openff.units as offunit
@@ -36,7 +37,10 @@ if __name__ == "__main__":
     # Modifications kwargs
     # This dictionary is used to pass additional kwargs to the modifications
     # The keys are the name of the modification and the values are dictionaries with kwargs
-    modifications_kwargs = {"MLPotential": {"name": "mace-off23-small"}}
+    modifications_kwargs = {
+        "MLPotential": {"name": "mace-off23-small"},
+        "EMLEPotential": {"torch_model": True},
+    }
 
     # Define variables that are used in several places to avoid errors
     temperature = 298.15 * unit.kelvin
@@ -106,5 +110,9 @@ if __name__ == "__main__":
     # Set initial velocities
     fes.set_velocities(temperature=temperature)
 
-    # Equilibrate the state of interest
-    fes.equilibrate(10000000)
+    # Run normal MD for 1 ns
+    t0 = time.time()
+    fes.equilibrate(1000000, reporters=simulation_reporters)
+    t1 = time.time()
+    print(f"Wallclock time: {t1 - t0} s")
+    print(f"Performance in ns/day: {1 / ((t1 - t0) / 86400)}")
