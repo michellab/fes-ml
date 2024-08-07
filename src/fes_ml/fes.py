@@ -2,6 +2,7 @@
 import logging
 import os
 import pickle
+from copy import deepcopy as _deepcopy
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import openmm as _mm
@@ -355,7 +356,11 @@ class FES:
         return self.alchemical_states
 
     def _equilibrate_state(
-        self, nsteps: int, alchemical_state: AlchemicalState = None, window: int = None
+        self,
+        nsteps: int,
+        alchemical_state: AlchemicalState = None,
+        window: int = None,
+        reporters: Optional[List[Any]] = None,
     ) -> AlchemicalState:
         """
         Equilibrate a single alchemical state.
@@ -368,6 +373,8 @@ class FES:
             Alchemical state to equilibrate.
         window : int
             Window index. alchemical_state takes precedence over window.
+        reporters : list of OpenMM reporters, optional, default=None
+            List of reporters to append to the simulation.
 
         Returns
         -------
@@ -385,6 +392,11 @@ class FES:
         ), "alchemical_state must be an AlchemicalState object."
         alchemical_state.check_integrity()
 
+        # Append reporters to the simulation
+        if reporters is not None:
+            for reporter in reporters:
+                alchemical_state.simulation.reporters.append(reporter)
+
         logger.info(f"Equilibrating {alchemical_state}")
         alchemical_state.simulation.step(nsteps)
 
@@ -393,8 +405,9 @@ class FES:
     def equilibrate(
         self,
         nsteps: int,
-        window: int = None,
         alchemical_state: AlchemicalState = None,
+        window: int = None,
+        reporters: Optional[List[Any]] = None,
     ) -> List[AlchemicalState]:
         """
         Equilibrate batch of alchemical states..
@@ -407,6 +420,8 @@ class FES:
             Window index.
         alchemical_state : AlchemicalState
             Alchemical state to equilibrate.
+        reporters : list of OpenMM reporters, optional, default=None
+            List of reporters to append to the simulation.
 
         Returns
         -------
@@ -420,9 +435,11 @@ class FES:
             ), "The alchemical states have not been created. Run `create_alchemical_states` first."
 
             for alc in self.alchemical_states:
-                self._equilibrate_state(nsteps, alc)
+                self._equilibrate_state(nsteps, alc, reporters=reporters)
         else:
-            self._equilibrate_state(nsteps, alchemical_state, window)
+            self._equilibrate_state(
+                nsteps, alchemical_state, window, reporters=reporters
+            )
 
         return self.alchemical_states
 
@@ -513,7 +530,10 @@ class FES:
                 self._iter = iteration + 1
                 self._save_state()
 
-        return self._U_kl
+        tmp_U_kl = _deepcopy(self._U_kl)
+        self._U_kl = None
+
+        return tmp_U_kl
 
     def run_production_batch(
         self, niterations: int, nsteps: int, reporters: Optional[List[Any]] = None
