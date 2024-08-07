@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     from fes_ml import FES, MTS
 
-    if len(sys.argv) != 1:
+    if len(sys.argv) == 1:
         raise ValueError("must pass window as positional arguments")
 
     window = int(sys.argv[1])
