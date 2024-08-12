@@ -1,25 +1,24 @@
-import sys
-import os
+import logging
 import math
+import os
+import sys
+from argparse import ArgumentParser
+from typing import Optional, Union
 
 import numpy as np
 import openff.units as offunit
 import openmm as mm
 import openmm.app as app
 import openmm.unit as unit
-from typing import Union, Optional
-
-from argparse import ArgumentParser
-import logging
 
 from fes_ml import FES, MTS
 
 logger = logging.getLogger(__name__)
 
-def main(args):
 
+def main(args):
     # arguments
-    smiles_ligand = args.smiles_ligand #"c1ccccc1"
+    smiles_ligand = args.smiles_ligand  # "c1ccccc1"
     folder = args.folder
     windows = int(args.windows)
     timestep = float(args.timestep)
@@ -47,8 +46,8 @@ def main(args):
     # - EMLEPotential: add an EMLE potential to the system
 
     # split the windows
-    n_ChargeScaling = math.ceil(windows*0.3)
-    n_LJSoftCore = math.floor(windows*0.7)
+    n_ChargeScaling = math.ceil(windows * 0.3)
+    n_LJSoftCore = math.floor(windows * 0.7)
     assert (n_ChargeScaling + n_LJSoftCore) == windows
     q_windows = np.linspace(1.0, 0.0, n_ChargeScaling, endpoint=False)
     lj_windows = np.linspace(1.0, 0.0, n_LJSoftCore)
@@ -104,7 +103,7 @@ def main(args):
         integrator = None
 
     if use_hmr:
-        hydrogen_mass = 1.007947 * 3 * unit.amu # factor of 3
+        hydrogen_mass = 1.007947 * 3 * unit.amu  # factor of 3
     else:
         hydrogen_mass = 1.007947 * unit.amu
 
@@ -115,15 +114,17 @@ def main(args):
         "smiles_ligand": smiles_ligand,
         "smiles_solvent": "[H:2][O:1][H:3]",
         "integrator": integrator,
-        "forcefields": ["openff_unconstrained-2.0.0.offxml", "opc.offxml"], # tip3p.offxml , opc.offxml 
+        "forcefields": [
+            "openff_unconstrained-2.0.0.offxml",
+            "opc.offxml",
+        ],  # tip3p.offxml , opc.offxml
         "temperature": temperature,
         "timestep": dt,  # ignored if integrator is passed
         "pressure": 1.0 * unit.atmospheres,
-        "hydrogen_mass": hydrogen_mass, 
+        "hydrogen_mass": hydrogen_mass,
         "mdconfig_dict": mdconfig_dict,
         "modifications_kwargs": modifications_kwargs,
     }
-
 
     # --------------------------------------------------------------- #
     # Prepare and run the simulations
@@ -159,13 +160,12 @@ def main(args):
         )
 
     for window in range(0, windows, 1):
-
         logger.info(f"Window : {window}")
 
         # Simulation parameters
-        n_equil_steps = 10000 # 10 ps equilibration 
-        n_iterations =  5 # 3000
-        n_steps_per_iter = 1000 # 1 ps per iteration
+        n_equil_steps = 10000  # 10 ps equilibration
+        n_iterations = 5  # 3000
+        n_steps_per_iter = 1000  # 1 ps per iteration
         simulation_reporters = []
         simulation_reporters.append(
             app.StateDataReporter(
@@ -207,20 +207,20 @@ def main(args):
 
 
 if __name__ == "__main__":
-
     # accept all options as arguments
     parser = ArgumentParser(description="run the AFE with ML correction")
     parser.add_argument(
-        "-s", "--smiles",
+        "-s",
+        "--smiles",
         dest="smiles_ligand",
         type=str,
         default=None,
-        help="smiles of the ligand"
+        help="smiles of the ligand",
     )
     parser.add_argument(
         "-f",
         "--folder",
-        dest = "folder",
+        dest="folder",
         type=str,
         default=None,
         help="folder path for the run",
@@ -245,7 +245,7 @@ if __name__ == "__main__":
         "-mts",
         "--use-mts",
         dest="use_mts",
-        action='store_true',
+        action="store_true",
         help="Whether to use MTS for the run. This will then use the inner and intermediate step arguments",
     )
     parser.add_argument(
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         "-hmr",
         "--use-hmr",
         dest="use_hmr",
-        action='store_true',
+        action="store_true",
         help="Whether to use HMR for the runs",
     )
     args = parser.parse_args()

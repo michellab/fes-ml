@@ -183,7 +183,7 @@ First, install as many additional dependencies as possible:
 
 ```bash
 conda install -c conda-forge tbb tbb-devel libnetcdf gsl rich zlib qt
-pip install gemmi lazy_import 
+pip install gemmi lazy_import
 ```
 
 Most of the other dependencies were already included in the base conda environment. Then proceed to compile Sire:
