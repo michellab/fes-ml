@@ -15,7 +15,6 @@ dependencies:
   - openmm>=8.1
   - openmm-torch
   - openmmforcefields
-  - openmm-ml
   - openff-toolkit
   - openff-interchange
   - nnpops
