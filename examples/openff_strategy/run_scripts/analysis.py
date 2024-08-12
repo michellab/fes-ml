@@ -8,19 +8,25 @@ from pymbar import MBAR, timeseries
 
 def main(args):
     temperature = args.temperature
+    # U_kn = np.load(f"{args.folder}/10.npy")
     U_kn = np.load(f"{args.folder}/U_kln_agg.npy")
 
-    # Reformat array such that data is organised in the following away
-    # U_kn = [[U^{l}_{k,n} for n in nsamples for k in nstates] for l in nstates]
-    # where l (superscript) is the alchemical state at which the potential energy is evaluated
-    # and k (subscript) the alchemical state at which it is sampled
+    # # Reformat array such that data is organised in the following away
+    # # U_kn = [[U^{l}_{k,n} for n in nsamples for k in nstates] for l in nstates]
+    # # where l (superscript) is the alchemical state at which the potential energy is evaluated
+    # # and k (subscript) the alchemical state at which it is sampled
     nstates, nstates, nsamples = U_kn.shape
     U_kn = U_kn.transpose(1, 0, 2)
     U_kn = U_kn.reshape(nstates, nstates * nsamples)
 
-    # Keep it in here to contemplate case where number of samples per alchemical state differs
-    # N_k = [ U_kn.shape[1]//nstates for _ in range(nstates)]
+    # # Keep it in here to contemplate case where number of samples per alchemical state differs
+    # # N_k = [ U_kn.shape[1]//nstates for _ in range(nstates)]
     N_k = [nsamples for _ in range(nstates)]
+
+    # if using the aggregated
+    # U_kn = U_kn[:, :]
+    # nstates = U_kn.shape[0]
+    # N_k = [U_kn.shape[1]//nstates for _ in range(nstates)]
 
     # Compute the overal
     mbar = MBAR(U_kn, N_k, solver_protocol="robust")
@@ -36,17 +42,12 @@ def main(args):
     results = mbar.compute_free_energy_differences(compute_uncertainty=True)
 
     # Calculate the free energy
-    kT = (
-        unit.BOLTZMANN_CONSTANT_kB
-        * unit.AVOGADRO_CONSTANT_NA
-        * unit.kelvin
-        * temperature
-    )
+    kT = unit.BOLTZMANN_CONSTANT_kB * \
+        unit.AVOGADRO_CONSTANT_NA * unit.kelvin * temperature
     print(
         "Free energy = {}".format(
-            (results["Delta_f"][nstates - 1, 0] * kT).in_units_of(
-                unit.kilocalorie_per_mole
-            )
+            (results["Delta_f"][nstates - 1, 0] *
+             kT).in_units_of(unit.kilocalorie_per_mole)
         )
     )
     print(

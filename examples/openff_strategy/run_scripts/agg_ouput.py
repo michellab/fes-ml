@@ -14,10 +14,11 @@ def main(args):
     for i in range(100):
         out = f"{folder}/{i}"
         try:
-            f = glob.glob(out + "/*npy")[0]
+            f = glob.glob(f"{out}.npy")[0]
         except:
             break
-        U_kln.append(np.load(f)[:, frames_disc::step])
+        print(np.load(f).shape)
+        U_kln.append(np.load(f))  # np.load(f)[:, frames_disc::step]
 
     U_kln = np.asarray(U_kln)
     print(U_kln.shape)

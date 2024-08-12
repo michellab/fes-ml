@@ -27,7 +27,7 @@ def main(args):
     inner_steps = int(args.inner_steps)
     use_hmr = args.use_hmr
 
-    logger.info(f"using the following arguments: {args}")
+    print(f"using the following arguments: {args}")
 
     try:
         os.makedirs(folder)
@@ -58,7 +58,7 @@ def main(args):
         "MLCorrection": [1.0] * (n_ChargeScaling + n_LJSoftCore),
     }
 
-    logger.info(f"the lambda schedule is: {lambda_schedule}")
+    print(f"the lambda schedule is: {lambda_schedule}")
 
     # Modifications kwargs
     # This dictionary is used to pass additional kwargs to the modifications
@@ -86,7 +86,7 @@ def main(args):
 
     # MTS logics
     if use_mts:
-        logger.info("setting up mts")
+        print("setting up mts")
         # Create the MTS class if intermediate steps are defined
         mts = MTS()
         # Multiple time step Langevin integrator
@@ -98,7 +98,7 @@ def main(args):
             dt=dt, groups=timestep_groups, temperature=temperature
         )
     else:
-        logger.info("no mts setup...")
+        print("no mts setup...")
         # The strategy will know how to create the integrator
         integrator = None
 
@@ -124,14 +124,15 @@ def main(args):
         "hydrogen_mass": hydrogen_mass,
         "mdconfig_dict": mdconfig_dict,
         "modifications_kwargs": modifications_kwargs,
+        # "write_system_xml": True
     }
 
     # --------------------------------------------------------------- #
     # Prepare and run the simulations
     # --------------------------------------------------------------- #
     # Create the FES object and add the alchemical states
-    logger.info("createing fes")
-    logger.info(f"using the following kwargs: {create_alchemical_states_kwargs}")
+    print("createing fes")
+    print(f"using the following kwargs: {create_alchemical_states_kwargs}")
     fes = FES()
     fes.create_alchemical_states(
         strategy_name="openff",
@@ -141,7 +142,7 @@ def main(args):
 
     # Set the  force groups for the alchemical states
     if use_mts:
-        logger.info("setting force groups")
+        print("setting force groups")
 
         force_group_dict = {"MLCorrection": 0}
         for force in fes.alchemical_states[1].system.getForces():
@@ -152,7 +153,7 @@ def main(args):
                     force_group_dict[force.getName()] = 0
         # by default, the rest of the forces are set to the fastest group
 
-        logger.info(f"using the follwing force group dictionary: {force_group_dict}")
+        print(f"using the follwing force group dictionary: {force_group_dict}")
         mts.set_force_groups(
             alchemical_states=fes.alchemical_states,
             force_group_dict=force_group_dict,
@@ -160,7 +161,8 @@ def main(args):
         )
 
     for window in range(0, windows, 1):
-        logger.info(f"Window : {window}")
+
+        print(f"Window : {window}")
 
         # Simulation parameters
         n_equil_steps = 10000  # 10 ps equilibration
@@ -181,8 +183,10 @@ def main(args):
                 density=True,
             )
         )
+        simulation_reporters.append(app.DCDReporter(
+            f"{folder}/dcd_{window}.dcd", 1000))
 
-        # logger.info("minimising...")
+        # print("minimising...")
         # Minimize the state of interest
         fes.minimize(window=window)
 
@@ -190,11 +194,11 @@ def main(args):
         fes.set_velocities(temperature=temperature, window=window)
 
         # Equilibrate the state of interest
-        logger.info("equilibrating...")
+        print("equilibrating...")
         fes.equilibrate(n_equil_steps, window=window)
 
         # Run single state
-        logger.info("running the single state...")
+        print("running the single state...")
         U_kn = fes.run_single_state(
             niterations=n_iterations,
             nsteps=n_steps_per_iter,
@@ -203,7 +207,53 @@ def main(args):
         )
 
         np.save(f"{folder}/{window}.npy", np.asarray(U_kn))
-        logger.info(f"saved to: {folder}/{window}.npy")
+        print(f"saved to: {folder}/{window}.npy")
+
+    # # run as batch
+    # print(f"running batch")
+
+    # # Simulation parameters
+    # n_equil_steps = 10000 # 10 ps equilibration
+    # n_iterations =  5 # 3000
+    # n_steps_per_iter = 1000 # 1 ps per iteration
+    # simulation_reporters = []
+    # simulation_reporters.append(
+    #     app.StateDataReporter(
+    #         f"{folder}/stdout_batch.txt",
+    #         100,
+    #         step=True,
+    #         potentialEnergy=True,
+    #         kineticEnergy=True,
+    #         totalEnergy=True,
+    #         temperature=True,
+    #         speed=True,
+    #         volume=True,
+    #         density=True,
+    #     )
+    # )
+    # simulation_reporters.append(app.DCDReporter(f"{folder}/dcd_batch.dcd", 1000))
+
+    # # print("minimising...")
+    # # Minimize the state of interest
+    # fes.minimize()
+
+    # # Set initial velocities
+    # fes.set_velocities(temperature=temperature)
+
+    # # Equilibrate the state of interest
+    # print("equilibrating...")
+    # fes.equilibrate(n_equil_steps)
+
+    # # Run single state
+    # print("running the single state...")
+    # U_kn = fes.run_production_batch(
+    #     niterations=n_iterations,
+    #     nsteps=n_steps_per_iter,
+    #     reporters=simulation_reporters,
+    # )
+
+    # np.save(f"{folder}/batch.npy", np.asarray(U_kn))
+    # print(f"saved to: {folder}/batch.npy")
 
 
 if __name__ == "__main__":
@@ -215,7 +265,8 @@ if __name__ == "__main__":
         dest="smiles_ligand",
         type=str,
         default=None,
-        help="smiles of the ligand",
+        required=True,
+        help="smiles of the ligand"
     )
     parser.add_argument(
         "-f",
@@ -223,6 +274,7 @@ if __name__ == "__main__":
         dest="folder",
         type=str,
         default=None,
+        required=True,
         help="folder path for the run",
     )
     parser.add_argument(
@@ -242,7 +294,6 @@ if __name__ == "__main__":
         help="Timestep in fs",
     )
     parser.add_argument(
-        "-mts",
         "--use-mts",
         dest="use_mts",
         action="store_true",
@@ -265,7 +316,6 @@ if __name__ == "__main__":
         help="Number of intermediate steps. Put as 0 to not use.",
     )
     parser.add_argument(
-        "-hmr",
         "--use-hmr",
         dest="use_hmr",
         action="store_true",

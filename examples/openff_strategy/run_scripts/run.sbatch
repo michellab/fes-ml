@@ -25,7 +25,7 @@ python $scripts_dir/create_run_system.py --smiles $smiles --folder $run_dir --ti
 
 python $scripts_dir/agg_ouput.py --folder $run_dir
 
-python $scripts_dir/analyse.py --folder $run_dir
+python $scripts_dir/analysis.py --folder $run_dir
 
 echo "done."
 
