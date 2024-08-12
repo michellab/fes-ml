@@ -487,6 +487,9 @@ class FES:
         if not self._U_kl:
             self._iter = 0
             self._U_kl = [[] for _ in range(len(self.alchemical_states))]
+        else:
+            # We are resuming from a checkpoint, so we need to set the initial state
+            alchemical_state.simulation.loadCheckpoint(f"{self.output_prefix}_openmm.chk")
 
         logger.info(
             f"Running production for {alchemical_state} with {niterations} iterations and {nsteps} steps per iteration"
@@ -529,6 +532,7 @@ class FES:
             if iteration % (self.checkpoint_frequency - 1) == 0 and iteration > 0:
                 self._iter = iteration + 1
                 self._save_state()
+                alchemical_state.simulation.saveCheckpoint(f"{self.output_prefix}_openmm.chk")
 
         tmp_U_kl = _deepcopy(self._U_kl)
         self._U_kl = None
