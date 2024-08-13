@@ -42,12 +42,17 @@ def main(args):
     results = mbar.compute_free_energy_differences(compute_uncertainty=True)
 
     # Calculate the free energy
-    kT = unit.BOLTZMANN_CONSTANT_kB * \
-        unit.AVOGADRO_CONSTANT_NA * unit.kelvin * temperature
+    kT = (
+        unit.BOLTZMANN_CONSTANT_kB
+        * unit.AVOGADRO_CONSTANT_NA
+        * unit.kelvin
+        * temperature
+    )
     print(
         "Free energy = {}".format(
-            (results["Delta_f"][nstates - 1, 0] *
-             kT).in_units_of(unit.kilocalorie_per_mole)
+            (results["Delta_f"][nstates - 1, 0] * kT).in_units_of(
+                unit.kilocalorie_per_mole
+            )
         )
     )
     print(

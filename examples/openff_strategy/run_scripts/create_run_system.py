@@ -168,7 +168,6 @@ def main(args):
         )
 
     for window in range(0, windows, 1):
-
         print(f"Window : {window}")
 
         # Simulation parameters
@@ -190,8 +189,7 @@ def main(args):
                 density=True,
             )
         )
-        simulation_reporters.append(app.DCDReporter(
-            f"{folder}/dcd_{window}.dcd", 1000))
+        simulation_reporters.append(app.DCDReporter(f"{folder}/dcd_{window}.dcd", 1000))
 
         # print("minimising...")
         # Minimize the state of interest
@@ -273,7 +271,7 @@ if __name__ == "__main__":
         type=str,
         default=None,
         required=True,
-        help="smiles of the ligand"
+        help="smiles of the ligand",
     )
     parser.add_argument(
         "-f",
