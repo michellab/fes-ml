@@ -36,8 +36,9 @@ class EMLEPotentialModification(BaseModification):
     """Modification to add the EMLE potential to the OpenMM System."""
 
     NAME = "EMLEPotential"
-    pre_dependencies: List[str] = None
-    post_dependencies: List[str] = None
+
+    pre_dependencies = ["IntraMolecularNonBondedForces"]
+    post_dependencies = ["IntraMolecularNonBondedExceptions"]
 
     def apply(
         self,
@@ -93,7 +94,7 @@ class EMLEPotentialModification(BaseModification):
         device : str, optional, default=None
             The device to use for the EMLE calculation.
         kwargs : dict
-            Additional keyword arguments to be passed to the EMLECalculator or EMLE Torch model.
+            Additional keyword arguments to be passed to the EMLECalculator or EMLE Torch model.""
             See https://github.com/chemle/emle-engine/blob/main/emle/calculator.py#L399-L519.
 
         Returns
@@ -190,6 +191,7 @@ class EMLEPotentialModification(BaseModification):
         system.addForce(emle_force)
         # Add the interpolation force to the system, so that the EMLE force does not scale
         # with the MLInterpolation force.
+        interpolation_force.setName("EMLECustomBondForce")
         system.addForce(interpolation_force)
 
         # Zero the charges on the atoms within the QM region
