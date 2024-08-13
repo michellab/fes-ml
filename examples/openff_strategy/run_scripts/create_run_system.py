@@ -26,6 +26,8 @@ def main(args):
     intermediate_steps = int(args.intermediate_steps)
     inner_steps = int(args.inner_steps)
     use_hmr = args.use_hmr
+    hmr_factor = float(args.hmr_factor)
+    dont_split_nonbonded = args.dont_split_nonbonded
 
     print(f"using the following arguments: {args}")
 
@@ -103,7 +105,7 @@ def main(args):
         integrator = None
 
     if use_hmr:
-        hydrogen_mass = 1.007947 * 3 * unit.amu  # factor of 3
+        hydrogen_mass = 1.007947 * hmr_factor * unit.amu
     else:
         hydrogen_mass = 1.007947 * unit.amu
 
@@ -153,11 +155,16 @@ def main(args):
                     force_group_dict[force.getName()] = 0
         # by default, the rest of the forces are set to the fastest group
 
+        if dont_split_nonbonded:
+            reciprocal_space_force_group = None
+        else:
+            reciprocal_space_force_group = 0
+            
         print(f"using the follwing force group dictionary: {force_group_dict}")
         mts.set_force_groups(
             alchemical_states=fes.alchemical_states,
             force_group_dict=force_group_dict,
-            set_reciprocal_space_force_groups=0,
+            set_reciprocal_space_force_groups=reciprocal_space_force_group,
         )
 
     for window in range(0, windows, 1):
@@ -320,6 +327,20 @@ if __name__ == "__main__":
         dest="use_hmr",
         action="store_true",
         help="Whether to use HMR for the runs",
+    )
+    parser.add_argument(
+        "--hmr-factor",
+        dest="hmr_factor",
+        type=float,
+        default=3,
+        help="Which HMR factor to use",
+    )
+    parser.add_argument(
+        "--do-not-split-nonbonded",
+        dest="dont_split_nonbonded",
+        action="store_true",
+        help="Whether to not split the non-bonded interactions"
+        "Default the reciprocal space force group is the slowest.",
     )
     args = parser.parse_args()
 
