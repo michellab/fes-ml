@@ -532,7 +532,9 @@ class FES:
             if iteration % (self.checkpoint_frequency - 1) == 0 and iteration > 0:
                 self._iter = iteration + 1
                 self._save_state()
-                alchemical_state.simulation.saveState(f"{self.output_prefix}_openmm.chk")
+                alchemical_state.simulation.saveState(
+                    f"{self.output_prefix}_openmm.chk"
+                )
 
         tmp_U_kl = _deepcopy(self._U_kl)
         self._U_kl = None
