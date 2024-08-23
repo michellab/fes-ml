@@ -1,4 +1,4 @@
-name: fes-ml
+name: fes-ml-aev
 
 channels:
   - conda-forge
@@ -20,15 +20,15 @@ dependencies:
   - nnpops
   - pip
   - pybind11
-  - pytorch<3.11
+  - pytorch
   - python
   - pyyaml
   - sire
   - torchani
+  - pygit2
   - xtb-python
   - pip:
-    - git+https://github.com/lab-cosmo/librascal.git
-    - git+https://github.com/chemle/emle-engine.git@main
+    - git+https://github.com/chemle/emle-engine.git@feature_aev
     - git+https://github.com/openmm/openmm-ml.git
     - coloredlogs
     - mace-torch

@@ -38,18 +38,6 @@ if __name__ == "__main__":
         "map": {"use_dispersion_correction": True, "tolerance": 0.0005},
     }
 
-    # Add the EMLEPotential as a post-dependency of the MLInterpolation.
-    # This is done in order to ensure the EMLEPotential modification is applied
-    # after the MLInterpolation, so that the EMLEPotential recognizes the
-    # lambda_interpolation parameter, and varies along the MLInterpolation
-    # schedule. If the EMLEPotential is not added as a post-dependency, the
-    # EMLEPotential *may* not recognize the lambda_interpolation parameter and
-    # will not vary along the MLInterpolation schedule. If the desired behaviour
-    # is for the EMLEPotential to vary independently of the MLInterpolation,
-    # then the "EMLEPotential" key should be added to the lambda_schedule
-    # dictionary with the desired lambda values.
-    MLInterpolationModification.add_post_dependency("EMLEPotential")
-
     # Create the FES object to run the simulations
     fes = FES()
 

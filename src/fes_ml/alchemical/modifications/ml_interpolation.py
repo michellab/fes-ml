@@ -5,7 +5,6 @@ from typing import List
 import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory
-from .intramolecular import IntraMolecularBondedRemovalModification
 from .ml_base_modification import MLBaseModification
 
 logger = logging.getLogger(__name__)

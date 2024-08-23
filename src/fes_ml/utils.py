@@ -32,7 +32,11 @@ def energy_decomposition(system: _mm.System, context: _mm.Context) -> dict:
     for i in range(system.getNumForces()):
         force_name = system.getForce(i).getName()
         energy = context.getState(getEnergy=True, groups={i}).getPotentialEnergy()
-        energy_decomposition[force_name] = energy
+
+        if force_name not in energy_decomposition:
+            energy_decomposition[force_name] = energy
+        else:
+            energy_decomposition[force_name + "_DUPLICATE"] += energy
 
     return energy_decomposition
 
