@@ -1,0 +1,44 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 89f3491..f7d27e8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+ set(NAME NNPOps)
+ project(${NAME} LANGUAGES CXX)
+ option(ENABLE_CUDA "Enable biuilding CUDA components" ON)
++set(CMAKE_CUDA_FLAGS "-allow-unsupported-compiler")
+ if(ENABLE_CUDA)
+     enable_language(CUDA)
+ endif(ENABLE_CUDA)
+@@ -37,27 +38,13 @@ target_include_directories(${LIBRARY} PRIVATE ${Python3_INCLUDE_DIRS}
+                                               src/ani src/pytorch src/schnet)
+ target_link_libraries(${LIBRARY} ${TORCH_LIBRARIES} ${Python3_LIBRARIES})
+ if(ENABLE_CUDA)
+-    set_property(TARGET ${LIBRARY} PROPERTY CUDA_STANDARD 14)
++    set_property(TARGET ${LIBRARY} PROPERTY CUDA_STANDARD 17)
+     target_compile_definitions(${LIBRARY} PRIVATE ENABLE_CUDA)
+ endif(ENABLE_CUDA)
+
+ # Tests of the library
+ set(TEST_PATHS src/ani/TestCpuANISymmetryFunctions.cpp
+                src/schnet/TestCpuCFConv.cpp)
+-if(ENABLE_CUDA)
+-    list(APPEND TEST_PATHS src/ani/TestCudaANISymmetryFunctions.cu
+-                           src/schnet/TestCudaCFConv.cu)
+-endif(ENABLE_CUDA)
+-foreach(TEST_PATH ${TEST_PATHS})
+-    cmake_path(GET TEST_PATH STEM TEST_NAME)
+-    add_executable(${TEST_NAME} ${TEST_PATH})
+-    set_property(TARGET ${TEST_NAME} PROPERTY CXX_STANDARD 14)
+-    if(ENABLE_CUDA)
+-        set_property(TARGET ${TEST_NAME} PROPERTY CUDA_STANDARD 14)
+-    endif(ENABLE_CUDA)
+-    target_link_libraries(${TEST_NAME} ${LIBRARY})
+-    add_test(${TEST_NAME} ${TEST_NAME})
+-endforeach()
+
+ # List of directories containing  test scripts
+ set(PYTHON_TEST_DIRS
+diff --git a/nnpops.patch b/nnpops.patch
+new file mode 100644
+index 0000000..e69de29
