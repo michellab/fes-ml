@@ -35,6 +35,17 @@ python -m openmm.testInstallation
 ```bash
 git clone https://github.com/openmm/NNPOps.git
 cd NNPOps
+```
+
+Apply the patch provided in the nnpops.patch file (or simply make the changes it contains):
+
+```bash
+git apply path/to/nnpops.patch
+```
+
+nsure that the patch file is not located within the NNPOps directory. Then, proceed to compile NNPOps:
+
+```bash
 mkdir build && cd build
 cmake .. \
     -DTorch_DIR=$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')/Torch \
@@ -186,7 +197,14 @@ conda install -c conda-forge tbb tbb-devel libnetcdf gsl rich zlib qt
 pip install gemmi lazy_import
 ```
 
-Most of the other dependencies were already included in the base conda environment. Then proceed to compile Sire:
+Most of the other dependencies were already included in the base conda environment. 
+If you have upgrade gcc to version 12.4.0, now downgrade gcc it version 11.4.0:
+
+```bash
+conda install -c conda-forge gcc=11.4.0
+```
+
+Then proceed to compile Sire:
 
 ```bash
 git clone https://github.com/openbiosim/sire
