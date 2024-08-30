@@ -28,6 +28,7 @@ def main(args):
     use_hmr = args.use_hmr
     hmr_factor = float(args.hmr_factor)
     dont_split_nonbonded = args.dont_split_nonbonded
+    lig_ff = args.ligand_forcefield
 
     print(f"using the following arguments: {args}")
 
@@ -65,8 +66,13 @@ def main(args):
     # Modifications kwargs
     # This dictionary is used to pass additional kwargs to the modifications
     # The keys are the name of the modification and the values are dictionaries with kwargs
-    modifications_kwargs = {"MLPotential": {"name": "mace-off23-small"}}
-
+    if lig_ff == "mace":
+        modifications_kwargs = {"MLPotential": {"name": "mace-off23-small"}}
+    elif lig_ff == "ani2x":
+        modifications_kwargs = {"MLPotential": {"name": "ani2x"}}
+    else:
+        raise ValueError("ligand forcefield must be mace or ani2x .")
+    
     # Define variables that are used in several places to avoid errors
     temperature = 298.15 * unit.kelvin
     dt = timestep * unit.femtosecond
@@ -156,8 +162,10 @@ def main(args):
         # by default, the rest of the forces are set to the fastest group
 
         if dont_split_nonbonded:
+            print("not splitting the non bonded interactions...")
             reciprocal_space_force_group = None
         else:
+            print("splitting the non bonded interactions if theres intermediate steps...")
             reciprocal_space_force_group = 0
             
         print(f"using the follwing force group dictionary: {force_group_dict}")
@@ -319,6 +327,14 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="Number of intermediate steps. Put as 0 to not use.",
+    )
+    parser.add_argument(
+        "--ligand-forcefield",
+        dest="ligand_forcefield",
+        type=str,
+        default="mace",
+        choices=["mace","ani2x"],
+        help="The ligand forcefield to use.",
     )
     parser.add_argument(
         "--use-hmr",
