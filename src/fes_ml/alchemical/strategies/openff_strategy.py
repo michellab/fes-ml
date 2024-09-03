@@ -603,6 +603,12 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             )
             forcefield_gaff.registerTemplateGenerator(gaff.generator)
 
+            # Set the residue names to HOH
+            # TODO: This is a temporary fix for the water residues
+            for i, residue in enumerate(topology.residues()):
+                if i > 0:
+                    residue.name = "HOH"
+
             system_gaff = forcefield_gaff.createSystem(
                 topology=topology,
                 nonbondedMethod=_mm.app.PME,
