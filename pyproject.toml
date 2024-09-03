@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fes_ml"
 description = "A package to run hybrid ML/MM free energy simulations."
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 keywords = ["free energy simulation", "free energy", "force field", "machine learning", "openmm"]
 authors = [{email = "jmorado@ed.ac.uk"},{name = "Joao Morado"}]
 maintainers = [{name = "Joao Morado", email = "jmorado@ed.ac.uk"}]
