@@ -22,6 +22,7 @@ from openff.interchange.exceptions import (
 from openff.interchange.interop.openmm._positions import (
     to_openmm_positions as _to_openmm_positions,
 )
+from openff.interchange import Interchange as _Interchange
 from openff.toolkit import Molecule as _Molecule
 from openff.toolkit import Topology as _Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField as _ForceField
@@ -588,9 +589,30 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         # Convert topology to OpenMM
         topology = topology_off.to_openmm()
 
-        # Create the Interchange object
+        # Create the forcefields
         ffs = forcefields or self._DEFAULT_FORCEFIELDS
-        interchange = _ForceField(*ffs).create_interchange(topology_off)
+
+        if any("gaff" in ff for ff in ffs):
+            from openmmforcefields.generators import GAFFTemplateGenerator as _GAFFTemplateGenerator
+            gaff = _GAFFTemplateGenerator(molecules=molecules["ligand"])
+            forcefield_gaff = _mm.app.ForceField(*[ff for ff in ffs if "gaff" not in ff])
+            forcefield_gaff.registerTemplateGenerator(gaff.generator)
+
+            system_gaff = forcefield_gaff.createSystem(
+                topology=topology,
+                nonbondedMethod=_mm.app.PME,
+                rigidWater=True,
+            )
+ 
+            # Create the OpenFF Interchange object
+            interchange = _Interchange.from_openmm(
+                topology=topology,
+                system=system_gaff,
+                positions=topology_off.get_positions().to_openmm(),
+            )
+        else:
+            # Create the OpenFF Interchange object
+            interchange = _ForceField(*ffs).create_interchange(topology_off)
 
         # Apply the MDConfig settings to the Interchange object
         mdconfig = _MDConfig()
@@ -654,12 +676,13 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Remove constraints involving the alchemical atoms
         if remove_constraints:
+            logger.debug("Removing constraints involving the alchemical atoms.")
             system = self._remove_constraints(system, alchemical_atoms)
 
         # Create/update the modifications kwargs
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
 
-        if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
+        if any(key in lambda_schedule for key in ["EMLEPotential"]):
             modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
                 "EMLEPotential", {}
             )
