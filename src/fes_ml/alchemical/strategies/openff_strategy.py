@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 import openmm as _mm
 import openmm.app as _app
 import openmm.unit as _unit
+from openff.interchange import Interchange as _Interchange
 
 # OpenFF imports
 from openff.interchange.components._packmol import UNIT_CUBE as _UNIT_CUBE
@@ -22,7 +23,6 @@ from openff.interchange.exceptions import (
 from openff.interchange.interop.openmm._positions import (
     to_openmm_positions as _to_openmm_positions,
 )
-from openff.interchange import Interchange as _Interchange
 from openff.toolkit import Molecule as _Molecule
 from openff.toolkit import Topology as _Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField as _ForceField
@@ -593,9 +593,14 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         ffs = forcefields or self._DEFAULT_FORCEFIELDS
 
         if any("gaff" in ff for ff in ffs):
-            from openmmforcefields.generators import GAFFTemplateGenerator as _GAFFTemplateGenerator
+            from openmmforcefields.generators import (
+                GAFFTemplateGenerator as _GAFFTemplateGenerator,
+            )
+
             gaff = _GAFFTemplateGenerator(molecules=molecules["ligand"])
-            forcefield_gaff = _mm.app.ForceField(*[ff for ff in ffs if "gaff" not in ff])
+            forcefield_gaff = _mm.app.ForceField(
+                *[ff for ff in ffs if "gaff" not in ff]
+            )
             forcefield_gaff.registerTemplateGenerator(gaff.generator)
 
             system_gaff = forcefield_gaff.createSystem(
@@ -603,7 +608,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 nonbondedMethod=_mm.app.PME,
                 rigidWater=True,
             )
- 
+
             # Create the OpenFF Interchange object
             interchange = _Interchange.from_openmm(
                 topology=topology,

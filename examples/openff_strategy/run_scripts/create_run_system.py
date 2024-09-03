@@ -159,7 +159,7 @@ def main(args):
             reciprocal_space_force_group = None
         else:
             reciprocal_space_force_group = 0
-            
+
         print(f"using the follwing force group dictionary: {force_group_dict}")
         mts.set_force_groups(
             alchemical_states=fes.alchemical_states,
