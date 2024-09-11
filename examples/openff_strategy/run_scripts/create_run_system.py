@@ -29,6 +29,7 @@ def main(args):
     hmr_factor = float(args.hmr_factor)
     dont_split_nonbonded = args.dont_split_nonbonded
     lig_ff = args.ligand_forcefield
+    sampling_time = args.sampling
 
     print(f"using the following arguments: {args}")
 
@@ -123,8 +124,8 @@ def main(args):
         "smiles_solvent": "[H:2][O:1][H:3]",
         "integrator": integrator,
         "forcefields": [
-            "openff_unconstrained-2.0.0.offxml",
-            "opc.offxml",
+            "openff_unconstrained-2.0.0.offxml", # "gaff"
+            "opc.offxml",  # "amber14/tip3p.xml",
         ],  # tip3p.offxml , opc.offxml
         "temperature": temperature,
         "timestep": dt,  # ignored if integrator is passed
@@ -179,9 +180,11 @@ def main(args):
         print(f"Window : {window}")
 
         # Simulation parameters
-        n_equil_steps = 10000  # 10 ps equilibration
-        n_iterations = 5  # 3000
-        n_steps_per_iter = 1000  # 1 ps per iteration
+        n_equil_steps = (10000 / timestep)  # 10 ps equilibration
+        n_iterations = 10 
+        steps_per_ns = (1000000 / timestep) # the timestep is in fs so 1 ns is 10^6
+        total_steps = steps_per_ns * sampling_time
+        n_steps_per_iter = total_steps / n_iterations
         simulation_reporters = []
         simulation_reporters.append(
             app.StateDataReporter(
@@ -306,6 +309,14 @@ if __name__ == "__main__":
         type=float,
         default=2,
         help="Timestep in fs",
+    )
+    parser.add_argument(
+        "-s",
+        "--sampling",
+        dest="sampling",
+        type=float,
+        default=0.01,
+        help="runtime in ns. Default is 0.01 ns, which is 10 ps.",
     )
     parser.add_argument(
         "--use-mts",
