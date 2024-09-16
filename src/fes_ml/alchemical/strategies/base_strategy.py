@@ -27,6 +27,19 @@ class AlchemicalStateCreationStrategy(ABC):
         """
         pass
 
+    def _set_tmp_directory(self, dir_name) -> str:
+        """
+        Set a temporary directory.
+
+        Returns
+        -------
+        _TMP_DIR
+            The temporary directory.
+        """
+        self._TMP_DIR = dir_name
+
+        return self._TMP_DIR
+
     def _run_alchemist(
         self,
         system: _mm.System,

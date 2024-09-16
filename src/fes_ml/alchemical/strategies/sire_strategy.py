@@ -96,6 +96,11 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         # Report the creation settings
         self._report_dict(passed_args, dict_name="Sire creation settings")
 
+        if "tmp_dir" in kwargs:
+            self._set_tmp_directory(kwargs["tmp_dir"])
+        # Create temporary directory if it does not exist
+        _os.makedirs(self._TMP_DIR, exist_ok=True)
+
         # Load the molecular system.
         mols = _sr.load(top_file, crd_file, show_warnings=True)
 

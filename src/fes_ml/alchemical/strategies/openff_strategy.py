@@ -558,6 +558,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         # Report the creation settings
         self._report_dict(passed_args, dict_name="OpenFF creation settings")
 
+        if "tmp_dir" in kwargs:
+            self._set_tmp_directory(kwargs["tmp_dir"])
         # Create temporary directory if it does not exist
         _os.makedirs(self._TMP_DIR, exist_ok=True)
 
