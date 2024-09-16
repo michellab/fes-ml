@@ -73,7 +73,7 @@ def main(args):
         modifications_kwargs = {"MLPotential": {"name": "ani2x"}}
     else:
         raise ValueError("ligand forcefield must be mace or ani2x .")
-
+    
     # Define variables that are used in several places to avoid errors
     temperature = 298.15 * unit.kelvin
     dt = timestep * unit.femtosecond
@@ -168,7 +168,7 @@ def main(args):
         else:
             print("splitting the non bonded interactions if theres intermediate steps...")
             reciprocal_space_force_group = 0
-
+            
         print(f"using the follwing force group dictionary: {force_group_dict}")
         mts.set_force_groups(
             alchemical_states=fes.alchemical_states,
@@ -200,8 +200,7 @@ def main(args):
                 density=True,
             )
         )
-        simulation_reporters.append(app.DCDReporter(
-            f"{folder}/dcd_{window}.dcd", 1000))
+        simulation_reporters.append(app.DCDReporter(f"{folder}/dcd_{window}.dcd", 1000))
 
         # print("minimising...")
         # Minimize the state of interest
@@ -345,7 +344,7 @@ if __name__ == "__main__":
         dest="ligand_forcefield",
         type=str,
         default="mace",
-        choices=["mace", "ani2x"],
+        choices=["mace","ani2x"],
         help="The ligand forcefield to use.",
     )
     parser.add_argument(
