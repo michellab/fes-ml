@@ -457,6 +457,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         timestep: Union[float, _unit.Quantity] = 1.0 * _unit.femtosecond,
         topology_pdb: Optional[str] = None,
         write_pdb: bool = True,
+        write_gro: bool = True,
         write_system_xml: bool = False,
         partial_charges_method: str = "am1bcc",
         keep_tmp_files: bool = True,
@@ -513,6 +514,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             If not None, the topology is created from this file, which is assumed to contain all the molecules.
         write_pdb : bool, optional, default=True
             Save coordinates and topology to a PDB file.
+        write_gro : bool, optional, default=True
+            Save coordinates and topology to GRO and TOP files.        
         write_system_xml : bool, optional, default=False
             Save the OpenMM system to an XML file.
         partial_charges_method : str, optional, default="am1bcc"
@@ -660,6 +663,19 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
 
         if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
+            # overwrite if EMLE potential
+            write_gro = True
+
+        if write_gro:
+            # Write .top and .gro files via the OpenFF interchange
+            if _os.path.exists(self._TMP_DIR):
+                _shutil.rmtree(self._TMP_DIR)
+            _os.makedirs(self._TMP_DIR, exist_ok=True)
+            files_prefix = _os.path.join(self._TMP_DIR, "interchange")
+            interchange.to_gromacs(prefix=files_prefix)
+
+        if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
+            
             modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
                 "EMLEPotential", {}
             )
@@ -667,13 +683,6 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             # Import required
             import numpy as _np
             import sire as _sr
-
-            # Write .top and .gro files via the OpenFF interchange
-            if _os.path.exists(self._TMP_DIR):
-                _shutil.rmtree(self._TMP_DIR)
-            _os.makedirs(self._TMP_DIR, exist_ok=True)
-            files_prefix = _os.path.join(self._TMP_DIR, "interchange")
-            interchange.to_gromacs(prefix=files_prefix)
 
             # Read back those files using Sire
             sr_mols = _sr.load(
@@ -701,6 +710,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             # Get the original charges of the OpenMM system
             openmm_charges = self._get_openmm_charges(system)
             modifications_kwargs["EMLEPotential"]["openmm_charges"] = openmm_charges
+            
         if any(
             key in lambda_schedule
             for key in ["MLPotential", "MLInterpolation", "MLCorrection"]
