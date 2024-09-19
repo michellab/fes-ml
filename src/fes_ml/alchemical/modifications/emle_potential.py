@@ -10,6 +10,7 @@ from .base_modification import BaseModification, BaseModificationFactory
 
 logger = logging.getLogger(__name__)
 
+_EMLE_CALCULATORS = []
 
 class EMLEPotentialModificationFactory(BaseModificationFactory):
     """Factory for creating EMLEPotentialModification instances."""
@@ -53,7 +54,7 @@ class EMLEPotentialModification(BaseModification):
         method: str = "electrostatic",
         torch_model: bool = False,
         cutoff: str = "12A",
-        neighbour_list_frequency: int = 20,
+        neighbour_list_frequency: int = 0,
         device: Optional[str] = None,
         *args,
         **kwargs,
@@ -170,6 +171,7 @@ class EMLEPotentialModification(BaseModification):
                 *args,
                 **kwargs,
             )
+            _EMLE_CALCULATORS.append(calculator)
 
         # Create a perturbable molecular system and EMLEEngine. (First molecule is QM region.)
         mols, engine = _sr.qm.emle(
