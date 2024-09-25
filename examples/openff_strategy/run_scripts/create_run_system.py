@@ -73,7 +73,7 @@ def main(args):
         modifications_kwargs = {"MLPotential": {"name": "ani2x"}}
     else:
         raise ValueError("ligand forcefield must be mace or ani2x .")
-    
+
     # Define variables that are used in several places to avoid errors
     temperature = 298.15 * unit.kelvin
     dt = timestep * unit.femtosecond
@@ -133,6 +133,9 @@ def main(args):
         "hydrogen_mass": hydrogen_mass,
         "mdconfig_dict": mdconfig_dict,
         "modifications_kwargs": modifications_kwargs,
+        "write_pdb": True,
+        "write_gro": True,
+        "tmp_dir": f"{folder}/tmp",
         # "write_system_xml": True
     }
 
@@ -168,7 +171,7 @@ def main(args):
         else:
             print("splitting the non bonded interactions if theres intermediate steps...")
             reciprocal_space_force_group = 0
-            
+
         print(f"using the follwing force group dictionary: {force_group_dict}")
         mts.set_force_groups(
             alchemical_states=fes.alchemical_states,
@@ -176,54 +179,61 @@ def main(args):
             set_reciprocal_space_force_groups=reciprocal_space_force_group,
         )
 
+
     for window in range(0, windows, 1):
         print(f"Window : {window}")
 
-        # Simulation parameters
-        n_equil_steps = (10000 / timestep)  # 10 ps equilibration
-        n_iterations = 10 
-        steps_per_ns = (1000000 / timestep) # the timestep is in fs so 1 ns is 10^6
-        total_steps = steps_per_ns * sampling_time
-        n_steps_per_iter = total_steps / n_iterations
-        simulation_reporters = []
-        simulation_reporters.append(
-            app.StateDataReporter(
-                f"{folder}/stdout_{window}.txt",
-                100,
-                step=True,
-                potentialEnergy=True,
-                kineticEnergy=True,
-                totalEnergy=True,
-                temperature=True,
-                speed=True,
-                volume=True,
-                density=True,
+        if os.path.exists(f"{folder}/{window}.npy"):
+            print(f"{folder}/{window}.npy exists, skipping this window...")
+
+        else:
+
+            # Simulation parameters
+            n_equil_steps = 10000 / timestep  # 10 ps equilibration
+            n_steps_per_iter = 1000 / timestep # 1 ps per iteration, as this is the freq the energy is evaluated at
+            total_steps = (1000000 / timestep) * sampling_time # steps per ns * the sampling time
+            n_iterations = int(total_steps / n_steps_per_iter)
+
+            simulation_reporters = []
+            simulation_reporters.append(
+                app.StateDataReporter(
+                    f"{folder}/stdout_{window}.txt",
+                    100,
+                    step=True,
+                    potentialEnergy=True,
+                    kineticEnergy=True,
+                    totalEnergy=True,
+                    temperature=True,
+                    speed=True,
+                    volume=True,
+                    density=True,
+                )
             )
-        )
-        simulation_reporters.append(app.DCDReporter(f"{folder}/dcd_{window}.dcd", 1000))
+            simulation_reporters.append(app.DCDReporter(
+                f"{folder}/dcd_{window}.dcd", 1000))
 
-        # print("minimising...")
-        # Minimize the state of interest
-        fes.minimize(window=window)
+            # print("minimising...")
+            # Minimize the state of interest
+            fes.minimize(window=window)
 
-        # Set initial velocities
-        fes.set_velocities(temperature=temperature, window=window)
+            # Set initial velocities
+            fes.set_velocities(temperature=temperature, window=window)
 
-        # Equilibrate the state of interest
-        print("equilibrating...")
-        fes.equilibrate(n_equil_steps, window=window)
+            # Equilibrate the state of interest
+            print("equilibrating...")
+            fes.equilibrate(n_equil_steps, window=window)
 
-        # Run single state
-        print("running the single state...")
-        U_kn = fes.run_single_state(
-            niterations=n_iterations,
-            nsteps=n_steps_per_iter,
-            window=int(window),
-            reporters=simulation_reporters,
-        )
+            # Run single state
+            print("running the single state...")
+            U_kn = fes.run_single_state(
+                niterations=n_iterations,
+                nsteps=n_steps_per_iter,
+                window=int(window),
+                reporters=simulation_reporters,
+            )
 
-        np.save(f"{folder}/{window}.npy", np.asarray(U_kn))
-        print(f"saved to: {folder}/{window}.npy")
+            np.save(f"{folder}/{window}.npy", np.asarray(U_kn))
+            print(f"saved to: {folder}/{window}.npy")
 
     # # run as batch
     # print(f"running batch")
@@ -310,7 +320,7 @@ if __name__ == "__main__":
         help="Timestep in fs",
     )
     parser.add_argument(
-        "-s",
+        "-st",
         "--sampling",
         dest="sampling",
         type=float,
@@ -344,7 +354,7 @@ if __name__ == "__main__":
         dest="ligand_forcefield",
         type=str,
         default="mace",
-        choices=["mace","ani2x"],
+        choices=["mace", "ani2x"],
         help="The ligand forcefield to use.",
     )
     parser.add_argument(
