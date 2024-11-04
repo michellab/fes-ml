@@ -234,7 +234,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         if sdf_file_ligand is not None:
             ligand = _Molecule.from_file(sdf_file_ligand)
         elif smiles_ligand is not None:
-            ligand = _Molecule.from_smiles(smiles_ligand)
+            if OpenFFCreationStrategy.is_mapped_smiles(smiles_ligand):
+                ligand = _Molecule.from_mapped_smiles(smiles_ligand)
+            else:
+                ligand = _Molecule.from_smiles(smiles_ligand)
         else:
             raise ValueError(
                 "Please provide either an SDF file or a SMARTS pattern for the ligand."
@@ -306,19 +309,31 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             mols = [mol for _, mol in molecules.items() if mol is not None]
 
             if packmol_kwargs is None:
-                packmol_kwargs = _deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)
+                packmol_kwargs_local = _deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)
+            else:
+                # Update the packmol_kwargs with the default values
+                # Values in packmol_kwargs take precedence
+                packmol_kwargs_local = {**packmol_kwargs, **_deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)}
 
-            if "number_of_copies" not in packmol_kwargs:
+            if "number_of_copies" not in packmol_kwargs_local:
                 number_of_copies = [
                     OpenFFCreationStrategy._N_MOLECULES[mol_name]
                     for mol_name, mol in molecules.items()
                     if mol is not None
                 ]
+            else:
+                number_of_copies = [
+                    packmol_kwargs_local["number_of_copies"][mol_name]
+                    for mol_name, mol in molecules.items()
+                    if mol is not None
+                ]
+
+                packmol_kwargs_local.pop("number_of_copies")
 
             topology_off = _pack_box(
                 molecules=mols,
-                number_of_copies=number_of_copies,
-                **packmol_kwargs,
+                number_of_copies=number_of_copies,  
+                **packmol_kwargs_local,
             )
 
         return topology_off
