@@ -62,7 +62,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
     _PACKMOL_KWARGS = {
         "box_shape": _UNIT_CUBE,
-        "mass_density": 1.0 * _offunit.gram / _offunit.milliliter,
+        "target_density": 1.0 * _offunit.gram / _offunit.milliliter,
     }
 
     _N_MOLECULES = {
