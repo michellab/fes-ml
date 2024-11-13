@@ -71,7 +71,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         "protein": 1,
     }
 
-    _DEFAULT_FORCEFIELDS = ["openff-2.0.0.offxml", "tip3p.offxml"]
+    _DEFAULT_FORCEFIELDS = ["openff_unconstrained-2.0.0.offxml", "tip3p.offxml"]
 
     _OFF_TO_OMM_MAPPING = {
         # Constraints
@@ -773,11 +773,11 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 _os.path.join(self._TMP_DIR, "topology.pdb"),
                 _to_openmm_positions(interchange, include_virtual_sites=False),
             )
-
+        
         if write_system_xml:
             with open(_os.path.join(self._TMP_DIR, "system.xml"), "w") as f:
                 f.write(_mm.XmlSerializer.serialize(system))
-
+    
         # Clean up the temporary directory
         if not keep_tmp_files:
             _shutil.rmtree(self._TMP_DIR)
