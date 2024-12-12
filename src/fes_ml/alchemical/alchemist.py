@@ -99,9 +99,13 @@ class Alchemist:
         lambda_value : float
             The value of the alchemical state parameter.
         """
+        if modification.NAME in self._graph.nodes and lambda_value is None:
+            lambda_value = self._graph.nodes[modification.NAME].get("lambda_value", None)
+            
         self._graph.add_node(
             modification.NAME, modification=modification, lambda_value=lambda_value
         )
+
         if modification.pre_dependencies is not None:
             for pre_dependency in modification.pre_dependencies:
                 if pre_dependency not in self._modification_factories:
@@ -237,7 +241,7 @@ class Alchemist:
             The modified system.
         """
         for mod in nx.topological_sort(self._graph):
-            lambda_value = self._graph.nodes[mod]["lambda_value"] or 1.0
+            lambda_value = self._graph.nodes[mod]["lambda_value"]
             mod_instance = self._graph.nodes[mod]["modification"]
             mod_kwargs = modifications_kwargs.get(mod, {})
 
