@@ -237,7 +237,7 @@ class Alchemist:
             The modified system.
         """
         for mod in nx.topological_sort(self._graph):
-            lambda_value = self._graph.nodes[mod]["lambda_value"]
+            lambda_value = self._graph.nodes[mod]["lambda_value"] or 1.0
             mod_instance = self._graph.nodes[mod]["modification"]
             mod_kwargs = modifications_kwargs.get(mod, {})
 

@@ -2,6 +2,7 @@
 
 from . import (
     charge_scaling,
+    custom_lj,
     emle_potential,
     intramolecular,
     lj_softcore,
@@ -9,5 +10,4 @@ from . import (
     ml_interpolation,
     ml_potential,
 )
-
 from .emle_potential import _EMLE_CALCULATORS

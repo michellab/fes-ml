@@ -313,7 +313,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             else:
                 # Update the packmol_kwargs with the default values
                 # Values in packmol_kwargs take precedence
-                packmol_kwargs_local = {**packmol_kwargs, **_deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)}
+                packmol_kwargs_local = {
+                    **packmol_kwargs,
+                    **_deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS),
+                }
 
             if "number_of_copies" not in packmol_kwargs_local:
                 number_of_copies = [
@@ -332,7 +335,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
             topology_off = _pack_box(
                 molecules=mols,
-                number_of_copies=number_of_copies,  
+                number_of_copies=number_of_copies,
                 **packmol_kwargs_local,
             )
 
@@ -472,7 +475,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         timestep: Union[float, _unit.Quantity] = 1.0 * _unit.femtosecond,
         topology_pdb: Optional[str] = None,
         write_pdb: bool = True,
-        write_system_xml: bool = False,
+        write_system_xml: bool = True,
         partial_charges_method: str = "am1bcc",
         keep_tmp_files: bool = True,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
@@ -535,10 +538,6 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             See: https://docs.openforcefield.org/projects/toolkit/en/latest/api/generated/openff.toolkit.topology.Molecule.html#openff.toolkit.topology.Molecule.assign_partial_charges
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
-        omm_small_molecule_ff : str, optional, default=None
-            The OpenMM forcefield for small molecules. Overrides the default inference from the forcefields.
-        omm_forcefields : list of str, optional, default=None
-            The OpenMM forcefields to use. Overrides the default inference from the forcefields.
         modifications_kwargs : dict
             A dictionary of keyword arguments for the modifications.
 
@@ -725,6 +724,11 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             )
             modifications_kwargs["MLPotential"]["topology"] = topology
 
+        if any(key in lambda_schedule for key in ["CustomLJ"]):
+            modifications_kwargs["CustomLJ"] = modifications_kwargs.get("CustomLJ", {})
+            modifications_kwargs["CustomLJ"]["original_offxml"] = ffs
+            modifications_kwargs["CustomLJ"]["topology_off"] = topology_off
+
         # Run the Alchemist
         self._run_alchemist(
             system,
@@ -773,11 +777,11 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 _os.path.join(self._TMP_DIR, "topology.pdb"),
                 _to_openmm_positions(interchange, include_virtual_sites=False),
             )
-        
+
         if write_system_xml:
             with open(_os.path.join(self._TMP_DIR, "system.xml"), "w") as f:
                 f.write(_mm.XmlSerializer.serialize(system))
-    
+
         # Clean up the temporary directory
         if not keep_tmp_files:
             _shutil.rmtree(self._TMP_DIR)
