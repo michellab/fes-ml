@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 _EMLE_CALCULATORS = []
 
+
 class EMLEPotentialModificationFactory(BaseModificationFactory):
     """Factory for creating EMLEPotentialModification instances."""
 
