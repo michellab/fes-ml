@@ -100,8 +100,10 @@ class Alchemist:
             The value of the alchemical state parameter.
         """
         if modification.NAME in self._graph.nodes and lambda_value is None:
-            lambda_value = self._graph.nodes[modification.NAME].get("lambda_value", None)
-            
+            lambda_value = self._graph.nodes[modification.NAME].get(
+                "lambda_value", None
+            )
+
         self._graph.add_node(
             modification.NAME, modification=modification, lambda_value=lambda_value
         )
