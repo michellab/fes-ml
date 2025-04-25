@@ -1,4 +1,5 @@
 """Module for the EMLEPotentialModification class and its factory."""
+
 import logging
 from typing import List, Optional
 
@@ -116,14 +117,14 @@ class EMLEPotentialModification(BaseModification):
             cv_force = [
                 f for f in system.getForces() if f.getName() == "MLInterpolation"
             ]
-            assert (
-                len(cv_force) == 1
-            ), f"There are {len(cv_force)} MLInterpolation forces. Only one is allowed."
+            assert len(cv_force) == 1, (
+                f"There are {len(cv_force)} MLInterpolation forces. Only one is allowed."
+            )
 
             cv_force = cv_force[0]
-            assert isinstance(
-                cv_force, _mm.CustomCVForce
-            ), f"Expected a CustomCVForce, but got {type(cv_force)}."
+            assert isinstance(cv_force, _mm.CustomCVForce), (
+                f"Expected a CustomCVForce, but got {type(cv_force)}."
+            )
 
             for i in range(cv_force.getNumGlobalParameters()):
                 if cv_force.getGlobalParameterName(i) == "lambda_interpolate":

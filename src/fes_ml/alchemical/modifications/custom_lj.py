@@ -43,6 +43,7 @@ class CustomLJModification(BaseModification):
         original_offxml: List[str],
         lj_offxml: str,
         topology_off: _Topology,
+        alchemical_atoms_only: bool = True,
         *args,
         **kwargs,
     ) -> _mm.System:
@@ -61,6 +62,10 @@ class CustomLJModification(BaseModification):
             A list of paths to the original OFFXML files.
         lj_offxml : str
             The path to the OFFXML file with the modified Lennard-Jones parameters.
+        topology_off : openff.toolkit.topology.Topology
+            The topology of the system.
+        alchemical_atoms_only : bool
+            Whether to only apply the LJ soft core modification to the alchemical atoms.
         args : tuple
             Additional arguments to be passed to the modification.
         kwargs : dict
@@ -78,7 +83,9 @@ class CustomLJModification(BaseModification):
         force_field_opt = _ForceField(lj_offxml)
         opt_params = {
             p.id: {
-                "epsilon": p.epsilon.to_openmm().value_in_unit(_unit.kilojoules_per_mole),
+                "epsilon": p.epsilon.to_openmm().value_in_unit(
+                    _unit.kilojoules_per_mole
+                ),
                 "sigma": p.sigma.to_openmm().value_in_unit(_unit.nanometer),
             }
             for p in force_field_opt.get_parameter_handler("vdW")
@@ -97,6 +104,10 @@ class CustomLJModification(BaseModification):
 
         # Update the Lennard-Jones parameters in a single loop
         for index, parameters in enumerate(vdw_parameters):
+            if alchemical_atoms_only and index not in alchemical_atoms:
+                continue
+            print(f"Setting Lennard-Jones parameters for atom {index} to {parameters}")
+            print(f"Parameters are {parameters}")
             custom_nb_force.setParticleParameters(index, parameters)
 
         return system

@@ -373,9 +373,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 )
 
         else:
-            assert isinstance(
-                alchemical_atoms, list
-            ), "Alchemical_atoms must be a list of int."
+            assert isinstance(alchemical_atoms, list), (
+                "Alchemical_atoms must be a list of int."
+            )
 
         logger.debug(f"Alchemical atoms: {alchemical_atoms}")
         return alchemical_atoms
@@ -536,6 +536,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         partial_charges_method : str, optional, default="am1bcc"
             The method to use for assigning partial charges to the ligand.
             See: https://docs.openforcefield.org/projects/toolkit/en/latest/api/generated/openff.toolkit.topology.Molecule.html#openff.toolkit.topology.Molecule.assign_partial_charges
+        ligand_geometry : str, optional, default=None
+            The geometry of the ligand.
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
         modifications_kwargs : dict
@@ -588,7 +590,13 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Generate conformers for the ligand and assign partial charges
         if molecules["ligand"] is not None:
-            molecules["ligand"].generate_conformers()
+            if sdf_file_ligand is None:
+                # Only generate conformers if no SDF file is provided
+                # Otherwise, the geometry is taken from the SDF file
+                logger.debug("Generating conformers for the ligand")
+                molecules["ligand"].generate_conformers()
+            else:
+                logger.debug(f"Using provided ligand geometry from {sdf_file_ligand}")
             molecules["ligand"].assign_partial_charges(partial_charges_method)
 
         if topology_pdb:
@@ -673,7 +681,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         # Create/update the modifications kwargs
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
 
-        if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
+        if any(key in lambda_schedule for key in ["EMLEPotential"]):
             modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
                 "EMLEPotential", {}
             )
@@ -741,9 +749,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         if integrator is None:
             integrator = self._create_integrator(temperature, friction, timestep)
         else:
-            assert isinstance(
-                integrator, _mm.Integrator
-            ), "integrator must be an OpenMM Integrator."
+            assert isinstance(integrator, _mm.Integrator), (
+                "integrator must be an OpenMM Integrator."
+            )
             integrator = _deepcopy(integrator)
 
         # Create the simulation

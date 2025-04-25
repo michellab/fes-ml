@@ -1,4 +1,5 @@
 """Module that contains the MLModificationBase from which ML modifications can inherit."""
+
 from copy import deepcopy as _deepcopy
 from typing import List, Tuple
 
@@ -63,7 +64,7 @@ class MLBaseModification:
 
         ml_vars = []
         for i, (force_id, force) in enumerate(ml_forces):
-            name = f"mlForce{i+1}"
+            name = f"mlForce{i + 1}"
             cv.addCollectiveVariable(name, _deepcopy(force))
             ml_vars.append(name)
 
@@ -84,7 +85,7 @@ class MLBaseModification:
 
         mm_vars = []
         for i, force in enumerate(bonded_forces):
-            name = f"{force.getName()}{i+1}"
+            name = f"{force.getName()}{i + 1}"
             cv.addCollectiveVariable(name, _deepcopy(force))
             mm_vars.append(name)
 

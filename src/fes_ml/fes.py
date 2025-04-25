@@ -1,4 +1,5 @@
 """Free Energy Simulation (FES) module."""
+
 import logging
 import os
 import pickle
@@ -133,9 +134,9 @@ class FES:
             )
 
             for alc in self.alchemical_states:
-                assert isinstance(
-                    alc, AlchemicalState
-                ), "alchemical_state must be an AlchemicalState object."
+                assert isinstance(alc, AlchemicalState), (
+                    "alchemical_state must be an AlchemicalState object."
+                )
                 alc.check_integrity()
                 alc.context.setPositions(self._positions)
                 alc.context.setPeriodicBoxVectors(*self._pbc)
@@ -296,9 +297,9 @@ class FES:
             else:
                 alchemical_state = self.alchemical_states[window]
 
-        assert isinstance(
-            alchemical_state, AlchemicalState
-        ), "alchemical_state must be an AlchemicalState object."
+        assert isinstance(alchemical_state, AlchemicalState), (
+            "alchemical_state must be an AlchemicalState object."
+        )
         alchemical_state.check_integrity()
 
         logger.info(
@@ -342,9 +343,9 @@ class FES:
         """
         if window is None and alchemical_state is None:
             # Attempt batch minimization
-            assert (
-                self.alchemical_states is not None
-            ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+            assert self.alchemical_states is not None, (
+                "The alchemical states have not been created. Run `create_alchemical_states` first."
+            )
 
             for alc in self.alchemical_states:
                 self._minimize_state(tolerance, max_iterations, alc, reporter=reporter)
@@ -387,9 +388,9 @@ class FES:
             else:
                 alchemical_state = self.alchemical_states[window]
 
-        assert isinstance(
-            alchemical_state, AlchemicalState
-        ), "alchemical_state must be an AlchemicalState object."
+        assert isinstance(alchemical_state, AlchemicalState), (
+            "alchemical_state must be an AlchemicalState object."
+        )
         alchemical_state.check_integrity()
 
         # Append reporters to the simulation
@@ -430,9 +431,9 @@ class FES:
         """
         if window is None and alchemical_state is None:
             # Attempt batch equilibration
-            assert (
-                self.alchemical_states is not None
-            ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+            assert self.alchemical_states is not None, (
+                "The alchemical states have not been created. Run `create_alchemical_states` first."
+            )
 
             for alc in self.alchemical_states:
                 self._equilibrate_state(nsteps, alc, reporters=reporters)
@@ -479,9 +480,9 @@ class FES:
                 alchemical_state = self.alchemical_states[window]
 
         # Check the integrity of the alchemical state
-        assert isinstance(
-            alchemical_state, AlchemicalState
-        ), "alchemical_state must be an AlchemicalState object."
+        assert isinstance(alchemical_state, AlchemicalState), (
+            "alchemical_state must be an AlchemicalState object."
+        )
         alchemical_state.check_integrity()
 
         if not self._U_kl:
@@ -561,9 +562,9 @@ class FES:
         u_kln : np.ndarray
             Array with the potential energies of the simulations.
         """
-        assert (
-            self.alchemical_states is not None
-        ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+        assert self.alchemical_states is not None, (
+            "The alchemical states have not been created. Run `create_alchemical_states` first."
+        )
 
         # Resume from the last checkpoint
         if not self._U_kln:

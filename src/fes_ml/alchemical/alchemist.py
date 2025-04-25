@@ -1,4 +1,5 @@
 """Module for the Alchemist class."""
+
 import logging
 import sys
 from copy import deepcopy as _deepcopy
