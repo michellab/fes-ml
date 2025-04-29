@@ -62,7 +62,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
     _PACKMOL_KWARGS = {
         "box_shape": _UNIT_CUBE,
-        "mass_density": 1.0 * _offunit.gram / _offunit.milliliter,
+        "target_density": 1.0 * _offunit.gram / _offunit.milliliter,
     }
 
     _N_MOLECULES = {
@@ -71,7 +71,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         "protein": 1,
     }
 
-    _DEFAULT_FORCEFIELDS = ["openff-2.0.0.offxml", "tip3p.offxml"]
+    _DEFAULT_FORCEFIELDS = ["openff_unconstrained-2.0.0.offxml", "tip3p.offxml"]
 
     _OFF_TO_OMM_MAPPING = {
         # Constraints
@@ -234,7 +234,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         if sdf_file_ligand is not None:
             ligand = _Molecule.from_file(sdf_file_ligand)
         elif smiles_ligand is not None:
-            ligand = _Molecule.from_smiles(smiles_ligand)
+            if OpenFFCreationStrategy.is_mapped_smiles(smiles_ligand):
+                ligand = _Molecule.from_mapped_smiles(smiles_ligand)
+            else:
+                ligand = _Molecule.from_smiles(smiles_ligand)
         else:
             raise ValueError(
                 "Please provide either an SDF file or a SMARTS pattern for the ligand."
@@ -306,19 +309,34 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             mols = [mol for _, mol in molecules.items() if mol is not None]
 
             if packmol_kwargs is None:
-                packmol_kwargs = _deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)
+                packmol_kwargs_local = _deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)
+            else:
+                # Update the packmol_kwargs with the default values
+                # Values in packmol_kwargs take precedence
+                packmol_kwargs_local = {
+                    **packmol_kwargs,
+                    **_deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS),
+                }
 
-            if "number_of_copies" not in packmol_kwargs:
+            if "number_of_copies" not in packmol_kwargs_local:
                 number_of_copies = [
                     OpenFFCreationStrategy._N_MOLECULES[mol_name]
                     for mol_name, mol in molecules.items()
                     if mol is not None
                 ]
+            else:
+                number_of_copies = [
+                    packmol_kwargs_local["number_of_copies"][mol_name]
+                    for mol_name, mol in molecules.items()
+                    if mol is not None
+                ]
+
+                packmol_kwargs_local.pop("number_of_copies")
 
             topology_off = _pack_box(
                 molecules=mols,
                 number_of_copies=number_of_copies,
-                **packmol_kwargs,
+                **packmol_kwargs_local,
             )
 
         return topology_off
@@ -355,9 +373,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 )
 
         else:
-            assert isinstance(
-                alchemical_atoms, list
-            ), "Alchemical_atoms must be a list of int."
+            assert isinstance(alchemical_atoms, list), (
+                "Alchemical_atoms must be a list of int."
+            )
 
         logger.debug(f"Alchemical atoms: {alchemical_atoms}")
         return alchemical_atoms
@@ -458,7 +476,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         topology_pdb: Optional[str] = None,
         write_pdb: bool = True,
         write_gro: bool = True,
-        write_system_xml: bool = False,
+        write_system_xml: bool = True,
         partial_charges_method: str = "am1bcc",
         keep_tmp_files: bool = True,
         modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
@@ -521,12 +539,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         partial_charges_method : str, optional, default="am1bcc"
             The method to use for assigning partial charges to the ligand.
             See: https://docs.openforcefield.org/projects/toolkit/en/latest/api/generated/openff.toolkit.topology.Molecule.html#openff.toolkit.topology.Molecule.assign_partial_charges
+        ligand_geometry : str, optional, default=None
+            The geometry of the ligand.
         keep_tmp_files : bool, optional, default=True
             Whether to keep the temporary files created by the strategy.
-        omm_small_molecule_ff : str, optional, default=None
-            The OpenMM forcefield for small molecules. Overrides the default inference from the forcefields.
-        omm_forcefields : list of str, optional, default=None
-            The OpenMM forcefields to use. Overrides the default inference from the forcefields.
         modifications_kwargs : dict
             A dictionary of keyword arguments for the modifications.
 
@@ -579,7 +595,13 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Generate conformers for the ligand and assign partial charges
         if molecules["ligand"] is not None:
-            molecules["ligand"].generate_conformers()
+            if sdf_file_ligand is None:
+                # Only generate conformers if no SDF file is provided
+                # Otherwise, the geometry is taken from the SDF file
+                logger.debug("Generating conformers for the ligand")
+                molecules["ligand"].generate_conformers()
+            else:
+                logger.debug(f"Using provided ligand geometry from {sdf_file_ligand}")
             molecules["ligand"].assign_partial_charges(partial_charges_method)
 
         if topology_pdb:
@@ -675,9 +697,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             _os.makedirs(self._TMP_DIR, exist_ok=True)
             files_prefix = _os.path.join(self._TMP_DIR, "interchange")
             interchange.to_gromacs(prefix=files_prefix)
-
-        if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
             
+        if any(key in lambda_schedule for key in ["EMLEPotential"]):
             modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
                 "EMLEPotential", {}
             )
@@ -722,6 +743,11 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             )
             modifications_kwargs["MLPotential"]["topology"] = topology
 
+        if any(key in lambda_schedule for key in ["CustomLJ"]):
+            modifications_kwargs["CustomLJ"] = modifications_kwargs.get("CustomLJ", {})
+            modifications_kwargs["CustomLJ"]["original_offxml"] = ffs
+            modifications_kwargs["CustomLJ"]["topology_off"] = topology_off
+
         # Run the Alchemist
         self._run_alchemist(
             system,
@@ -734,9 +760,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         if integrator is None:
             integrator = self._create_integrator(temperature, friction, timestep)
         else:
-            assert isinstance(
-                integrator, _mm.Integrator
-            ), "integrator must be an OpenMM Integrator."
+            assert isinstance(integrator, _mm.Integrator), (
+                "integrator must be an OpenMM Integrator."
+            )
             integrator = _deepcopy(integrator)
 
         # Create the simulation

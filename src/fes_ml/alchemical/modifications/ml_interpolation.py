@@ -1,4 +1,5 @@
 """Module for the MLInterpolationModification class and its factory."""
+
 import logging
 from typing import List
 

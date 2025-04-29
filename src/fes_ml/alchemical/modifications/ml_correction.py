@@ -1,4 +1,5 @@
 """Module for the MLCorrectionModification class and its factory."""
+
 import logging
 from typing import List
 

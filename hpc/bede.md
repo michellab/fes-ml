@@ -176,7 +176,7 @@ conda install -c conda-forge tbb tbb-devel libnetcdf gsl rich zlib
 pip install gemmi lazy_import
 ```
 
-Most of the other dependencies were already included in the base conda environment. 
+Most of the other dependencies were already included in the base conda environment.
 If you have upgrade gcc to version 12.4.0, now downgrade gcc it version 11.4.0:
 
 ```bash

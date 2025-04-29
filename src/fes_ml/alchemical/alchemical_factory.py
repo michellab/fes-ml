@@ -1,4 +1,5 @@
 """Module that defines the AlchemicalStateFactory class."""
+
 import logging
 
 from .alchemical_state import AlchemicalState

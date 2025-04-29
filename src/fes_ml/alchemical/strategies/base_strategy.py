@@ -1,4 +1,5 @@
 """Base strategy for alchemical state creation."""
+
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
@@ -94,7 +95,7 @@ class AlchemicalStateCreationStrategy(ABC):
                     value, None, indentation + 4, False
                 )
             else:
-                logger.debug(f"{' '*indentation}{key}: {value}")
+                logger.debug(f"{' ' * indentation}{key}: {value}")
 
         if initial:
             logger.debug("+" + "-" * 98 + "+")

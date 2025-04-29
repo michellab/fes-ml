@@ -43,6 +43,7 @@ The following alchemical transformations can be performed in fes-ml:
 - `MLInterpolation`: Interpolate between the ML (`MLInterpolation=1`) and MM (`MLInterpolation=0`) potentials.
 - `EMLEPotential`: Interpolate between electrostatic (`EMLEPotential=1`) and mechanical (`EMLEPotential=0`) embedding.
 - `MLCorrection`: Interpolate between the ML (`MLCorrection=1`) and MM (`MLCorrection=0`) potentials through a Δ correction.
+- `CustomLJ`: Modify the LJ parameters for interactions between the ML and MM systems, disregarding the specified lambda value.
 
 The lambda schedule to follow during the simulation is set in a dictionary. For example, to turn off the LJ 12-6 interactions in steps of 0.2 and subsequently turn off the charge in steps of 0.33, the following lambda schedule can be defined:
 

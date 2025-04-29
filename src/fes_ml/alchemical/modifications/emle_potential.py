@@ -1,4 +1,5 @@
 """Module for the EMLEPotentialModification class and its factory."""
+
 import logging
 from typing import List, Optional
 
@@ -9,6 +10,8 @@ import sire as _sr
 from .base_modification import BaseModification, BaseModificationFactory
 
 logger = logging.getLogger(__name__)
+
+_EMLE_CALCULATORS = []
 
 
 class EMLEPotentialModificationFactory(BaseModificationFactory):
@@ -53,7 +56,7 @@ class EMLEPotentialModification(BaseModification):
         method: str = "electrostatic",
         torch_model: bool = False,
         cutoff: str = "12A",
-        neighbour_list_frequency: int = 20,
+        neighbour_list_frequency: int = 0,
         device: Optional[str] = None,
         *args,
         **kwargs,
@@ -114,14 +117,14 @@ class EMLEPotentialModification(BaseModification):
             cv_force = [
                 f for f in system.getForces() if f.getName() == "MLInterpolation"
             ]
-            assert (
-                len(cv_force) == 1
-            ), f"There are {len(cv_force)} MLInterpolation forces. Only one is allowed."
+            assert len(cv_force) == 1, (
+                f"There are {len(cv_force)} MLInterpolation forces. Only one is allowed."
+            )
 
             cv_force = cv_force[0]
-            assert isinstance(
-                cv_force, _mm.CustomCVForce
-            ), f"Expected a CustomCVForce, but got {type(cv_force)}."
+            assert isinstance(cv_force, _mm.CustomCVForce), (
+                f"Expected a CustomCVForce, but got {type(cv_force)}."
+            )
 
             for i in range(cv_force.getNumGlobalParameters()):
                 if cv_force.getGlobalParameterName(i) == "lambda_interpolate":
@@ -170,6 +173,7 @@ class EMLEPotentialModification(BaseModification):
                 *args,
                 **kwargs,
             )
+            _EMLE_CALCULATORS.append(calculator)
 
         # Create a perturbable molecular system and EMLEEngine. (First molecule is QM region.)
         mols, engine = _sr.qm.emle(

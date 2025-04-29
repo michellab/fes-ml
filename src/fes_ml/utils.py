@@ -1,4 +1,5 @@
 """Module with utility functions."""
+
 import openmm as _mm
 
 
