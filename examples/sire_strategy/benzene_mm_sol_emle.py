@@ -16,6 +16,7 @@ LJSoftCore=0, the solute-solvent van der Waals interactions are fully turned off
 
 Authors: Joao Morado
 """
+
 if __name__ == "__main__":
     import numpy as np
 

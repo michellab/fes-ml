@@ -226,7 +226,7 @@ def plot_dihedrals(
 
     legend_labels = []
     for idx, dihedral in enumerate(universe.dihedrals):
-        label = f'Dihedral_{",".join(list(dihedral.atoms.names))}'
+        label = f"Dihedral_{','.join(list(dihedral.atoms.names))}"
         plt.hist(dihedral_angles[:, idx], bins=50, density=True, alpha=0.5, label=label)
         legend_labels.append(label)
 
@@ -246,7 +246,7 @@ def plot_dihedrals(
 
     # Extract the dihedral angle data for one dihedral
     for idx, dihedral in enumerate(universe.dihedrals):
-        label = f'Dihedral_{",".join(list(dihedral.atoms.names))}'
+        label = f"Dihedral_{','.join(list(dihedral.atoms.names))}"
         # first part is the frames (rows), second part is the dihedral index (column)
         dihedral_data = R.angles[:, idx]
 

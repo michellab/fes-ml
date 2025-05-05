@@ -8,6 +8,7 @@ At MLInterpolation=0, the solute is fully simulated with the FF.
 
 Authors: Joao Morado
 """
+
 if __name__ == "__main__":
     import numpy as np
 
