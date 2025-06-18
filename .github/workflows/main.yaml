@@ -77,7 +77,7 @@ jobs:
           junitxml-path: ./pytest.xml
 
       - name: Create the Badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
+        uses: schneegans/dynamic-badges-action@v1.7.0
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: 4e01061daef80d7212844cc9cd272a01
