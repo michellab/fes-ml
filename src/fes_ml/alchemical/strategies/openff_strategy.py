@@ -373,9 +373,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 )
 
         else:
-            assert isinstance(alchemical_atoms, list), (
-                "Alchemical_atoms must be a list of int."
-            )
+            assert isinstance(
+                alchemical_atoms, list
+            ), "Alchemical_atoms must be a list of int."
 
         logger.debug(f"Alchemical atoms: {alchemical_atoms}")
         return alchemical_atoms
@@ -749,9 +749,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         if integrator is None:
             integrator = self._create_integrator(temperature, friction, timestep)
         else:
-            assert isinstance(integrator, _mm.Integrator), (
-                "integrator must be an OpenMM Integrator."
-            )
+            assert isinstance(
+                integrator, _mm.Integrator
+            ), "integrator must be an OpenMM Integrator."
             integrator = _deepcopy(integrator)
 
         # Create the simulation
