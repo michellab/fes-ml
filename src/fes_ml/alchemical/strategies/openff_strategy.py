@@ -624,6 +624,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         for key, value in mdconfig_dict.items():
             setattr(mdconfig, key, value)
         mdconfig.apply(interchange)
+        print(mdconfig_dict)
+        print(mdconfig)
 
         self._report_dict(
             {attr: getattr(mdconfig, attr) for attr in vars(mdconfig)},
@@ -686,7 +688,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         # Create/update the modifications kwargs
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
 
-        if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
+        if any(key in lambda_schedule for key in ["EMLEPotential"]):
             # overwrite if EMLE potential
             write_gro = True
 

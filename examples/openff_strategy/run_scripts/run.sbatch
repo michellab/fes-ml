@@ -3,29 +3,33 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --job-name=fes-ml
-#SBATCH --time=24:00:00
+#SBATCH --time=30-00:00:00
 #SBATCH -o slurm_logs/fes-ml_%A.out
 
 date
 start=`date +%s`
 
-export scripts_dir=$(pwd)
+export scripts_dir=/home/anna/Documents/multitimestep/fes-ml/examples/openff_strategy/run_scripts
 
 # TODO activate fes ml environment
 export env="/home/anna/anaconda3/bin/activate /home/anna/mambaforge/envs/fes-ml"
 source $env
 
-export FES_ML_LOG_LEVEL="DEBUG"
 
-run_dir=test
-smiles="c1ccccc1" # $1
-#smiles="c1ccc2c(c1)C(=O)c3c(ccc(c3C2=O)N)N"
+export FES_ML_LOG_LEVEL="INFO"
+export FES_ML_FILTER_LOGGERS=0
+export FES_ML_DEBUG_LEVEL=1
+export INTERCHANGE_EXPERIMENTAL=1
 
-python $scripts_dir/create_run_system.py --smiles $smiles --folder $run_dir --timestep 2 --use-mts --inner-steps 4 --intermediate-steps 2 # --use-hmr
+IFS=',' read -r -a arguments <<< "$1"
+echo ${arguments[@]}
+echo ${arguments[3]}
 
-python $scripts_dir/agg_ouput.py --folder $run_dir
+python create_run_system.py ${arguments[@]}
 
-python $scripts_dir/analysis.py --folder $run_dir
+python $scripts_dir/agg_ouput.py --folder ${arguments[3]}
+
+python $scripts_dir/analysis.py --folder ${arguments[3]}
 
 echo "done."
 
