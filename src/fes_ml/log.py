@@ -23,9 +23,7 @@ def log_banner() -> None:
 ║   version: {}                                     ║
 ║                                                      ║
 ╚══════════════════════════════════════════════════════╝
-""".format(
-        __version__
-    )
+""".format(__version__)
 
     lines = banner.split("\n")
 
