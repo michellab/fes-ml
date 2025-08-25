@@ -373,9 +373,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 )
 
         else:
-            assert isinstance(
-                alchemical_atoms, list
-            ), "Alchemical_atoms must be a list of int."
+            assert isinstance(alchemical_atoms, list), (
+                "Alchemical_atoms must be a list of int."
+            )
 
         logger.debug(f"Alchemical atoms: {alchemical_atoms}")
         return alchemical_atoms
@@ -737,6 +737,16 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             modifications_kwargs["CustomLJ"]["original_offxml"] = ffs
             modifications_kwargs["CustomLJ"]["topology_off"] = topology_off
 
+            # Get the positions of the alchemical atoms
+            modifications_kwargs["CustomLJ"]["positions"] = positions
+
+        if any(key in lambda_schedule for key in ["ChargeTransfer"]):
+            modifications_kwargs["ChargeTransfer"] = modifications_kwargs.get(
+                "ChargeTransfer", {}
+            )
+            modifications_kwargs["ChargeTransfer"]["original_offxml"] = ffs
+            modifications_kwargs["ChargeTransfer"]["topology_off"] = topology_off
+
         # Run the Alchemist
         self._run_alchemist(
             system,
@@ -749,9 +759,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         if integrator is None:
             integrator = self._create_integrator(temperature, friction, timestep)
         else:
-            assert isinstance(
-                integrator, _mm.Integrator
-            ), "integrator must be an OpenMM Integrator."
+            assert isinstance(integrator, _mm.Integrator), (
+                "integrator must be an OpenMM Integrator."
+            )
             integrator = _deepcopy(integrator)
 
         # Create the simulation

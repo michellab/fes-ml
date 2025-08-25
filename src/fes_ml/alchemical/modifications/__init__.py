@@ -2,6 +2,7 @@
 
 from . import (
     charge_scaling,
+    charge_transfer,
     custom_lj,
     emle_potential,
     intramolecular,

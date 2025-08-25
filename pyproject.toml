@@ -52,6 +52,7 @@ MLInterpolation = "fes_ml.alchemical.modifications.ml_interpolation:MLInterpolat
 MLCorrection = "fes_ml.alchemical.modifications.ml_correction:MLCorrectionModificationFactory"
 EMLEPotential = "fes_ml.alchemical.modifications.emle_potential:EMLEPotentialModificationFactory"
 CustomLJ = "fes_ml.alchemical.modifications.custom_lj:CustomLJModificationFactory"
+ChargeTransfer = "fes_ml.alchemical.modifications.charge_transfer:ChargeTransferModificationFactory"
 
 [tool.coverage.run]
 source = ['src/fes_ml']
