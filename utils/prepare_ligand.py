@@ -1,4 +1,5 @@
 """Prepare a ligand for simulation."""
+
 import BioSimSpace as BSS
 
 molecule = BSS.Parameters.gaff("c1ccccc1").getMolecule()

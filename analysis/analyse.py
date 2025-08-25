@@ -1,4 +1,5 @@
 """Script to calculate free energy differences using MBAR."""
+
 import sys
 
 import matplotlib.pyplot as plt
