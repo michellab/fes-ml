@@ -109,19 +109,19 @@ class MTS:
         - If a group is not provided, all forces are set to the fastest force group.
         """
         if alchemical_states is not None:
-            assert isinstance(alchemical_states, list), (
-                "alchemical_states must be a list."
-            )
+            assert isinstance(
+                alchemical_states, list
+            ), "alchemical_states must be a list."
             for alc in alchemical_states:
-                assert isinstance(alc, AlchemicalState), (
-                    "All elements in alchemical_states must be AlchemicalState."
-                )
+                assert isinstance(
+                    alc, AlchemicalState
+                ), "All elements in alchemical_states must be AlchemicalState."
                 alc.check_integrity()
             self.alchemical_states = alchemical_states
         else:
-            assert self.alchemical_states is not None, (
-                "alchemical_states must be provided to set the force groups."
-            )
+            assert (
+                self.alchemical_states is not None
+            ), "alchemical_states must be provided to set the force groups."
 
         if force_group_dict is not None:
             # get the fastest force group for the unassigned forces
