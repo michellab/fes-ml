@@ -36,13 +36,22 @@ class ChargeTransferModification(BaseModification):
     post_dependencies: List[str] = []
 
     @staticmethod
-    def get_is_donor_acceptor(topology: _Topology) -> tuple[list[int], list[int]]:
+    def get_is_donor_acceptor(
+        topology: _Topology, alchemical_atoms: List[int], symmetric: bool = False
+    ) -> tuple[list[int], list[int]]:
         """
         Generate per-atom flags for donors and acceptors.
 
         Parameters
         ----------
         topology : openff.toolkit.topology.Topology
+
+        alchemical_atoms : list of int
+            List of indices of alchemical atoms.
+
+        symmetric : bool, optional
+            If True, CT will be applied symmetrically between alchemical and MM atoms.
+            Otherwise, only from MM to alchemical atoms. Default is False.
 
         Returns
         -------
@@ -57,13 +66,13 @@ class ChargeTransferModification(BaseModification):
 
         for idx, atom in enumerate(topology.atoms):
             # Donor: hydrogen bonded to N/O/S
-            if atom.atomic_number == 1:
+            if atom.atomic_number == 1 and (symmetric or idx in alchemical_atoms):
                 for bonded_atom in atom.bonded_atoms:
                     if bonded_atom.atomic_number in [7, 8, 16]:
                         is_donor[idx] = 1
                         break
             # Acceptor: heavy atoms
-            elif atom.atomic_number == 8:
+            elif atom.atomic_number == 8 and (symmetric or idx not in alchemical_atoms):
                 num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
                 is_acceptor[idx] = 1
             elif atom.atomic_number == 7:
@@ -138,7 +147,9 @@ class ChargeTransferModification(BaseModification):
         energy_function = f"-{lambda_value}*donor_acceptor*epsilon*exp(-sigma*r);"
         energy_function += "sigma = 0.5*(sigma1+sigma2);"
         energy_function += "epsilon = sqrt(epsilon1*epsilon2);"
-        energy_function += "donor_acceptor = isDonor1*isAcceptor2;"
+        energy_function += (
+            "donor_acceptor = isDonor1*isAcceptor2 + isDonor2*isAcceptor1;"
+        )
 
         logger.debug(f"Charge transfer function: {energy_function}")
 
@@ -165,7 +176,7 @@ class ChargeTransferModification(BaseModification):
 
         # Get donor/acceptor flags
         is_donor, is_acceptor = ChargeTransferModification.get_is_donor_acceptor(
-            topology_off
+            topology_off, alchemical_atoms
         )
 
         for index in range(system.getNumParticles()):
