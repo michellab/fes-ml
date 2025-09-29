@@ -14,9 +14,6 @@ Authors: Joao Morado
 if __name__ == "__main__":
     import numpy as np
 
-    from fes_ml.alchemical.modifications.ml_interpolation import (
-        MLInterpolationModification,
-    )
     from fes_ml.fes import FES
 
     # Set up the alchemical modifications

@@ -2,7 +2,6 @@ import logging
 from typing import List, Optional, Union
 
 import openmm as _mm
-import openmm.app as _app
 import openmm.unit as _unit
 from openff.toolkit.topology import Topology as _Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField as _ForceField
@@ -73,11 +72,11 @@ class ChargeTransferModification(BaseModification):
                         break
             # Acceptor: heavy atoms
             elif atom.atomic_number == 8 and (symmetric or idx not in alchemical_atoms):
-                num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
+                #num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
                 is_acceptor[idx] = 1
             elif atom.atomic_number == 7:
                 # Nitrogen
-                num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
+                #num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
                 is_acceptor[idx] = 1
                 # if num_H != 1 and num_H != 2:  # optionally exclude primary/secondary amines
                 #    is_acceptor[idx] = 1

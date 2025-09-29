@@ -15,10 +15,10 @@ def main(args):
         out = f"{folder}/{i}"
         try:
             f = glob.glob(f"{out}.npy")[0]
-        except:
+        except Exception:
             break
         print(np.load(f).shape)
-        U_kln.append(np.load(f))  # np.load(f)[:, frames_disc::step]
+        U_kln.append(np.load(f)[:, frames_disc::step])
 
     U_kln = np.asarray(U_kln)
     print(U_kln.shape)

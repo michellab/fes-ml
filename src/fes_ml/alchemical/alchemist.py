@@ -1,7 +1,6 @@
 """Module for the Alchemist class."""
 
 import logging
-import sys
 from copy import deepcopy as _deepcopy
 from importlib.metadata import entry_points
 from typing import Any, Dict, List, Optional

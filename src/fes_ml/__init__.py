@@ -7,4 +7,4 @@ from .fes import FES
 from .log import config_logger
 from .mts import MTS
 
-__all__ = ["FES", "MTS"]
+__all__ = ["FES", "MTS", "config_logger"]
