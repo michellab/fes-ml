@@ -121,11 +121,11 @@ lambda_schedule = {
 }
 
 # Define atom indices for each alchemical group
-ligand1_atoms = [1, 2, 3, 4, 5]      # Atoms belonging to first ligand
-ligand2_atoms = [20, 21, 22, 23, 24] # Atoms belonging to second ligand
+ligand1_atoms = [1, 2, 3, 4, 5]       # Atoms belonging to first ligand
+ligand2_atoms = [20, 21, 22, 23, 24]  # Atoms belonging to second ligand
 system_atoms = list(range(1, 50))     # All atoms for ML/MM interpolation
 
-# Define per-group alchemical atoms and other settings
+# Define per-group alchemical atoms
 modifications_kwargs = {
     "LJSoftCore:ligand1": {
         "alchemical_atoms": ligand1_atoms
@@ -147,10 +147,9 @@ modifications_kwargs = {
 
 #### Multiple Instances of the Same Modification Type
 
-You can also use multiple instances of the same modification type for the same group groups. For example, to apply interpolate between two sets of `CustomLJ` parameters:
+You can also use multiple instances of the same modification type for the same group of atoms. For example, to interpolate between two sets of `CustomLJ` parameters:
 
 ```python
-# Lambda schedule with multiple CustomLJ modifications
 lambda_schedule = {
     "LJSoftCore:openff1": [1.0, 0.8, 0.6, 0.4, 0.2, 0.0],
     "LJSoftCore:openff2": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
@@ -158,13 +157,12 @@ lambda_schedule = {
     "CustomLJ:openff2": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
 }
 
-# Define different atoms and LJ parameters for each region
+# Define different LJ parameters for each region
 modifications_kwargs = {
-    "CustomLJ:region1": {
+    "CustomLJ:openff1": {
         "lj_offxml": "openff_unconstrained-1.0.0.offxml",
     },
-    "CustomLJ:region2": {
-        "original_offxml": ["openff-2.1.0.offxml"],
+    "CustomLJ:openff2": {
         "lj_offxml": "openff_unconstrained-2.0.0.offxml",
     }
 }
