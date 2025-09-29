@@ -124,9 +124,12 @@ class Alchemist:
                     pre_modification = factory.create_modification(
                         modification_name=dep_modification_name
                     )
+                    # Add edge first (like before), then recursively add dependency
+                    self._graph.add_edge(dep_modification_name, node_name)
                     self.add_modification_to_graph(pre_modification, None)
-
-                self._graph.add_edge(dep_modification_name, node_name)
+                else:
+                    # Dependency already exists, just add the edge
+                    self._graph.add_edge(dep_modification_name, node_name)
 
         if modification.post_dependencies is not None:
             for post_dependency in modification.post_dependencies:
@@ -147,9 +150,12 @@ class Alchemist:
                     post_modification = factory.create_modification(
                         modification_name=dep_modification_name
                     )
+                    # Add edge first (like before), then recursively add dependency
+                    self._graph.add_edge(node_name, dep_modification_name)
                     self.add_modification_to_graph(post_modification, None)
-
-                self._graph.add_edge(node_name, dep_modification_name)
+                else:
+                    # Dependency already exists, just add the edge
+                    self._graph.add_edge(node_name, dep_modification_name)
 
     def remove_modification_from_graph(self, modification: str) -> None:
         """

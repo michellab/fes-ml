@@ -39,7 +39,10 @@ class MLInterpolationModification(MLBaseModification, BaseModification):
 
     NAME = "MLInterpolation"
     pre_dependencies = [MLPotentialModification.NAME]
-    post_dependencies = [IntraMolecularBondedRemovalModification.NAME, IntraMolecularNonBondedExceptionsModification.NAME]
+    post_dependencies: List[str] = [
+        IntraMolecularBondedRemovalModification.NAME,
+        IntraMolecularNonBondedExceptionsModification.NAME,
+    ]
 
     def apply(
         self,
