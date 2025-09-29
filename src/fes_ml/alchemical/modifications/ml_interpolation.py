@@ -8,6 +8,7 @@ import openmm as _mm
 from .base_modification import BaseModification, BaseModificationFactory
 from .ml_base_modification import MLBaseModification
 from .ml_potential import MLPotentialModification
+from .intramolecular import IntraMolecularBondedRemovalModification, IntraMolecularNonBondedExceptionsModification
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class MLInterpolationModification(MLBaseModification, BaseModification):
 
     NAME = "MLInterpolation"
     pre_dependencies = [MLPotentialModification.NAME]
+    post_dependencies = [IntraMolecularBondedRemovalModification.NAME, IntraMolecularNonBondedExceptionsModification.NAME]
 
     def apply(
         self,
