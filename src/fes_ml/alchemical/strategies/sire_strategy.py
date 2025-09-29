@@ -136,23 +136,36 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         self._report_energy_decomposition(omm_context, omm_system)
 
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
-        if any(key in lambda_schedule for key in ["EMLEPotential", "MLInterpolation"]):
-            modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
-                "EMLEPotential", {}
+
+        # Handle EMLEPotential modifications
+        emle_instances = self._get_modification_instances(
+            lambda_schedule, "EMLEPotential"
+        )
+        if emle_instances:
+            for modification_name in emle_instances:
+                modifications_kwargs[modification_name] = modifications_kwargs.get(
+                    modification_name, {}
+                )
+                modifications_kwargs[modification_name]["mols"] = mols
+                modifications_kwargs[modification_name]["parm7"] = alchemical_prm7[0]
+                modifications_kwargs[modification_name]["mm_charges"] = _np.asarray(
+                    [atom.charge().value() for atom in mols.atoms(alchemical_atoms)]
+                )
+
+        # Handle ML-related modifications
+        ml_types = ["MLPotential", "MLInterpolation", "MLCorrection"]
+        ml_instances = []
+        for ml_type in ml_types:
+            ml_instances.extend(
+                self._get_modification_instances(lambda_schedule, ml_type)
             )
-            modifications_kwargs["EMLEPotential"]["mols"] = mols
-            modifications_kwargs["EMLEPotential"]["parm7"] = alchemical_prm7[0]
-            modifications_kwargs["EMLEPotential"]["mm_charges"] = _np.asarray(
-                [atom.charge().value() for atom in mols.atoms(alchemical_atoms)]
-            )
-        if any(
-            key in lambda_schedule
-            for key in ["MLPotential", "MLInterpolation", "MLCorrection"]
-        ):
-            modifications_kwargs["MLPotential"] = modifications_kwargs.get(
-                "MLPotential", {}
-            )
-            modifications_kwargs["MLPotential"]["topology"] = topology
+
+        if ml_instances:
+            for modification_name in ml_instances:
+                modifications_kwargs[modification_name] = modifications_kwargs.get(
+                    modification_name, {}
+                )
+                modifications_kwargs[modification_name]["topology"] = topology
 
         # Remove constraints involving alchemical atoms
         if remove_constraints:

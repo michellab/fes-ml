@@ -15,14 +15,8 @@ class IntraMolecularNonBondedExceptionsModificationFactory(BaseModificationFacto
     """Factory for creating IntraMolecularNonBondedModification instances."""
 
     def create_modification(self, *args, **kwargs) -> BaseModification:
-        """Create an instance of IntraMolecularNonBondedModification.
-
-        Parameters
-        ----------
-        args : list
-            Additional arguments to be passed to the modification.
-        kwargs : dict
-            Additional keyword arguments to be passed to the modification.
+        """
+        Create an instance of IntraMolecularNonBondedModification.
 
         Returns
         -------
@@ -36,14 +30,8 @@ class IntraMolecularNonBondedForcesModificationFactory(BaseModificationFactory):
     """Factory for creating IntraMolecularNonBondedForcesModification instances."""
 
     def create_modification(self, *args, **kwargs) -> BaseModification:
-        """Create an instance of IntraMolecularNonBondedForcesModification.
-
-        Parameters
-        ----------
-        args : list
-            Additional arguments to be passed to the modification.
-        kwargs : dict
-            Additional keyword arguments to be passed to the modification.
+        """
+        Create an instance of IntraMolecularNonBondedForcesModification.
 
         Returns
         -------
@@ -57,14 +45,8 @@ class IntraMolecularBondedRemovalModificationFactory(BaseModificationFactory):
     """Factory for creating IntraMolecularBondedRemovalModification instances."""
 
     def create_modification(self, *args, **kwargs) -> BaseModification:
-        """Create an instance of IntraMolecularBondedRemovalModification.
-
-        Parameters
-        ----------
-        args : list
-            Additional arguments to be passed to the modification.
-        kwargs : dict
-            Additional keyword arguments to be passed to the modification.
+        """
+        Create an instance of IntraMolecularBondedRemovalModification.
 
         Returns
         -------
@@ -217,6 +199,17 @@ class IntraMolecularBondedRemovalModification(BaseModification):
     """Class to remove bonded interactions (by zeroing them) between alchemical atoms."""
 
     NAME = "IntraMolecularBondedRemoval"
+
+    def __init__(self, modification_name: str = None):
+        """
+        Initialize the IntraMolecularBondedRemovalModification.
+
+        Parameters
+        ----------
+         modification_name : str, optional
+            Custom name for this modification instance.
+        """
+        super().__init__(modification_name)
 
     @staticmethod
     def _should_remove(term_atoms: tuple, atom_set: set, remove_in_set: bool) -> bool:

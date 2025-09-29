@@ -135,6 +135,7 @@ class LJSoftCoreModification(BaseModification):
         soft_core_force.addInteractionGroup(alchemical_atoms, mm_atoms)
 
         # Add the CustomNonbondedForce to the System
+        soft_core_force.setName(self.modification_name)
         system.addForce(soft_core_force)
 
         return system

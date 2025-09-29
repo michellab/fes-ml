@@ -92,7 +92,7 @@ class MLInterpolationModification(MLBaseModification, BaseModification):
         )
         cv.setEnergyFunction(ml_interpolation_function)
         system.addForce(cv)
-        cv.setName(self.NAME)
+        cv.setName(self.modification_name)
 
         logger.debug(f"ML interpolation function: {ml_interpolation_function}")
 

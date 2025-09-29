@@ -33,6 +33,7 @@ class AlchemicalStateCreationStrategy(ABC):
         system: _mm.System,
         alchemical_atoms: List[int],
         lambda_schedule: Dict[str, Union[float, int]],
+        modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -47,16 +48,34 @@ class AlchemicalStateCreationStrategy(ABC):
             The system to be modified.
         alchemical_atoms : list of int
             The list of alchemical atoms.
+        modifications_kwargs : dict, optional
+            A dictionary of keyword arguments for the modifications.
+            It is structured as follows:
+            {
+                "modification_name": {
+                    "key1": value1,
+                    "key2": value2,
+                    ...
+                },
+                ...
+            }
         args : list
             Additional arguments to be passed to the Alchemist ``apply_modifications`` method.
         kwargs : dict
             Additional keyword arguments to be passed to the Alchemist ``apply_modifications`` method.
         """
         alchemist = Alchemist()
-        alchemist.create_alchemical_graph(lambda_schedule)
+        alchemist.create_alchemical_graph(
+            lambda_schedule, modifications_kwargs=modifications_kwargs
+        )
+
+        if modifications_kwargs is None:
+            modifications_kwargs = {}
+
         alchemist.apply_modifications(
             system,
             alchemical_atoms,
+            modifications_kwargs,
             *args,
             **kwargs,
         )
@@ -86,6 +105,56 @@ class AlchemicalStateCreationStrategy(ABC):
 
         if initial:
             logger.debug("+" + "-" * 98 + "+")
+
+    @staticmethod
+    def _has_modification_type(
+        lambda_schedule: Dict[str, Union[float, int]], base_name: str
+    ) -> bool:
+        """
+        Check if any modification of a given base type exists in the lambda schedule.
+
+        Parameters
+        ----------
+        lambda_schedule : Dict[str, Union[float, int]]
+            Dictionary mapping modification names to lambda values.
+        base_name : str
+            The base modification type name (e.g., "EMLEPotential", "CustomLJ").
+
+        Returns
+        -------
+        bool
+            True if any modification of the base type exists, False otherwise.
+        """
+        return any(
+            key == base_name or key.startswith(f"{base_name}:")
+            for key in lambda_schedule.keys()
+        )
+
+    @staticmethod
+    def _get_modification_instances(
+        lambda_schedule: Dict[str, Union[float, int]], base_name: str
+    ) -> List[str]:
+        """
+        Get all modification instance names of a given base type from the lambda schedule.
+
+        Parameters
+        ----------
+        lambda_schedule : Dict[str, Union[float, int]]
+            Dictionary mapping modification names to lambda values.
+        base_name : str
+            The base modification type name (e.g., "EMLEPotential", "CustomLJ").
+
+        Returns
+        -------
+        List[str]
+            List of all modification instance names matching the base type.
+            Examples: ["CustomLJ", "CustomLJ:region1", "CustomLJ:region2"]
+        """
+        return [
+            key
+            for key in lambda_schedule.keys()
+            if key == base_name or key.startswith(f"{base_name}:")
+        ]
 
     @staticmethod
     def _report_energy_decomposition(context, system) -> None:

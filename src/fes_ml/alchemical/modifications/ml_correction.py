@@ -97,7 +97,7 @@ class MLCorrectionModification(MLBaseModification, BaseModification):
         mm_sum = "+".join(mm_vars) if len(mm_vars) > 0 else "0"
         ml_interpolation_function = f"lambda_interpolate*({ml_sum} - ({mm_sum}))"
         cv.setEnergyFunction(ml_interpolation_function)
-        cv.setName(self.NAME)
+        cv.setName(self.modification_name)
         system.addForce(cv)
 
         logger.debug(f"ML correction function: {ml_interpolation_function}")
