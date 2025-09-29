@@ -197,12 +197,10 @@ class Alchemist:
                 )
 
             if modifications_kwargs is not None and name in modifications_kwargs:
-                if modification_name in modifications_kwargs:
-                    raise ValueError(
-                        f"Cannot rename '{name}' to '{modification_name}': "
-                        "key already exists in modifications_kwargs."
+                if modification_name not in modifications_kwargs:
+                    modifications_kwargs[modification_name] = modifications_kwargs.pop(
+                        name
                     )
-                modifications_kwargs[modification_name] = modifications_kwargs.pop(name)
 
             if base_name in Alchemist._modification_factories:
                 factory = self._modification_factories[base_name]
