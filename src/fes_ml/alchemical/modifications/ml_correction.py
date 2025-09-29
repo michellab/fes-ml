@@ -6,10 +6,6 @@ from typing import List
 import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory
-from .intramolecular import (
-    IntraMolecularBondedRemovalModification,
-    IntraMolecularNonBondedExceptionsModification,
-)
 from .ml_base_modification import MLBaseModification
 from .ml_potential import MLPotentialModification
 
@@ -42,12 +38,6 @@ class MLCorrectionModification(MLBaseModification, BaseModification):
 
     NAME = "MLCorrection"
     pre_dependencies: List[str] = [MLPotentialModification.NAME]
-    post_dependencies: List[str] = [
-        IntraMolecularNonBondedExceptionsModification.NAME,
-    ]
-    skip_dependencies: List[str] = [
-        IntraMolecularBondedRemovalModification.NAME,
-    ]
 
     def apply(
         self,
