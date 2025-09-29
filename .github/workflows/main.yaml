@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.10"]
+        python-version: ["3.12"]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -36,7 +36,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest] #, macos-latest, windows-latest]
-        python-version: ["3.10"]
+        python-version: ["3.12"]
 
     defaults:
       run:
@@ -94,7 +94,7 @@ jobs:
   #   strategy:
   #     matrix:
   #         os: [ubuntu-latest]
-  #         python-version: ["3.10"]
+  #         python-version: ["3.12"]
 
   #   runs-on: ${{ matrix.os }}
   #   steps:
