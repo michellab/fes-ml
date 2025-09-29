@@ -1,4 +1,4 @@
-name: fes-ml-aev
+name: fes-ml-aev-fix
 
 channels:
   - conda-forge
@@ -7,10 +7,10 @@ channels:
 dependencies:
   - ambertools
   - compilers
-  - cudatoolkit<11.9
+  - cudatoolkit=11.8
   - eigen
   - loguru
-  - openmm>=8.3
+  - openmm>=8.1
   - openmm-torch
   - openmm-ml
   - openmmforcefields
