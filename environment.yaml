@@ -1,4 +1,4 @@
-name: fes-ml-aev-fix
+name: fes-ml-aev
 
 channels:
   - conda-forge
