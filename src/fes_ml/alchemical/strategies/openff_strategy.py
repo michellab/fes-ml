@@ -742,11 +742,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             )
 
         if ml_instances:
-            for modification_name in ml_instances:
-                modifications_kwargs[modification_name] = modifications_kwargs.get(
-                    modification_name, {}
-                )
-                modifications_kwargs[modification_name]["topology"] = topology
+            modifications_kwargs["MLPotential"] = modifications_kwargs.get(
+                "MLPotential", {}
+            )
+            modifications_kwargs["MLPotential"]["topology"] = topology
 
         # Handle CustomLJ modifications
         customlj_instances = self._get_modification_instances(
