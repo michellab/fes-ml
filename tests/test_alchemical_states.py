@@ -244,7 +244,7 @@ class TestAlchemicalStates:
         non_bonded_forces = [
             "NonbondedForce",
             "CustomBondForce",
-            "CustomNonbondedForce",
+            "LJSoftCore:default",
         ]
         alc_nonbonded_force = sum(
             alc_energy_decom[force]._value
