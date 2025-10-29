@@ -90,6 +90,7 @@ class ChargeTransferModification(BaseModification):
         system: _mm.System,
         alchemical_atoms: List[int],
         original_offxml: List[str],
+        ct_offxml: str,
         topology_off: _Topology,
         lambda_value: Optional[Union[float, int]] = 1.0,
         *args,
@@ -104,6 +105,8 @@ class ChargeTransferModification(BaseModification):
             The system to be modified.
         alchemical_atoms : list of int
             The indices of the alchemical atoms in the system.
+        ct_offxml: str
+            Path to the offxml file containing the charge transfer parameters.
         original_offxml : List[str]
             List of paths to the original offxml files.
         topology_off : openff.toolkit.topology.Topology
@@ -120,34 +123,12 @@ class ChargeTransferModification(BaseModification):
         openmm.System
             The modified system.
         """
-        ct_paraams = {
-            "n21": {"sigma": 3.1739, "eps": 169.0640},
-            "n16": {"sigma": 4.3983, "eps": 42.4290},
-            "n3": {"sigma": 5.9554, "eps": 0.1890},
-            "n-tip3p-O": {"sigma": 5.5019, "eps": 119.9913},
-            "n-tip3p-H": {"sigma": 5.6480, "eps": 3.4209},
-            "n20": {"sigma": 4.1808, "eps": 71.9843},
-            "n2": {"sigma": 7.6786, "eps": 0.1502},
-            "n18": {"sigma": 4.7983, "eps": 78.6935},
-            "n14": {"sigma": 3.9557, "eps": 50.0886},
-            "n17": {"sigma": 4.6716, "eps": 61.3267},
-            "n9": {"sigma": 5.2866, "eps": 0.8104},
-            "n4": {"sigma": 5.8806, "eps": 0.4651},
-            "n13": {"sigma": 5.3179, "eps": 1.1033},
-            "n11": {"sigma": 5.2541, "eps": 0.7611},
-            "n19": {"sigma": 4.9034, "eps": 75.1253},
-            "n12": {"sigma": 4.6507, "eps": 1.0854},
-            "n7": {"sigma": 6.8461, "eps": 0.5855},
-            "n15": {"sigma": 4.3835, "eps": 59.0651},
-            "n10": {"sigma": 5.3841, "eps": 0.4192},
-            "n8": {"sigma": 6.7245, "eps": 0.7046},
-        }
-
-        energy_function = f"-{lambda_value}*donor_acceptor*epsilon*exp(-sigma*r);"
-        energy_function += "sigma = 0.5*(sigma1+sigma2);"
-        energy_function += "epsilon = sqrt(epsilon1*epsilon2);"
+        # Convert units
+        energy_function = f"-{lambda_value}*donor_acceptor*epsilon*exp(-r/sigma);"
+        energy_function += "sigma = sqrt(sigma1*sigma2);"
+        energy_function += "epsilon = (epsilon1*epsilon2);"
         energy_function += (
-            "donor_acceptor = isDonor1*isAcceptor2 + isDonor2*isAcceptor1;"
+            "donor_acceptor = 1;"#isDonor1*isAcceptor2 + isDonor2*isAcceptor1;"
         )
 
         logger.debug(f"Charge transfer function: {energy_function}")
@@ -163,28 +144,43 @@ class ChargeTransferModification(BaseModification):
         # Add per-particle parameters to the CustomNonbondedForce
         charge_transfer_force.addPerParticleParameter("sigma")
         charge_transfer_force.addPerParticleParameter("epsilon")
-        charge_transfer_force.addPerParticleParameter("isDonor")
-        charge_transfer_force.addPerParticleParameter("isAcceptor")
+        #charge_transfer_force.addPerParticleParameter("isDonor")
+        #charge_transfer_force.addPerParticleParameter("isAcceptor")
 
         # Update the Lennard-Jones parameters in the CustomNonbondedForce
-        force_field = _ForceField(*original_offxml)
-        labels = force_field.label_molecules(topology_off)
+        #force_field = _ForceField(*original_offxml)
+        #labels = force_field.label_molecules(topology_off)
 
         # Get atom types
-        atom_types = [val.id for mol in labels for _, val in mol["vdW"].items()]
+        #atom_types = [val.id for mol in labels for _, val in mol["vdW"].items()]
 
         # Get donor/acceptor flags
         is_donor, is_acceptor = ChargeTransferModification.get_is_donor_acceptor(
             topology_off, alchemical_atoms
         )
 
+        # CT force field
+        ct_force_field = _ForceField(ct_offxml)
+        labels = ct_force_field.label_molecules(topology_off)
+        ct_params = {
+            p.id: {
+                "epsilon": p.epsilon.to_openmm().value_in_unit(
+                    _unit.kilojoules_per_mole
+                ),
+                "sigma": p.sigma.to_openmm().value_in_unit(_unit.nanometer),
+            }
+            for p in ct_force_field.get_parameter_handler("vdW")
+        }
+        atom_types = [val.id for mol in labels for _, val in mol["vdW"].items()]
+
         for index in range(system.getNumParticles()):
+            at_type = atom_types[index]
             charge_transfer_force.addParticle(
                 [
-                    ct_paraams.get(atom_types[index], {}).get("sigma", 0) * 10,
-                    ct_paraams.get(atom_types[index], {}).get("eps", 0) * 1e3,
-                    is_donor[index],
-                    is_acceptor[index],
+                    ct_params[at_type]["sigma"],
+                    ct_params[at_type]["epsilon"],# * 10.0,
+                    #is_donor[index],
+                    #is_acceptor[index],
                 ]
             )
 
