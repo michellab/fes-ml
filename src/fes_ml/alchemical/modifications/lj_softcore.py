@@ -51,6 +51,8 @@ class LJSoftCoreModification(BaseModification):
         system: _mm.System,
         alchemical_atoms: List[int],
         lambda_value: Optional[Union[float, int]] = 1.0,
+        include_repulsion: bool = True,
+        include_attraction: bool = True,
         *args,
         **kwargs,
     ) -> _mm.System:
@@ -65,6 +67,12 @@ class LJSoftCoreModification(BaseModification):
             The indices of the alchemical atoms in the system.
         lambda_value : float
             The value of the alchemical state parameter.
+        include_repulsion : bool, optional
+            Whether to include the short-range repulsive term (r^-12 component).
+            Default is True.
+        include_attraction : bool, optional
+            Whether to include the long-range attractive term (r^-6 component).
+            Default is True.
         args : tuple
             Additional arguments to be passed to the modification.
         kwargs : dict
@@ -78,21 +86,54 @@ class LJSoftCoreModification(BaseModification):
         forces = {force.__class__.__name__: force for force in system.getForces()}
         nb_force = forces["NonbondedForce"]
 
+        if not include_repulsion and not include_attraction:
+            raise ValueError("At least one of include_repulsion or include_attraction must be True.")
+
         # Define the softcore Lennard-Jones energy function
-        energy_function = (
-            f"{lambda_value}*4*epsilon*x*(x-1.0); x = (sigma/reff_sterics)^6;"
-        )
-        energy_function += (
-            f"reff_sterics = sigma*(0.5*(1.0-{lambda_value}) + (r/sigma)^6)^(1/6);"
-        )
-        energy_function += (
-            "sigma = 0.5*(sigma1+sigma2); epsilon = sqrt(epsilon1*epsilon2);"
+        # Standard LJ: 4*epsilon*(x^2 - x) where x = (sigma/r)^6
+        # Softcore LJ: 4*epsilon*(x_soft^2 - x_soft) where x_soft = (sigma/reff)^6
+        terms = []
+        # Main energy expression pieces
+        if include_repulsion:
+            terms.append(f"{lambda_value}*4*epsilon*x*x")
+        if include_attraction:
+            terms.append(f"-{lambda_value}*4*epsilon*x*fdamp")
+
+        energy_expr = " + ".join(terms)
+         
+        # Full OpenMM expression: E; intermediate definitions follow
+        expr = (
+            f"{energy_expr}; "
+            "x=(sigma/reff)^6; "
+            f"reff=sigma*(0.5*(1.0-{lambda_value})+(r/sigma)^6)^(1/6); "
+            "sigma=0.5*(sigma1+sigma2); "
+            "epsilon=sqrt(epsilon1*epsilon2); "
         )
 
-        logger.debug(f"LJ softcore function: {energy_function}")
+        # Add damping if needed 
+        if include_attraction and not include_repulsion:
+            expr += (
+                # Tang-Toennies f6(b*r) expansion, truncated to 6th order
+                "fdamp=1.0 - exp(-xdamp)*(1.0 + xdamp + 0.5*xdamp^2 + "
+                "(1.0/6.0)*xdamp^3 + (1.0/24.0)*xdamp^4 + "
+                "(1.0/120.0)*xdamp^5 + (1.0/720.0)*xdamp^6);"
+                "xdamp=bdamp*r; "
+                "bdamp=1/0.021; "
+            )
+        else:
+            expr += "fdamp=1.0;"
+
+        """
+        energy_function = 'lambda*4*epsilon*x*(x-1.0); x = (sigma/reff_sterics)^6;'
+        energy_function += 'reff_sterics = sigma*(0.5*(1.0-lambda) + (r/sigma)^6)^(1/6);'
+        energy_function += 'sigma = 0.5*(sigma1+sigma2); epsilon = sqrt(epsilon1*epsilon2);'
+        custom_force = CustomNonbondedForce(energy_function)
+        """
+
+        logger.debug(f"Softcore LJ expression: {expr}")
 
         # Create a CustomNonbondedForce to compute the softcore Lennard-Jones
-        soft_core_force = _mm.CustomNonbondedForce(energy_function)
+        soft_core_force = _mm.CustomNonbondedForce(expr)
 
         if self._NON_BONDED_METHODS[nb_force.getNonbondedMethod()] in [
             self._NON_BONDED_METHODS[3],
@@ -135,6 +176,7 @@ class LJSoftCoreModification(BaseModification):
         soft_core_force.addInteractionGroup(alchemical_atoms, mm_atoms)
 
         # Add the CustomNonbondedForce to the System
+        soft_core_force.setName(self.modification_name)
         system.addForce(soft_core_force)
 
         return system

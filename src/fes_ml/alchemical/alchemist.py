@@ -1,19 +1,14 @@
 """Module for the Alchemist class."""
 
 import logging
-import sys
 from copy import deepcopy as _deepcopy
+from importlib.metadata import entry_points
 from typing import Any, Dict, List, Optional
 
 import networkx as nx
 import openmm as _mm
 
 from .modifications.base_modification import BaseModification, BaseModificationFactory
-
-if sys.version_info < (3, 10):
-    from importlib_metadata import entry_points
-else:
-    from importlib.metadata import entry_points
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +17,7 @@ class Alchemist:
     """A class for applying alchemical modifications to an OpenMM system."""
 
     _modification_factories: Dict[str, BaseModificationFactory] = {}
+    _DEFAULT_ALCHEMICAL_GROUP = ":default"
 
     @staticmethod
     def register_modification_factory(
@@ -100,13 +96,13 @@ class Alchemist:
         lambda_value : float
             The value of the alchemical state parameter.
         """
-        if modification.NAME in self._graph.nodes and lambda_value is None:
-            lambda_value = self._graph.nodes[modification.NAME].get(
-                "lambda_value", None
-            )
+        node_name = modification.modification_name
+
+        if node_name in self._graph.nodes and lambda_value is None:
+            lambda_value = self._graph.nodes[node_name].get("lambda_value", None)
 
         self._graph.add_node(
-            modification.NAME, modification=modification, lambda_value=lambda_value
+            node_name, modification=modification, lambda_value=lambda_value
         )
 
         if modification.pre_dependencies is not None:
@@ -119,10 +115,21 @@ class Alchemist:
                         "modification is implemented and registered as an entry point."
                     )
 
-                factory = self._modification_factories[pre_dependency]
-                pre_modification = factory.create_modification()
-                self._graph.add_edge(pre_modification.NAME, modification.NAME)
-                self.add_modification_to_graph(pre_modification, None)
+                # Check if dependency already exists in graph
+                dep_modification_name = (
+                    f"{pre_dependency}:{modification.alchemical_group}"
+                )
+                if dep_modification_name not in self._graph.nodes:
+                    factory = self._modification_factories[pre_dependency]
+                    pre_modification = factory.create_modification(
+                        modification_name=dep_modification_name
+                    )
+                    # Add edge first (like before), then recursively add dependency
+                    self._graph.add_edge(dep_modification_name, node_name)
+                    self.add_modification_to_graph(pre_modification, None)
+                else:
+                    # Dependency already exists, just add the edge
+                    self._graph.add_edge(dep_modification_name, node_name)
 
         if modification.post_dependencies is not None:
             for post_dependency in modification.post_dependencies:
@@ -133,10 +140,22 @@ class Alchemist:
                         "typos in the name of this post-dependency and that the target "
                         "modification is implemented and registered as an entry point."
                     )
-                factory = self._modification_factories[post_dependency]
-                post_modification = factory.create_modification()
-                self._graph.add_edge(modification.NAME, post_modification.NAME)
-                self.add_modification_to_graph(post_modification, None)
+
+                # Check if dependency already exists in graph
+                dep_modification_name = (
+                    f"{post_dependency}:{modification.alchemical_group}"
+                )
+                if dep_modification_name not in self._graph.nodes:
+                    factory = self._modification_factories[post_dependency]
+                    post_modification = factory.create_modification(
+                        modification_name=dep_modification_name
+                    )
+                    # Add edge first (like before), then recursively add dependency
+                    self._graph.add_edge(node_name, dep_modification_name)
+                    self.add_modification_to_graph(post_modification, None)
+                else:
+                    # Dependency already exists, just add the edge
+                    self._graph.add_edge(node_name, dep_modification_name)
 
     def remove_modification_from_graph(self, modification: str) -> None:
         """
@@ -153,6 +172,7 @@ class Alchemist:
         self,
         lambda_schedule: Dict[str, float],
         additional_modifications: Optional[List[str]] = None,
+        modifications_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
     ):
         """
         Create a graph of alchemical modifications to apply.
@@ -163,6 +183,8 @@ class Alchemist:
             A dictionary of λ values to be applied to the system.
         additional_modifications : list of str
             Additional modifications to apply.
+        modifications_kwargs : dict
+            A dictionary of keyword arguments for the modifications.
 
         Returns
         -------
@@ -171,31 +193,109 @@ class Alchemist:
         """
         logger.debug("Creating graph of alchemical modifications.")
         for name, lambda_value in lambda_schedule.items():
-            if name in Alchemist._modification_factories:
-                factory = self._modification_factories[name]
-                modification = factory.create_modification()
+            if ":" in name:
+                base_name, modification_name = name.split(":", 1)[0], name
+            else:
+                base_name, modification_name = (
+                    name,
+                    name + self._DEFAULT_ALCHEMICAL_GROUP,
+                )
+
+            if modifications_kwargs is not None and name in modifications_kwargs:
+                if modification_name not in modifications_kwargs:
+                    modifications_kwargs[modification_name] = modifications_kwargs.pop(
+                        name
+                    )
+
+            if base_name in Alchemist._modification_factories:
+                factory = self._modification_factories[base_name]
+                modification = factory.create_modification(
+                    modification_name=modification_name
+                )
                 self.add_modification_to_graph(modification, lambda_value=lambda_value)
             else:
-                raise ValueError(f"Modification {name} not found in the factories.")
+                raise ValueError(
+                    f"Modification {base_name} not found in the factories."
+                )
 
         if additional_modifications is not None:
             for name in additional_modifications:
-                if name in Alchemist._modification_factories:
-                    factory = self._modification_factories[name]
-                    modification = factory.create_modification()
-                    self.add_modification_to_graph(
-                        modification, lambda_value=lambda_value
-                    )
+                if ":" in name:
+                    base_name, modification_name = name.split(":", 1)[0], name
                 else:
-                    raise ValueError(f"Modification {name} not found in the factories.")
+                    base_name, modification_name = (
+                        name,
+                        name + self._DEFAULT_ALCHEMICAL_GROUP,
+                    )
 
-        # After the graph is created, removed dependencies to skip
+                if modifications_kwargs is not None and name in modifications_kwargs:
+                    if modification_name in modifications_kwargs:
+                        raise ValueError(
+                            f"Cannot rename '{name}' to '{modification_name}': "
+                            "key already exists in modifications_kwargs."
+                        )
+                    modifications_kwargs[modification_name] = modifications_kwargs.pop(
+                        name
+                    )
+
+                if base_name in Alchemist._modification_factories:
+                    factory = self._modification_factories[base_name]
+                    modification = factory.create_modification(
+                        modification_name=modification_name
+                    )
+                    self.add_modification_to_graph(modification, lambda_value=None)
+                else:
+                    raise ValueError(
+                        f"Modification {base_name} not found in the factories."
+                    )
+
+        # After constructing the graph, remove dependencies to skip
         ref_graph = _deepcopy(self._graph)
         for _, data in ref_graph.nodes.data():
             modification = data["modification"]
             if modification.skip_dependencies:
                 for skip_dependency in modification.skip_dependencies:
                     self.remove_modification_from_graph(skip_dependency)
+
+        # After constructing the graph, remove redundant modifications
+        # Redundancy is determined using a binary overlap principle:
+        # - Total overlap: if two modifications have identical alchemical atoms, keep only one
+        # - No overlap: if the alchemical atoms are disjoint, keep both modifications
+        # - Partial overlap: if the alchemical atoms partially overlap, raise an error
+        #   (this behavior may be implemented in the future)
+        modifications_kwargs = modifications_kwargs or {}
+        redundant_modifications = [
+            name for name in self._graph.nodes if name not in lambda_schedule
+        ]
+        mod_atoms = {
+            name: set(modifications_kwargs.get(name, {}).get("alchemical_atoms", []))
+            for name in redundant_modifications
+        }
+        to_remove = set()
+        for i, name in enumerate(redundant_modifications):
+            base_name = name.split(":", 1)[0]
+            set_a = mod_atoms[name]
+            for j in range(i + 1, len(redundant_modifications)):
+                other_name = redundant_modifications[j]
+                other_base_name = other_name.split(":", 1)[0]
+                if base_name != other_base_name:
+                    continue
+                set_b = mod_atoms[other_name]
+                if set_a == set_b:
+                    # If both modifications have the same alchemical atoms, keep only one
+                    to_remove.add(other_name)
+                elif not set_a.isdisjoint(set_b):
+                    # Partial overlap detected, raise an error
+                    raise ValueError(
+                        f"Partial overlap detected between modifications '{name}' and '{other_name}'. "
+                        "Please ensure that alchemical atoms either fully overlap or are disjoint."
+                    )
+
+        for name in to_remove:
+            self.remove_modification_from_graph(name)
+
+        for _, data in list(self._graph.nodes.data()):
+            modification = data["modification"]
 
         logger.debug("Created graph of alchemical modifications:\n")
         for line in nx.generate_network_text(
@@ -246,7 +346,10 @@ class Alchemist:
         for mod in nx.topological_sort(self._graph):
             lambda_value = self._graph.nodes[mod]["lambda_value"]
             mod_instance = self._graph.nodes[mod]["modification"]
-            mod_kwargs = modifications_kwargs.get(mod, {})
+            # Try both instance name and base name for kwargs lookup
+            mod_kwargs = modifications_kwargs.get(
+                mod, modifications_kwargs.get(mod_instance.NAME, {})
+            )
 
             if lambda_value is None:
                 logger.debug(f"Applying {mod} modification")

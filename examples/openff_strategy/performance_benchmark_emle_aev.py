@@ -10,13 +10,11 @@ if __name__ == "__main__":
     import sys
     import time
 
-    import numpy as np
     import openff.units as offunit
-    import openmm as mm
     import openmm.app as app
     import openmm.unit as unit
 
-    from fes_ml import FES, MTS
+    from fes_ml import FES
 
     if len(sys.argv) == 1:
         raise ValueError("must pass window as positional arguments")

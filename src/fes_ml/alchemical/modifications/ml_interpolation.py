@@ -7,6 +7,8 @@ import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory
 from .ml_base_modification import MLBaseModification
+from .ml_potential import MLPotentialModification
+from .intramolecular import IntraMolecularBondedRemovalModification, IntraMolecularNonBondedExceptionsModification
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +38,10 @@ class MLInterpolationModification(MLBaseModification, BaseModification):
     """Class to add a CustomCVForce to interpolate between ML and MM forces."""
 
     NAME = "MLInterpolation"
-    pre_dependencies = ["MLPotential"]
-    post_dependencies = [
-        "IntraMolecularNonBondedExceptions",
-        "IntraMolecularBondedRemoval",
+    pre_dependencies = [MLPotentialModification.NAME]
+    post_dependencies: List[str] = [
+        IntraMolecularBondedRemovalModification.NAME,
+        IntraMolecularNonBondedExceptionsModification.NAME,
     ]
 
     def apply(
@@ -92,7 +94,7 @@ class MLInterpolationModification(MLBaseModification, BaseModification):
         )
         cv.setEnergyFunction(ml_interpolation_function)
         system.addForce(cv)
-        cv.setName(self.NAME)
+        cv.setName(self.modification_name)
 
         logger.debug(f"ML interpolation function: {ml_interpolation_function}")
 

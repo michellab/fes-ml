@@ -6,29 +6,26 @@ channels:
 
 dependencies:
   - ambertools
-  - ase
   - compilers
-  - cudatoolkit<11.9
-  - deepmd-kit
+  - cudatoolkit=11.8
   - eigen
   - loguru
   - openmm>=8.1
   - openmm-torch
+  - openmm-ml
   - openmmforcefields
   - openff-toolkit
   - openff-interchange
   - nnpops
   - pip
   - pybind11
-  - pytorch
+  - pytorch=*=*cuda*
   - python
   - pyyaml
   - sire
   - torchani
   - pygit2
-  - xtb-python
   - pip:
     - git+https://github.com/chemle/emle-engine.git
-    - git+https://github.com/openmm/openmm-ml.git
     - coloredlogs
     - mace-torch

@@ -19,6 +19,11 @@ class CustomLJModificationFactory(BaseModificationFactory):
         """
         Create an instance of CustomLJModification.
 
+        Parameters
+        ----------
+        modification_name : str, optional
+            Custom name for this modification instance.
+
         Returns
         -------
         CustomLJModification
@@ -76,8 +81,19 @@ class CustomLJModification(BaseModification):
         openmm.System
             The modified system.
         """
-        forces = {force.__class__.__name__: force for force in system.getForces()}
-        custom_nb_force = forces["CustomNonbondedForce"]
+        # Find the related LJSoftCore force based on instance naming
+        alchemical_group = self.alchemical_group
+        group_forces = self.find_forces_by_group(system, self.alchemical_group)
+        custom_nb_forces = [
+            force
+            for force in group_forces
+            if force.getName() == f"LJSoftCore:{alchemical_group}"
+        ]
+        if not custom_nb_forces:
+            raise ValueError(
+                f"Attempting to modify LJ parameters but no LJSoftCore force found for alchemical group '{alchemical_group}'"
+            )
+        custom_nb_force = custom_nb_forces[0]
 
         # Create a dictionary with the optimized Lennard-Jones parameters for each atom type
         force_field_opt = _ForceField(lj_offxml)
@@ -106,8 +122,9 @@ class CustomLJModification(BaseModification):
         for index, parameters in enumerate(vdw_parameters):
             if alchemical_atoms_only and index not in alchemical_atoms:
                 continue
-            print(f"Setting Lennard-Jones parameters for atom {index} to {parameters}")
-            print(f"Parameters are {parameters}")
             custom_nb_force.setParticleParameters(index, parameters)
+
+        # Update name (will override LJSoftCore name)
+        custom_nb_force.setName(self.modification_name)
 
         return system

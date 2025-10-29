@@ -6,17 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "fes_ml"
 description = "A package to run hybrid ML/MM free energy simulations."
 requires-python = ">=3.9"
-keywords = ["free energy simulation", "free energy", "force field", "machine learning", "openmm"]
+keywords = ["free energy simulations", "free energy", "force field", "machine learning", "openmm"]
 authors = [{email = "jmorado@ed.ac.uk"},{name = "Joao Morado"}]
 maintainers = [{name = "Joao Morado", email = "jmorado@ed.ac.uk"}]
 classifiers = [
   "License :: OSI Approved :: GPL License",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
-  "Topic :: Oceanography Modeling",
   "Topic :: Scientific/Engineering",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.10"
+  "Programming Language :: Python :: 2"
 ]
 
 dynamic = [
@@ -66,3 +65,21 @@ where = ["src"]
 include = ["*"]
 exclude = ["*__pycache__*"]
 namespaces = true
+
+[tool.ruff]
+fix = true
+line-length = 144
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E203", "I001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fes_ml"]
+combine-as-imports = true
+force-single-line = false
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true

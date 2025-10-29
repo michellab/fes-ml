@@ -63,22 +63,22 @@ class ChargeScalingModification(BaseModification):
         system : openmm.System
             The modified System with the charges scaled.
         """
-        nb_forces = [
+        nonbondedforces = [
             force
             for force in system.getForces()
             if isinstance(force, _mm.NonbondedForce)
         ]
-        if len(nb_forces) > 1:
+        if len(nonbondedforces) > 1:
             raise ValueError(
                 "The system must not contain more than one NonbondedForce."
             )
-        elif len(nb_forces) == 0:
+        elif len(nonbondedforces) == 0:
             logger.warning(
-                "The system does not contain a NonbondedForce and therefore no charge scaling will be applied.=."
+                "The system does not contain a NonbondedForce and therefore no charge scaling will be applied."
             )
             return system
         else:
-            force = nb_forces[0]
+            force = nonbondedforces[0]
             for index in range(system.getNumParticles()):
                 [charge, sigma, epsilon] = force.getParticleParameters(index)
                 if index in alchemical_atoms:

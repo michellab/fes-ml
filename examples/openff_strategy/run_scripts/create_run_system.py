@@ -1,9 +1,7 @@
 import logging
 import math
 import os
-import sys
 from argparse import ArgumentParser
-from typing import Optional, Union
 
 import numpy as np
 import openff.units as offunit
@@ -33,7 +31,7 @@ def main(args):
 
     try:
         os.makedirs(folder)
-    except:
+    except Exception:
         pass
 
     # --------------------------------------------------------------- #

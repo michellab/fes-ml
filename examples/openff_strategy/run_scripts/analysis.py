@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 import matplotlib.pyplot as plt
 import numpy as np
 from openmm import unit
-from pymbar import MBAR, timeseries
+from pymbar import MBAR
 
 
 def main(args):

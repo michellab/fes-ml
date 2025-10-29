@@ -11,12 +11,10 @@ A package to run hybrid ML/MM free energy simulations.
 1. [Installation](#installation)
 2. [Alchemical Modifications](#alchemical-modifications)
 3. [Running a Multistate Equilibrium Free Energy Simulation](#running-a-multistate-equilibrium-free-energy-simulation)
+   1. [Using Multiple Alchemical Groups](#using-multiple-alchemical-groups)
 4. [Dynamics and EMLE settings](#dynamics-and-emle-settings)
-
     1. [Sire Strategy](#sire-strategy)
     2. [OpenFF Strategy](#openff-strategy)
-
-
 5. [Log Level](#log-level)
 
 ## Installation
@@ -96,6 +94,78 @@ U_kln = fes.run_single_state(1000, 1000, 6)
 
 # Save the data to be analyzed
 np.save("U_kln_mm_sol_6.npy", np.asarray(U_kln))
+```
+
+### Using Multiple Alchemical Groups
+
+For more complex transformations, you can define multiple alchemical groups that can be transformed independently or simultaneously. This is particularly useful when you want to apply different transformations to different regions of your system or transform multiple ligands separately.
+
+To use multiple alchemical groups, specify the group name as a suffix after a colon in the lambda schedule:
+
+```python
+from fes_ml.fes import FES
+import numpy as np
+
+# Define lambda schedule for multiple alchemical groups
+lambda_schedule = {
+    # Group 1: Turn off LJ and charges for ligand 1
+    "LJSoftCore:ligand1": [1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 0.0, 0.0],
+    "ChargeScaling:ligand1": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0],
+
+    # Group 2: Turn off LJ and charges for ligand 2
+    "LJSoftCore:ligand2": [1.0, 1.0, 0.8, 0.6, 0.4, 0.2, 0.0, 0.0],
+    "ChargeScaling:ligand2": [1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.33, 0.0],
+
+    # Group 3: Interpolate between MM and ML for the entire system
+    "MLInterpolation:system": [0.0, 0.0, 0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+}
+
+# Define atom indices for each alchemical group
+ligand1_atoms = [1, 2, 3, 4, 5]       # Atoms belonging to first ligand
+ligand2_atoms = [20, 21, 22, 23, 24]  # Atoms belonging to second ligand
+system_atoms = list(range(1, 50))     # All atoms for ML/MM interpolation
+
+# Define per-group alchemical atoms
+modifications_kwargs = {
+    "LJSoftCore:ligand1": {
+        "alchemical_atoms": ligand1_atoms
+    },
+    "ChargeScaling:ligand1": {
+        "alchemical_atoms": ligand1_atoms
+    },
+    "LJSoftCore:ligand2": {
+        "alchemical_atoms": ligand2_atoms
+    },
+    "ChargeScaling:ligand2": {
+        "alchemical_atoms": ligand2_atoms
+    },
+    "MLInterpolation:system": {
+        "alchemical_atoms": system_atoms
+    }
+}
+```
+
+#### Multiple Instances of the Same Modification Type
+
+You can also use multiple instances of the same modification type for the same group of atoms. For example, to interpolate between two sets of `CustomLJ` parameters:
+
+```python
+lambda_schedule = {
+    "LJSoftCore:openff1": [1.0, 0.8, 0.6, 0.4, 0.2, 0.0],
+    "LJSoftCore:openff2": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+    "CustomLJ:openff1": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+    "CustomLJ:openff2": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+}
+
+# Define different LJ parameters for each region
+modifications_kwargs = {
+    "CustomLJ:openff1": {
+        "lj_offxml": "openff_unconstrained-1.0.0.offxml",
+    },
+    "CustomLJ:openff2": {
+        "lj_offxml": "openff_unconstrained-2.0.0.offxml",
+    }
+}
 ```
 
 ## Dynamics and EMLE settings

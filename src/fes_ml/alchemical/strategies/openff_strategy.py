@@ -333,11 +333,14 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
                 packmol_kwargs_local.pop("number_of_copies")
 
-            topology_off = _pack_box(
-                molecules=mols,
-                number_of_copies=number_of_copies,
-                **packmol_kwargs_local,
-            )
+            if number_of_copies[1] == 1:
+                topology_off = _Topology.from_molecules(mols)
+            else:
+                topology_off = _pack_box(
+                    molecules=mols,
+                    number_of_copies=number_of_copies,
+                    **packmol_kwargs_local,
+                )
 
         return topology_off
 
@@ -593,7 +596,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             if sdf_file_ligand is None:
                 # Only generate conformers if no SDF file is provided
                 # Otherwise, the geometry is taken from the SDF file
-                logger.debug("Generating conformers for the ligand")
+                logger.debug("Generating conformers for the ligand.")
                 molecules["ligand"].generate_conformers()
             else:
                 logger.debug(f"Using provided ligand geometry from {sdf_file_ligand}")
@@ -681,21 +684,28 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         # Create/update the modifications kwargs
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
 
-        if any(key in lambda_schedule for key in ["EMLEPotential"]):
-            modifications_kwargs["EMLEPotential"] = modifications_kwargs.get(
-                "EMLEPotential", {}
-            )
-
-            # Import required
+        # Handle EMLEPotential modifications
+        emle_instances = self._get_modification_instances(
+            lambda_schedule, "EMLEPotential"
+        )
+        if emle_instances:
             import numpy as _np
             import sire as _sr
+
+            # For now, we apply the same kwargs to all instances
+            # In the future, this could be made per-instance specific
+            for modification_name in emle_instances:
+                modifications_kwargs[modification_name] = modifications_kwargs.get(
+                    modification_name, {}
+                )
 
             # Write .top and .gro files via the OpenFF interchange
             if _os.path.exists(self._TMP_DIR):
                 _shutil.rmtree(self._TMP_DIR)
             _os.makedirs(self._TMP_DIR, exist_ok=True)
             files_prefix = _os.path.join(self._TMP_DIR, "interchange")
-            interchange.to_gromacs(prefix=files_prefix)
+            interchange.to_gro(files_prefix + ".gro")
+            interchange.to_top(files_prefix + ".top")
 
             # Read back those files using Sire
             sr_mols = _sr.load(
@@ -713,39 +723,58 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 format=["prm7"],
             )
 
-            # Add required EMLEPotential kwargs to the modifications_kwargs dict
-            modifications_kwargs["EMLEPotential"]["mols"] = sr_mols
-            modifications_kwargs["EMLEPotential"]["parm7"] = alchemical_prm7[0]
-            modifications_kwargs["EMLEPotential"]["mm_charges"] = _np.asarray(
-                [atom.charge().value() for atom in sr_mols.atoms(alchemical_atoms)]
-            )
-
             # Get the original charges of the OpenMM system
             openmm_charges = self._get_openmm_charges(system)
-            modifications_kwargs["EMLEPotential"]["openmm_charges"] = openmm_charges
-        if any(
-            key in lambda_schedule
-            for key in ["MLPotential", "MLInterpolation", "MLCorrection"]
-        ):
+
+            # Add required EMLEPotential kwargs to all instances
+            for modification_name in emle_instances:
+                modifications_kwargs[modification_name]["mols"] = sr_mols
+                modifications_kwargs[modification_name]["parm7"] = alchemical_prm7[0]
+                modifications_kwargs[modification_name]["mm_charges"] = _np.asarray(
+                    [atom.charge().value() for atom in sr_mols.atoms(alchemical_atoms)]
+                )
+                modifications_kwargs[modification_name][
+                    "openmm_charges"
+                ] = openmm_charges
+
+        # Handle ML-related modifications
+        ml_types = ["MLPotential", "MLInterpolation", "MLCorrection"]
+        ml_instances = []
+        for ml_type in ml_types:
+            ml_instances.extend(
+                self._get_modification_instances(lambda_schedule, ml_type)
+            )
+
+        if ml_instances:
             modifications_kwargs["MLPotential"] = modifications_kwargs.get(
                 "MLPotential", {}
             )
             modifications_kwargs["MLPotential"]["topology"] = topology
 
-        if any(key in lambda_schedule for key in ["CustomLJ"]):
-            modifications_kwargs["CustomLJ"] = modifications_kwargs.get("CustomLJ", {})
-            modifications_kwargs["CustomLJ"]["original_offxml"] = ffs
-            modifications_kwargs["CustomLJ"]["topology_off"] = topology_off
+        # Handle CustomLJ modifications
+        customlj_instances = self._get_modification_instances(
+            lambda_schedule, "CustomLJ"
+        )
+        if customlj_instances:
+            for modification_name in customlj_instances:
+                modifications_kwargs[modification_name] = modifications_kwargs.get(
+                    modification_name, {}
+                )
+                modifications_kwargs[modification_name]["original_offxml"] = ffs
+                modifications_kwargs[modification_name]["topology_off"] = topology_off
+                modifications_kwargs[modification_name]["positions"] = positions
 
-            # Get the positions of the alchemical atoms
-            modifications_kwargs["CustomLJ"]["positions"] = positions
-
-        if any(key in lambda_schedule for key in ["ChargeTransfer"]):
-            modifications_kwargs["ChargeTransfer"] = modifications_kwargs.get(
-                "ChargeTransfer", {}
-            )
-            modifications_kwargs["ChargeTransfer"]["original_offxml"] = ffs
-            modifications_kwargs["ChargeTransfer"]["topology_off"] = topology_off
+        # Handle ChargeTransfer modifications
+        chargetransfer_instances = self._get_modification_instances(
+            lambda_schedule, "ChargeTransfer"
+        )
+        if chargetransfer_instances:
+            for modification_name in chargetransfer_instances:
+                modifications_kwargs[modification_name] = modifications_kwargs.get(
+                    modification_name, {}
+                )
+                modifications_kwargs[modification_name]["original_offxml"] = ffs
+                modifications_kwargs[modification_name]["topology_off"] = topology_off
 
         # Run the Alchemist
         self._run_alchemist(

@@ -6,12 +6,9 @@ from typing import List
 import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory
-from .intramolecular import (
-    IntraMolecularBondedRemovalModification,
-    IntraMolecularNonBondedExceptionsModification,
-)
 from .ml_base_modification import MLBaseModification
 from .ml_potential import MLPotentialModification
+from .intramolecular import IntraMolecularBondedRemovalModification, IntraMolecularNonBondedExceptionsModification
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +39,8 @@ class MLCorrectionModification(MLBaseModification, BaseModification):
 
     NAME = "MLCorrection"
     pre_dependencies: List[str] = [MLPotentialModification.NAME]
-    post_dependencies: List[str] = [
-        IntraMolecularNonBondedExceptionsModification.NAME,
-    ]
-    skip_dependencies: List[str] = [
-        IntraMolecularBondedRemovalModification.NAME,
-    ]
+    post_dependencies = [IntraMolecularNonBondedExceptionsModification.NAME]
+    skip_dependencies: List[str] = [IntraMolecularBondedRemovalModification.NAME]
 
     def apply(
         self,
@@ -97,7 +90,7 @@ class MLCorrectionModification(MLBaseModification, BaseModification):
         mm_sum = "+".join(mm_vars) if len(mm_vars) > 0 else "0"
         ml_interpolation_function = f"lambda_interpolate*({ml_sum} - ({mm_sum}))"
         cv.setEnergyFunction(ml_interpolation_function)
-        cv.setName(self.NAME)
+        cv.setName(self.modification_name)
         system.addForce(cv)
 
         logger.debug(f"ML correction function: {ml_interpolation_function}")

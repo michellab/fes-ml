@@ -125,7 +125,7 @@ class compute_RDF:
 
         # Select atoms for which you want to calculate RDF
         water = universe.select_atoms(f"type O and not {ligand_selection}")
-        ligand = universe.select_atoms(ligand_selection)
+        # ligand = universe.select_atoms(ligand_selection)
         atoms = [
             universe.select_atoms(f"index {atom.index} and {ligand_selection}")
             for atom in universe.select_atoms(ligand_selection)
@@ -327,10 +327,10 @@ class plot_energies:
     def _plot_stdout_with_time_base(txt_file, save_location, data_name, prop):
         df = pd.read_csv(txt_file, sep=",")
         data = df[f"{data_name}"]
-        steps = df[f'#"Step"']
+        steps = df['#"Step"']
 
         plt.plot(steps, data, "r-", linewidth=2, color="maroon")
-        plt.xlabel(f"Steps")
+        plt.xlabel("Steps")
         plt.ylabel(f"{data_name}")
         plt.title(f"Plot of {prop} for {txt_file}")
         # plt.savefig(f"{save_location}")
@@ -378,12 +378,12 @@ class plot_energies:
             txt_file = f"{folder}/{base_name}{w}.txt"
             df = pd.read_csv(txt_file, sep=",")
             data = df[f"{data_name}"]
-            steps = df[f'#"Step"']
+            steps = df['#"Step"']
             x_axis = [r for r in range(1, len(steps) + 1, 1)]
 
             plt.plot(x_axis, data, linewidth=2, alpha=0.3, label=label, color=colors[w])
             legend_labels.append(label)
-            plt.xlabel(f"Steps")
+            plt.xlabel("Steps")
             plt.ylabel(f"{data_name}")
             plt.title(f"Plot of {prop} for {txt_file}")
             plt.legend(bbox_to_anchor=(1, 0.5), loc="center left")

@@ -9,7 +9,7 @@ for i in range(100):
     out = f"OUTPUT_{i}"
     try:
         f = glob.glob(out + "/*npy")[0]
-    except:
+    except Exception:
         break
     U_kln.append(np.load(f)[:, frames_disc::step])
 

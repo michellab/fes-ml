@@ -19,12 +19,16 @@ class BaseModification(ABC):
     - If modification A requires B, add B to A's ``pre_dependencies``
       class-level attribute.
     - If modification A is incompatible with B being present in the graph,
-      add B to A's ``skip_depencies`` class-level attribute.
+      add B to A's ``skip_dependencies`` class-level attribute.
     - If multiple modifications imply B, B is applied only once.
-    - Modification are applied in topologically sorted order based on
+    - Modifications are applied in topologically sorted order based on
       the dependency graph.
-    - A modification must an associated key controlled by the class-level
+    - A modification must have a default key controlled by the class-level
       attribute ``NAME``.
+    - A modication can also have a custom name by passing a string
+      ``modification_name`` when instantiating the modification. This
+      allows multiple instances of the same modification to coexist in
+      the same system, each with its own parameters.
     - Modifications can be applied by passing a lambda schedule
       dictionary when creating alchemical states. This dictionary
       maps ``NAME``s to λ values for each ``AlchemicalState``.
@@ -42,6 +46,22 @@ class BaseModification(ABC):
     pre_dependencies: List[str] = None
     post_dependencies: List[str] = None
     skip_dependencies: List[str] = None
+
+    def __init__(self, modification_name: str = None):
+        """
+        Initialize the BaseModification.
+
+        Parameters
+        ----------
+        modification_name : str, optional
+            Custom name for this modification instance. If not provided,
+            uses the class NAME.
+        """
+        assert modification_name.count(":") <= 1, (
+            f"Invalid modification_name '{modification_name}': "
+            "it may contain at most one ':' to indicate the alchemical group."
+        )
+        self.modification_name = modification_name or self.NAME
 
     def __init_subclass__(cls, **kwargs):
         """
@@ -135,6 +155,74 @@ class BaseModification(ABC):
         else:
             raise ValueError(f"{name} is not a post-dependency of {cls.NAME}.")
 
+    @staticmethod
+    def find_forces_by_group(system: _mm.System, group: str) -> List[_mm.Force]:
+        """
+        Find all forces in the system that belong to a given alchemical group.
+
+        Notes
+        -----
+        Alchemical groups are defined by suffixes in the force names, e.g., ':region1'.
+
+        Parameters
+        ----------
+        system : openmm.System
+            The OpenMM system to search.
+        group : str
+            The alchemical group to match (e.g., ':region1').
+
+        Returns
+        -------
+        List[openmm.Force]
+            List of forces whose names end with the specified alchemical group.
+        """
+        return [
+            force
+            for force in system.getForces()
+            if force.getName().endswith(f":{group}")
+        ]
+
+    @staticmethod
+    def find_force_by_name(system: _mm.System, force_name: str) -> _mm.Force:
+        """
+        Find a force in the system by its full name.
+
+        Parameters
+        ----------
+        system : openmm.System
+            The OpenMM system to search.
+        force_name : str
+            The name of the force to find.
+
+        Returns
+        -------
+        openmm.Force
+            The force with the specified name.
+
+        Raises
+        ------
+        ValueError
+            If no force with the specified name is found.
+        """
+        for force in system.getForces():
+            if force.getName() == force_name:
+                return force
+        raise ValueError(f"Force with name '{force_name}' not found in system.")
+
+    @property
+    def alchemical_group(self) -> str:
+        """
+        Get the suffix of the current instance name.
+
+        Returns
+        -------
+        str
+            The suffix part after ':' if present, empty string otherwise.
+        """
+        if ":" in self.modification_name:
+            return self.modification_name.split(":", 1)[1]
+        return ""
+
 
 class BaseModificationFactory(ABC):
     """
@@ -145,9 +233,16 @@ class BaseModificationFactory(ABC):
     """
 
     @abstractmethod
-    def create_modification(self, *args, **kwargs) -> BaseModification:
+    def create_modification(
+        self, modification_name: str = None, *args, **kwargs
+    ) -> BaseModification:
         """
         Create an instance of the modification.
+
+        Parameters
+        ----------
+        modification_name : str, optional
+            Custom name for this modification instance.
 
         Returns
         -------
