@@ -333,11 +333,14 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
                 packmol_kwargs_local.pop("number_of_copies")
 
-            topology_off = _pack_box(
-                molecules=mols,
-                number_of_copies=number_of_copies,
-                **packmol_kwargs_local,
-            )
+            if number_of_copies[1] == 1:
+                topology_off = _Topology.from_molecules(mols)
+            else:
+                topology_off = _pack_box(
+                    molecules=mols,
+                    number_of_copies=number_of_copies,
+                    **packmol_kwargs_local,
+                )
 
         return topology_off
 
@@ -593,7 +596,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             if sdf_file_ligand is None:
                 # Only generate conformers if no SDF file is provided
                 # Otherwise, the geometry is taken from the SDF file
-                logger.debug("Generating conformers for the ligand")
+                logger.debug("Generating conformers for the ligand.")
                 molecules["ligand"].generate_conformers()
             else:
                 logger.debug(f"Using provided ligand geometry from {sdf_file_ligand}")
@@ -701,7 +704,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 _shutil.rmtree(self._TMP_DIR)
             _os.makedirs(self._TMP_DIR, exist_ok=True)
             files_prefix = _os.path.join(self._TMP_DIR, "interchange")
-            interchange.to_gromacs(prefix=files_prefix)
+            interchange.to_gro(files_prefix + ".gro")
+            interchange.to_top(files_prefix + ".top")
 
             # Read back those files using Sire
             sr_mols = _sr.load(
@@ -758,7 +762,6 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 )
                 modifications_kwargs[modification_name]["original_offxml"] = ffs
                 modifications_kwargs[modification_name]["topology_off"] = topology_off
-                # Get the positions of the alchemical atoms
                 modifications_kwargs[modification_name]["positions"] = positions
 
         # Handle ChargeTransfer modifications
