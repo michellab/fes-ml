@@ -730,6 +730,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             for modification_name in emle_instances:
                 modifications_kwargs[modification_name]["mols"] = sr_mols
                 modifications_kwargs[modification_name]["parm7"] = alchemical_prm7[0]
+                modifications_kwargs[modification_name]["top_file"] = files_prefix + ".top"
+                modifications_kwargs[modification_name]["crd_file"] = files_prefix + ".gro"
                 modifications_kwargs[modification_name]["mm_charges"] = _np.asarray(
                     [atom.charge().value() for atom in sr_mols.atoms(alchemical_atoms)]
                 )
