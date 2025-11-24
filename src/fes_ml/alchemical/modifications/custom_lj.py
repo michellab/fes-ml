@@ -107,15 +107,43 @@ class CustomLJModification(BaseModification):
             for p in force_field_opt.get_parameter_handler("vdW")
         }
 
-        # Update the Lennard-Jones parameters in the CustomNonbondedForce
+        # Get dictionary with the original Lennard-Jones parameters for each atom type
         force_field = _ForceField(*original_offxml)
+        orig_params = {
+            p.id: {
+                "epsilon": p.epsilon.to_openmm().value_in_unit(
+                    _unit.kilojoules_per_mole
+                ),
+                "sigma": p.sigma.to_openmm().value_in_unit(_unit.nanometer),
+            }
+            for p in force_field.get_parameter_handler("vdW")
+        }
+
+        # Get atom types
         labels = force_field.label_molecules(topology_off)
 
         # Flatten the vdW parameters for all molecules
-        vdw_parameters = [
+        opt_vdw_parameters = [
             (opt_params[val.id]["sigma"], opt_params[val.id]["epsilon"])
             for mol in labels
             for _, val in mol["vdW"].items()
+        ]
+
+        orig_vdw_parameters = [
+            (orig_params[val.id]["sigma"], orig_params[val.id]["epsilon"])
+            for mol in labels
+            for _, val in mol["vdW"].items()
+        ]
+
+        # Combine original and optimized parameters based on lambda_value
+        vdw_parameters = [
+            (
+                (1 - lambda_value) * orig_vdw_parameters[i][0]
+                + lambda_value * opt_vdw_parameters[i][0],
+                (1 - lambda_value) * orig_vdw_parameters[i][1]
+                + lambda_value * opt_vdw_parameters[i][1],
+            )
+            for i in range(len(orig_vdw_parameters))
         ]
 
         # Update the Lennard-Jones parameters in a single loop
