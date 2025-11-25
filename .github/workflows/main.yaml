@@ -50,7 +50,7 @@ jobs:
       - name: Set up environment
         uses: mamba-org/setup-micromamba@v2
         with:
-          environment-file: environment.yaml
+          environment-file: dev-tools/conda-envs/ci_env.yaml
           environment-name: gha-test-env
           cache-environment: true
           create-args: >-
