@@ -1,0 +1,31 @@
+name: fes-ml-aev-ci
+
+channels:
+  - conda-forge
+  - openbiosim/label/emle
+
+dependencies:
+  - python=3.11       
+  - ambertools
+  - compilers
+  - eigen
+  - loguru
+  - openmm>=8.1
+  - openmm-ml
+  - openmmforcefields
+  - openff-toolkit
+  - openff-interchange
+  - nnpops           
+  - pybind11
+  - pytorch            
+  - torchvision
+  - torchaudio
+  - sire
+  - torchani
+  - pygit2
+  - pyyaml
+  - pip
+  - pip:
+      - git+https://github.com/chemle/emle-engine.git
+      - coloredlogs
+      - mace-torch
