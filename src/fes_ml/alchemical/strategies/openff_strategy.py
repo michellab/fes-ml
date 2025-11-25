@@ -602,6 +602,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 logger.debug(f"Using provided ligand geometry from {sdf_file_ligand}")
             molecules["ligand"].assign_partial_charges(partial_charges_method)
 
+        # for m in ["ligand", "solvent"]:
+        #     molecules[m].generate_conformers()
+
         if topology_pdb:
             logger.debug("Creating topology from PDB file.")
             mols = [mol for _, mol in molecules.items() if mol is not None]
@@ -730,8 +733,8 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             for modification_name in emle_instances:
                 modifications_kwargs[modification_name]["mols"] = sr_mols
                 modifications_kwargs[modification_name]["parm7"] = alchemical_prm7[0]
-                modifications_kwargs[modification_name]["top_file"] = files_prefix + ".top"
-                modifications_kwargs[modification_name]["crd_file"] = files_prefix + ".gro"
+                # modifications_kwargs[modification_name]["top_file"] = files_prefix + ".top"
+                # modifications_kwargs[modification_name]["crd_file"] = files_prefix + ".gro"
                 modifications_kwargs[modification_name]["mm_charges"] = _np.asarray(
                     [atom.charge().value() for atom in sr_mols.atoms(alchemical_atoms)]
                 )
