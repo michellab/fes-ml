@@ -197,6 +197,7 @@ class EMLEPotentialModification(BaseModification):
         # Add the interpolation force to the system, so that the EMLE force does not scale
         # with the MLInterpolation force.
         interpolation_force.setName("EMLECustomBondForce_" + self.modification_name)
+        interpolation_force.setEnergyFunction("0.0")  # No energy contribution.
         system.addForce(interpolation_force)
 
         # Zero the charges on the atoms within the QM region
