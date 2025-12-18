@@ -7,9 +7,7 @@ from pymbar import MBAR
 
 if len(sys.argv) != 3 or sys.argv[1] in ["-h", "--help"]:
     print("Usage: python analyse.py <file_name> <temperature>")
-    print(
-        "Please provide exactly two input arguments, which should be a file name and the temperature in Kelvin."
-    )
+    print("Please provide exactly two input arguments, which should be a file name and the temperature in Kelvin.")
     sys.exit(1)
 
 input_file = sys.argv[1]
@@ -45,15 +43,5 @@ results = mbar.compute_free_energy_differences(compute_uncertainty=True)
 
 # Calculate the free energy
 kT = unit.BOLTZMANN_CONSTANT_kB * unit.AVOGADRO_CONSTANT_NA * unit.kelvin * temperature
-print(
-    "Free energy = {}".format(
-        (results["Delta_f"][nstates - 1, 0] * kT).in_units_of(unit.kilocalorie_per_mole)
-    )
-)
-print(
-    "Statistical uncertainty = {}".format(
-        (results["dDelta_f"][nstates - 1, 0] * kT).in_units_of(
-            unit.kilocalorie_per_mole
-        )
-    )
-)
+print("Free energy = {}".format((results["Delta_f"][nstates - 1, 0] * kT).in_units_of(unit.kilocalorie_per_mole)))
+print("Statistical uncertainty = {}".format((results["dDelta_f"][nstates - 1, 0] * kT).in_units_of(unit.kilocalorie_per_mole)))

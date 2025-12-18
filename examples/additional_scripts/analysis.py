@@ -15,9 +15,7 @@ class compute_RDF:
         pass
 
     @staticmethod
-    def water_water(
-        topology_file, dcd_file, save_location, ligand_selection="resname UNK"
-    ):
+    def water_water(topology_file, dcd_file, save_location, ligand_selection="resname UNK"):
         """the water to the water"""
 
         # Create a Universe object
@@ -27,9 +25,7 @@ class compute_RDF:
         water = universe.select_atoms(f"type O and not {ligand_selection}")
 
         # Calculate RDF
-        rdf = RDF.InterRDF(
-            water, water, nbins=100, range=(0, 15.0), exclusion_block=(1, 1)
-        )  # avoid computation to itself
+        rdf = RDF.InterRDF(water, water, nbins=100, range=(0, 15.0), exclusion_block=(1, 1))  # avoid computation to itself
         rdf.run()
 
         # print(rdf.results.bins)
@@ -45,9 +41,7 @@ class compute_RDF:
         plt.close()
 
     @staticmethod
-    def _water_solute_base(
-        topology_file, dcd_file, save_location, ligand_selection, atom_type="all"
-    ):
+    def _water_solute_base(topology_file, dcd_file, save_location, ligand_selection, atom_type="all"):
         """water and selection of the ligand, used as a base for other functions"""
 
         # Create a Universe object
@@ -56,9 +50,7 @@ class compute_RDF:
         # Select atoms for which you want to calculate RDF
         water = universe.select_atoms(f"type O and not {ligand_selection}")
         if atom_type.lower().strip() != "all":
-            ligand_selection = (
-                f"type {atom_type.upper().strip()} and {ligand_selection}"
-            )
+            ligand_selection = f"type {atom_type.upper().strip()} and {ligand_selection}"
         ligand = universe.select_atoms(f"{ligand_selection}")
 
         # Calculate RDF
@@ -71,53 +63,33 @@ class compute_RDF:
         plt.ylabel("RDF")
         if not atom_type:
             atom_type = "all"
-        plt.title(
-            f"Radial Distribution Function of water-solute {atom_type}\nfor {dcd_file}"
-        )
+        plt.title(f"Radial Distribution Function of water-solute {atom_type}\nfor {dcd_file}")
         plt.savefig(f"{save_location}")
         # plt.show()
         plt.close()
 
-    def water_solute_all(
-        topology_file, dcd_file, save_folder, ligand_selection="resname UNK"
-    ):
+    def water_solute_all(topology_file, dcd_file, save_folder, ligand_selection="resname UNK"):
         """water and all of the solute (define using the resname)"""
 
-        compute_RDF._water_solute_base(
-            topology_file, dcd_file, save_folder, ligand_selection, atom_type="all"
-        )
+        compute_RDF._water_solute_base(topology_file, dcd_file, save_folder, ligand_selection, atom_type="all")
 
-    def water_solute_C(
-        topology_file, dcd_file, save_folder, ligand_selection="resname UNK"
-    ):
+    def water_solute_C(topology_file, dcd_file, save_folder, ligand_selection="resname UNK"):
         """water and the C of the solute (define using the resname)"""
 
-        compute_RDF._water_solute_base(
-            topology_file, dcd_file, save_folder, ligand_selection, atom_type="type C"
-        )
+        compute_RDF._water_solute_base(topology_file, dcd_file, save_folder, ligand_selection, atom_type="type C")
 
-    def water_solute_H(
-        topology_file, dcd_file, save_folder, ligand_selection="resname UNK"
-    ):
+    def water_solute_H(topology_file, dcd_file, save_folder, ligand_selection="resname UNK"):
         """water and the H of the solute (define using the resname)"""
 
-        compute_RDF._water_solute_base(
-            topology_file, dcd_file, save_folder, ligand_selection, atom_type="type H"
-        )
+        compute_RDF._water_solute_base(topology_file, dcd_file, save_folder, ligand_selection, atom_type="type H")
 
-    def water_solute_O(
-        topology_file, dcd_file, save_folder, ligand_selection="resname UNK"
-    ):
+    def water_solute_O(topology_file, dcd_file, save_folder, ligand_selection="resname UNK"):
         """water and the O of the solute (define using the resname)"""
 
-        compute_RDF._water_solute_base(
-            topology_file, dcd_file, save_folder, ligand_selection, atom_type="type O"
-        )
+        compute_RDF._water_solute_base(topology_file, dcd_file, save_folder, ligand_selection, atom_type="type O")
 
     # calculating the site specific RDF
-    def water_atom(
-        topology_file, dcd_file, save_location, ligand_selection="resname UNK"
-    ):
+    def water_atom(topology_file, dcd_file, save_location, ligand_selection="resname UNK"):
         """water and each individual atom in the solute (define using the resname). Will plot together on the same plot."""
 
         # Create a Universe object
@@ -126,10 +98,7 @@ class compute_RDF:
         # Select atoms for which you want to calculate RDF
         water = universe.select_atoms(f"type O and not {ligand_selection}")
         # ligand = universe.select_atoms(ligand_selection)
-        atoms = [
-            universe.select_atoms(f"index {atom.index} and {ligand_selection}")
-            for atom in universe.select_atoms(ligand_selection)
-        ]
+        atoms = [universe.select_atoms(f"index {atom.index} and {ligand_selection}") for atom in universe.select_atoms(ligand_selection)]
 
         # Calculate RDF
         for atom in atoms:
@@ -145,9 +114,7 @@ class compute_RDF:
         plt.savefig(f"{save_location}")
         plt.close()
 
-    def single_water_single_atom(
-        topology_file, dcd_file, save_folder=None, ligand_selection="resname UNK"
-    ):
+    def single_water_single_atom(topology_file, dcd_file, save_folder=None, ligand_selection="resname UNK"):
         """RDF for the single waters and all of the solute (define using the resname). Will plot each seperately."""
 
         plots_folder = f"{save_folder}/rdfs"
@@ -159,10 +126,7 @@ class compute_RDF:
 
         # Select atoms for which you want to calculate RDF
         water = universe.select_atoms(f"type O and not {ligand_selection}")
-        ags = [
-            [universe.select_atoms(f"index {atom.index} and {ligand_selection}"), water]
-            for atom in universe.select_atoms(ligand_selection)
-        ]
+        ags = [[universe.select_atoms(f"index {atom.index} and {ligand_selection}"), water] for atom in universe.select_atoms(ligand_selection)]
         ss_rdf = RDF.InterRDF_s(
             universe, ags, nbins=100, range=(0, 15.0), norm="density", density=True
         )  # final RDF is over the average density of the selected atoms in the trajectory box
@@ -178,12 +142,8 @@ class compute_RDF:
                 plt.plot(ss_rdf.results.bins, ss_rdf.rdf[idx][0][idx_w])
                 plt.xlabel("Distance (Angstrom)")
                 plt.ylabel("RDF")
-                plt.title(
-                    f"RDF between {ag[0][0].name} of {ligand_selection} and {wat.name} {wat.resid}"
-                )
-                plt.savefig(
-                    f"{plots_folder}/rdf_{ag[0][0].name}_{wat.name}_{wat.resid}.png"
-                )
+                plt.title(f"RDF between {ag[0][0].name} of {ligand_selection} and {wat.name} {wat.resid}")
+                plt.savefig(f"{plots_folder}/rdf_{ag[0][0].name}_{wat.name}_{wat.resid}.png")
                 plt.close
 
             # plot together on same plot
@@ -196,9 +156,7 @@ class compute_RDF:
             # plt.close
 
 
-def plot_dihedrals(
-    topology_file, dcd_file, save_folder=None, ligand_selection="resname UNK"
-):
+def plot_dihedrals(topology_file, dcd_file, save_folder=None, ligand_selection="resname UNK"):
     """plot the dihedrals of the solute (resname)"""
     plots_folder = f"{save_folder}/dihedrals"
     if not os.path.exists(plots_folder):
@@ -251,9 +209,7 @@ def plot_dihedrals(
         dihedral_data = R.angles[:, idx]
 
         # Plot the histogram of dihedral angles
-        plt.hist(
-            dihedral_data, bins=50, density=True, alpha=0.7, color=legend_colors[label]
-        )
+        plt.hist(dihedral_data, bins=50, density=True, alpha=0.7, color=legend_colors[label])
 
         # fit a probability density function to the histogram
         mu, sigma = norm.fit(dihedral_data)
@@ -313,9 +269,7 @@ class plot_histograms:
 
     @staticmethod
     def plot_density(txt_file, save_location):  # using the output file density
-        plot_histograms._plot_stdout_histogram_base(
-            txt_file, save_location, data_name="Density (g/mL)", prop="Water Density"
-        )  # mL is cm^3
+        plot_histograms._plot_stdout_histogram_base(txt_file, save_location, data_name="Density (g/mL)", prop="Water Density")  # mL is cm^3
 
 
 class plot_energies:

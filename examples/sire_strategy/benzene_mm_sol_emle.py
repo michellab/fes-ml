@@ -33,12 +33,8 @@ if __name__ == "__main__":
 
     lambda_schedule = {
         "EMLEPotential": list(emle_windows) + [None] * (n_ChargeScaling + n_LJSoftCore),
-        "ChargeScaling": [None] * n_EMLEPotential
-        + list(q_windows)
-        + [0.0] * n_LJSoftCore,
-        "LJSoftCore": [None] * n_EMLEPotential
-        + [1.0] * n_ChargeScaling
-        + list(lj_windows),
+        "ChargeScaling": [None] * n_EMLEPotential + list(q_windows) + [0.0] * n_LJSoftCore,
+        "LJSoftCore": [None] * n_EMLEPotential + [1.0] * n_ChargeScaling + list(lj_windows),
     }
 
     plot_lambda_schedule(lambda_schedule)

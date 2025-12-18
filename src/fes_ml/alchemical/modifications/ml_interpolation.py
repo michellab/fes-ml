@@ -8,7 +8,10 @@ import openmm as _mm
 from .base_modification import BaseModification, BaseModificationFactory
 from .ml_base_modification import MLBaseModification
 from .ml_potential import MLPotentialModification
-from .intramolecular import IntraMolecularBondedRemovalModification, IntraMolecularNonBondedExceptionsModification
+from .intramolecular import (
+    IntraMolecularBondedRemovalModification,
+    IntraMolecularNonBondedExceptionsModification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +80,7 @@ class MLInterpolationModification(MLBaseModification, BaseModification):
         This code is heavily inspired on https://github.com/openmm/openmm-ml/blob/main/openmmml/mlpotential.py#L190-L351.
         """
         # Create the CustomCVForce
-        cv, mm_vars, ml_vars, _, ml_forces = self.create_cv(
-            system, alchemical_atoms, lambda_value, *args, **kwargs
-        )
+        cv, mm_vars, ml_vars, _, ml_forces = self.create_cv(system, alchemical_atoms, lambda_value, *args, **kwargs)
 
         # Remove ML forces from the system
         forces_to_remove = sorted([force_id for force_id, _ in ml_forces], reverse=True)
@@ -89,9 +90,7 @@ class MLInterpolationModification(MLBaseModification, BaseModification):
         # Set the energy function
         ml_sum = "+".join(ml_vars) if len(ml_vars) > 0 else "0"
         mm_sum = "+".join(mm_vars) if len(mm_vars) > 0 else "0"
-        ml_interpolation_function = (
-            f"lambda_interpolate*({ml_sum}) + (1-lambda_interpolate)*({mm_sum})"
-        )
+        ml_interpolation_function = f"lambda_interpolate*({ml_sum}) + (1-lambda_interpolate)*({mm_sum})"
         cv.setEnergyFunction(ml_interpolation_function)
         system.addForce(cv)
         cv.setName(self.modification_name)

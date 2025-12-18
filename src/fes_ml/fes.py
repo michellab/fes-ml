@@ -103,23 +103,14 @@ class FES:
         if os.path.exists(self.checkpoint_file) and restart:
             self._load_state(recreate_alchemical_states=recreate_alchemical_states)
         elif restart and not os.path.exists(self.checkpoint_file):
-            logger.warning(
-                f"Attempted to restart from {self.checkpoint_file} but the file does not exist. "
-                "Restarting from scratch."
-            )
+            logger.warning(f"Attempted to restart from {self.checkpoint_file} but the file does not exist. Restarting from scratch.")
 
     def __getstate__(self) -> Dict[str, Any]:
         """Get the state of the object."""
-        state = {
-            key: getattr(self, key)
-            for key in self.__dict__
-            if key not in self.__non_serializables__
-        }
+        state = {key: getattr(self, key) for key in self.__dict__ if key not in self.__non_serializables__}
         return state
 
-    def __setstate__(
-        self, state: Dict[str, Any], recreate_alchemical_states: bool = False
-    ) -> None:
+    def __setstate__(self, state: Dict[str, Any], recreate_alchemical_states: bool = False) -> None:
         """Set the state of the object."""
         for key, value in state.items():
             setattr(self, key, value)
@@ -134,9 +125,7 @@ class FES:
             )
 
             for alc in self.alchemical_states:
-                assert isinstance(
-                    alc, AlchemicalState
-                ), "alchemical_state must be an AlchemicalState object."
+                assert isinstance(alc, AlchemicalState), "alchemical_state must be an AlchemicalState object."
                 alc.check_integrity()
                 alc.context.setPositions(self._positions)
                 alc.context.setPeriodicBoxVectors(*self._pbc)
@@ -202,10 +191,7 @@ class FES:
         self._alchemical_atoms = alchemical_atoms
 
         # Check that that each parameter has the same number of λ values
-        nstates_param = [
-            len(lambda_schedule.get(lambda_param, []))
-            for lambda_param in lambda_schedule
-        ]
+        nstates_param = [len(lambda_schedule.get(lambda_param, [])) for lambda_param in lambda_schedule]
 
         nstates = nstates_param[0]
         if not all([n == nstates for n in nstates_param]):
@@ -216,9 +202,7 @@ class FES:
             alchemical_state = alchemical_factory.create_alchemical_state(
                 strategy_name,
                 alchemical_atoms=alchemical_atoms,
-                lambda_schedule={
-                    k: v[i] for k, v in lambda_schedule.items() if v[i] is not None
-                },
+                lambda_schedule={k: v[i] for k, v in lambda_schedule.items() if v[i] is not None},
                 modifications_kwargs=modifications_kwargs,
                 *args,
                 **kwargs,
@@ -297,17 +281,11 @@ class FES:
             else:
                 alchemical_state = self.alchemical_states[window]
 
-        assert isinstance(
-            alchemical_state, AlchemicalState
-        ), "alchemical_state must be an AlchemicalState object."
+        assert isinstance(alchemical_state, AlchemicalState), "alchemical_state must be an AlchemicalState object."
         alchemical_state.check_integrity()
 
-        logger.info(
-            f"Minimizing {alchemical_state} with tolerance {tolerance} and max_iterations {max_iterations}"
-        )
-        _mm.LocalEnergyMinimizer.minimize(
-            alchemical_state.context, tolerance, max_iterations, reporter
-        )
+        logger.info(f"Minimizing {alchemical_state} with tolerance {tolerance} and max_iterations {max_iterations}")
+        _mm.LocalEnergyMinimizer.minimize(alchemical_state.context, tolerance, max_iterations, reporter)
 
         return alchemical_state
 
@@ -343,16 +321,12 @@ class FES:
         """
         if window is None and alchemical_state is None:
             # Attempt batch minimization
-            assert (
-                self.alchemical_states is not None
-            ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+            assert self.alchemical_states is not None, "The alchemical states have not been created. Run `create_alchemical_states` first."
 
             for alc in self.alchemical_states:
                 self._minimize_state(tolerance, max_iterations, alc, reporter=reporter)
         else:
-            self._minimize_state(
-                tolerance, max_iterations, alchemical_state, window, reporter
-            )
+            self._minimize_state(tolerance, max_iterations, alchemical_state, window, reporter)
 
         return self.alchemical_states
 
@@ -388,9 +362,7 @@ class FES:
             else:
                 alchemical_state = self.alchemical_states[window]
 
-        assert isinstance(
-            alchemical_state, AlchemicalState
-        ), "alchemical_state must be an AlchemicalState object."
+        assert isinstance(alchemical_state, AlchemicalState), "alchemical_state must be an AlchemicalState object."
         alchemical_state.check_integrity()
 
         # Append reporters to the simulation
@@ -431,16 +403,12 @@ class FES:
         """
         if window is None and alchemical_state is None:
             # Attempt batch equilibration
-            assert (
-                self.alchemical_states is not None
-            ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+            assert self.alchemical_states is not None, "The alchemical states have not been created. Run `create_alchemical_states` first."
 
             for alc in self.alchemical_states:
                 self._equilibrate_state(nsteps, alc, reporters=reporters)
         else:
-            self._equilibrate_state(
-                nsteps, alchemical_state, window, reporters=reporters
-            )
+            self._equilibrate_state(nsteps, alchemical_state, window, reporters=reporters)
 
         return self.alchemical_states
 
@@ -480,9 +448,7 @@ class FES:
                 alchemical_state = self.alchemical_states[window]
 
         # Check the integrity of the alchemical state
-        assert isinstance(
-            alchemical_state, AlchemicalState
-        ), "alchemical_state must be an AlchemicalState object."
+        assert isinstance(alchemical_state, AlchemicalState), "alchemical_state must be an AlchemicalState object."
         alchemical_state.check_integrity()
 
         if not self._U_kl:
@@ -492,20 +458,14 @@ class FES:
             # We are resuming from a checkpoint, so we need to set the initial state
             alchemical_state.simulation.loadState(f"{self.output_prefix}_openmm.chk")
 
-        logger.info(
-            f"Running production for {alchemical_state} with {niterations} iterations and {nsteps} steps per iteration"
-        )
+        logger.info(f"Running production for {alchemical_state} with {niterations} iterations and {nsteps} steps per iteration")
 
         try:
             integrator_temperature = alchemical_state.integrator.getTemperature()
         except AttributeError:
             integrator_temperature = alchemical_state.integrator.temperature
 
-        kT = (
-            _unit.AVOGADRO_CONSTANT_NA
-            * _unit.BOLTZMANN_CONSTANT_kB
-            * integrator_temperature
-        )
+        kT = _unit.AVOGADRO_CONSTANT_NA * _unit.BOLTZMANN_CONSTANT_kB * integrator_temperature
 
         # Append reporters to the simulation
         if reporters is not None:
@@ -516,35 +476,27 @@ class FES:
             logger.info(f"{alchemical_state} iteration {iteration + 1} / {niterations}")
 
             alchemical_state.simulation.step(nsteps)
-            self._positions = alchemical_state.context.getState(
-                getPositions=True
-            ).getPositions()
+            self._positions = alchemical_state.context.getState(getPositions=True).getPositions()
             self._pbc = alchemical_state.context.getState().getPeriodicBoxVectors()
 
             # Compute energies at all alchemical states
             for alc_id, alc_ in enumerate(self.alchemical_states):
                 alc_.context.setPositions(self._positions)
                 alc_.context.setPeriodicBoxVectors(*self._pbc)
-                self._U_kl[alc_id].append(
-                    alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT
-                )
+                self._U_kl[alc_id].append(alc_.context.getState(getEnergy=True).getPotentialEnergy() / kT)
 
             # Save the checkpoint
             if iteration % (self.checkpoint_frequency - 1) == 0 and iteration > 0:
                 self._iter = iteration + 1
                 self._save_state()
-                alchemical_state.simulation.saveState(
-                    f"{self.output_prefix}_openmm.chk"
-                )
+                alchemical_state.simulation.saveState(f"{self.output_prefix}_openmm.chk")
 
         tmp_U_kl = _deepcopy(self._U_kl)
         self._U_kl = None
 
         return tmp_U_kl
 
-    def run_production_batch(
-        self, niterations: int, nsteps: int, reporters: Optional[List[Any]] = None
-    ) -> List[List[List[float]]]:
+    def run_production_batch(self, niterations: int, nsteps: int, reporters: Optional[List[Any]] = None) -> List[List[List[float]]]:
         """
         Run simulations for all alchemical states.
 
@@ -562,23 +514,17 @@ class FES:
         u_kln : np.ndarray
             Array with the potential energies of the simulations.
         """
-        assert (
-            self.alchemical_states is not None
-        ), "The alchemical states have not been created. Run `create_alchemical_states` first."
+        assert self.alchemical_states is not None, "The alchemical states have not been created. Run `create_alchemical_states` first."
 
         # Resume from the last checkpoint
         if not self._U_kln:
             self._alc_id = 0
             self._U_kln = []
 
-        logger.info(
-            f"Starting production run with {self.alchemical_states[self._alc_id]} with id {self._alc_id}"
-        )
+        logger.info(f"Starting production run with {self.alchemical_states[self._alc_id]} with id {self._alc_id}")
         for alc_id in range(self._alc_id, len(self.alchemical_states)):
             alc = self.alchemical_states[alc_id]
-            self._U_kln.append(
-                self.run_single_state(niterations, nsteps, alc, reporters=reporters)
-            )
+            self._U_kln.append(self.run_single_state(niterations, nsteps, alc, reporters=reporters))
             self._alc_id = alc_id + 1
             self._iter = 0
             self._save_state()

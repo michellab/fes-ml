@@ -8,7 +8,10 @@ import openmm as _mm
 from .base_modification import BaseModification, BaseModificationFactory
 from .ml_base_modification import MLBaseModification
 from .ml_potential import MLPotentialModification
-from .intramolecular import IntraMolecularBondedRemovalModification, IntraMolecularNonBondedExceptionsModification
+from .intramolecular import (
+    IntraMolecularBondedRemovalModification,
+    IntraMolecularNonBondedExceptionsModification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +79,7 @@ class MLCorrectionModification(MLBaseModification, BaseModification):
         This code is heavily inspired on this https://github.com/openmm/openmm-ml/blob/main/openmmml/mlpotential.py#L190-L351.
         """
         # Create the CustomCVForce
-        cv, mm_vars, ml_vars, _, ml_forces = self.create_cv(
-            system, alchemical_atoms, lambda_value, *args, **kwargs
-        )
+        cv, mm_vars, ml_vars, _, ml_forces = self.create_cv(system, alchemical_atoms, lambda_value, *args, **kwargs)
 
         # Remove all ML forces from the system as we are interested in the correction
         forces_to_remove = sorted([force_id for force_id, _ in ml_forces], reverse=True)

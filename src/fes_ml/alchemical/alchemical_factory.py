@@ -27,9 +27,7 @@ class AlchemicalStateFactory:
         """Initialize the AlchemicalStateFactory."""
         self.strategies: dict = {}
 
-    def register_strategy(
-        self, name: str, strategy: AlchemicalStateCreationStrategy
-    ) -> None:
+    def register_strategy(self, name: str, strategy: AlchemicalStateCreationStrategy) -> None:
         """
         Register a new strategy to create alchemical states.
 
@@ -58,9 +56,7 @@ class AlchemicalStateFactory:
         """
         return self.strategies.get(name, None)
 
-    def create_alchemical_state(
-        self, strategy_name: str = "sire", *args, **kwargs
-    ) -> AlchemicalState:
+    def create_alchemical_state(self, strategy_name: str = "sire", *args, **kwargs) -> AlchemicalState:
         """
         Create an alchemical state for the given λ values.
 
@@ -79,9 +75,7 @@ class AlchemicalStateFactory:
             alchemical_state = strategy.create_alchemical_state(*args, **kwargs)
             return alchemical_state
         else:
-            raise ValueError(
-                f"No strategy found with name {strategy_name}. Available strategies are {list(self.strategies.keys())}."
-            )
+            raise ValueError(f"No strategy found with name {strategy_name}. Available strategies are {list(self.strategies.keys())}.")
 
 
 # Create the alchemical factory and register the available strategies

@@ -14,9 +14,7 @@ logger = logging.getLogger(__name__)
 class MTS:
     """Class with various utility functions for the Multiple Timestep (MTS) integrator."""
 
-    def __init__(
-        self, alchemical_states: Optional[List[AlchemicalState]] = None
-    ) -> None:
+    def __init__(self, alchemical_states: Optional[List[AlchemicalState]] = None) -> None:
         """Initialize the MTS object."""
         self.alchemical_states = alchemical_states
         self._groups: List[Tuple[int, int]] = None
@@ -109,19 +107,13 @@ class MTS:
         - If a group is not provided, all forces are set to the fastest force group.
         """
         if alchemical_states is not None:
-            assert isinstance(
-                alchemical_states, list
-            ), "alchemical_states must be a list."
+            assert isinstance(alchemical_states, list), "alchemical_states must be a list."
             for alc in alchemical_states:
-                assert isinstance(
-                    alc, AlchemicalState
-                ), "All elements in alchemical_states must be AlchemicalState."
+                assert isinstance(alc, AlchemicalState), "All elements in alchemical_states must be AlchemicalState."
                 alc.check_integrity()
             self.alchemical_states = alchemical_states
         else:
-            assert (
-                self.alchemical_states is not None
-            ), "alchemical_states must be provided to set the force groups."
+            assert self.alchemical_states is not None, "alchemical_states must be provided to set the force groups."
 
         if force_group_dict is not None:
             # get the fastest force group for the unassigned forces
@@ -138,26 +130,17 @@ class MTS:
                         force.setForceGroup(fastest_group)
 
                 if unassigned_dict_forces:
-                    logger.warning(
-                        f"Warning: the following forces {unassigned_dict_forces} were not found in {state}."
-                    )
+                    logger.warning(f"Warning: the following forces {unassigned_dict_forces} were not found in {state}.")
 
                 # set the reciprocal force group to the defined group
                 if set_reciprocal_space_force_groups is not None:
                     if isinstance(force, _mm.NonbondedForce):
-                        force.setReciprocalSpaceForceGroup(
-                            set_reciprocal_space_force_groups
-                        )
+                        force.setReciprocalSpaceForceGroup(set_reciprocal_space_force_groups)
 
                 state.context.reinitialize(preserveState=True)
 
-            force_groups = {
-                force.getName(): force.getForceGroup()
-                for force in state.system.getForces()
-            }
-            logger.info(
-                f"Force groups for state index {self.alchemical_states.index(state)} set to:"
-            )
+            force_groups = {force.getName(): force.getForceGroup() for force in state.system.getForces()}
+            logger.info(f"Force groups for state index {self.alchemical_states.index(state)} set to:")
             for force, group in force_groups.items():
                 logger.info(f"{force}: {group}")
 

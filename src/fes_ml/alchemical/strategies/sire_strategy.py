@@ -84,11 +84,7 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         logger.debug("=" * 100)
 
         # Generate local copies of the dynamics and EMLE kwargs
-        dynamics_kwargs = (
-            _deepcopy(self._DYNAMIC_KWARGS)
-            if dynamics_kwargs is None
-            else _deepcopy(dynamics_kwargs)
-        )
+        dynamics_kwargs = _deepcopy(self._DYNAMIC_KWARGS) if dynamics_kwargs is None else _deepcopy(dynamics_kwargs)
 
         passed_args = locals()
         passed_args["dynamics_kwargs"] = dynamics_kwargs
@@ -138,14 +134,10 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
 
         # Handle EMLEPotential modifications
-        emle_instances = self._get_modification_instances(
-            lambda_schedule, "EMLEPotential"
-        )
+        emle_instances = self._get_modification_instances(lambda_schedule, "EMLEPotential")
         if emle_instances:
             for modification_name in emle_instances:
-                modifications_kwargs[modification_name] = modifications_kwargs.get(
-                    modification_name, {}
-                )
+                modifications_kwargs[modification_name] = modifications_kwargs.get(modification_name, {})
                 modifications_kwargs[modification_name]["mols"] = mols
                 modifications_kwargs[modification_name]["parm7"] = alchemical_prm7[0]
                 modifications_kwargs[modification_name]["mm_charges"] = _np.asarray(
@@ -156,14 +148,10 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         ml_types = ["MLPotential", "MLInterpolation", "MLCorrection"]
         ml_instances = []
         for ml_type in ml_types:
-            ml_instances.extend(
-                self._get_modification_instances(lambda_schedule, ml_type)
-            )
+            ml_instances.extend(self._get_modification_instances(lambda_schedule, ml_type))
 
         if ml_instances:
-            modifications_kwargs["MLPotential"] = modifications_kwargs.get(
-                "MLPotential", {}
-            )
+            modifications_kwargs["MLPotential"] = modifications_kwargs.get("MLPotential", {})
             modifications_kwargs["MLPotential"]["topology"] = topology
 
         # Remove constraints involving alchemical atoms
@@ -191,16 +179,12 @@ class SireCreationStrategy(AlchemicalStateCreationStrategy):
         simulation = _mm.app.Simulation(topology, omm_system, integrator, omm_platform)
 
         # Set the positions and velocities
-        simulation.context.setPositions(
-            omm_context.getState(getPositions=True).getPositions()
-        )
+        simulation.context.setPositions(omm_context.getState(getPositions=True).getPositions())
 
         try:
             simulation.context.setVelocitiesToTemperature(integrator.getTemperature())
         except AttributeError:
-            simulation.context.setVelocitiesToTemperature(
-                float(dynamics_kwargs["temperature"][:-1])
-            )
+            simulation.context.setVelocitiesToTemperature(float(dynamics_kwargs["temperature"][:-1]))
 
         # Report the energy decomposition after applying the alchemical modifications
         self._report_energy_decomposition(simulation.context, omm_system)

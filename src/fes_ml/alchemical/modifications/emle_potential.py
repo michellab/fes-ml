@@ -114,27 +114,18 @@ class EMLEPotentialModification(BaseModification):
             # and use that to create the EMLECalculator.
             # Because we also add the interpolation force, we are sure that the lambda_interpolate
             # does not scale the EMLE potential.
-            cv_force = [
-                f for f in system.getForces() if f.getName() == "MLInterpolation"
-            ]
-            assert (
-                len(cv_force) == 1
-            ), f"There are {len(cv_force)} MLInterpolation forces. Only one is allowed."
+            cv_force = [f for f in system.getForces() if f.getName() == "MLInterpolation"]
+            assert len(cv_force) == 1, f"There are {len(cv_force)} MLInterpolation forces. Only one is allowed."
 
             cv_force = cv_force[0]
-            assert isinstance(
-                cv_force, _mm.CustomCVForce
-            ), f"Expected a CustomCVForce, but got {type(cv_force)}."
+            assert isinstance(cv_force, _mm.CustomCVForce), f"Expected a CustomCVForce, but got {type(cv_force)}."
 
             for i in range(cv_force.getNumGlobalParameters()):
                 if cv_force.getGlobalParameterName(i) == "lambda_interpolate":
                     lambda_value = cv_force.getGlobalParameterDefaultValue(i)
                     break
 
-            logger.debug(
-                f"Using λ={lambda_value} to create EMLE potential. "
-                "This is the lambda_interpolate value of MLInterpolation force."
-            )
+            logger.debug(f"Using λ={lambda_value} to create EMLE potential. This is the lambda_interpolate value of MLInterpolation force.")
 
             if backend is not None:
                 logger.warning(
@@ -157,9 +148,7 @@ class EMLEPotentialModification(BaseModification):
 
                 calculator = _EMLE(*args, **kwargs).to(device)
             except ImportError:
-                raise ImportError(
-                    "The feature_aev branch of the emle package is required when using an EMLE torch model."
-                )
+                raise ImportError("The feature_aev branch of the emle package is required when using an EMLE torch model.")
         else:
             # Create a calculator.
             calculator = _EMLECalculator(
@@ -208,9 +197,6 @@ class EMLEPotentialModification(BaseModification):
                         _, sigma, epsilon = force.getParticleParameters(i)
                         force.setParticleParameters(i, 0, sigma, epsilon)
                     except _mm.OpenMMException:
-                        logger.warning(
-                            f"Could not set charge to 0 for atom {i}. "
-                            "Check if this is the expected behaviour."
-                        )
+                        logger.warning(f"Could not set charge to 0 for atom {i}. Check if this is the expected behaviour.")
 
         return system

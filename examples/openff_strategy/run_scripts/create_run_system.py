@@ -94,9 +94,7 @@ def main(args):
         timestep_groups = [(0, 1), (2, inner_steps)]
         if intermediate_steps:
             timestep_groups.append((1, intermediate_steps))
-        integrator = mts.create_integrator(
-            dt=dt, groups=timestep_groups, temperature=temperature
-        )
+        integrator = mts.create_integrator(dt=dt, groups=timestep_groups, temperature=temperature)
     else:
         print("no mts setup...")
         # The strategy will know how to create the integrator
@@ -335,8 +333,7 @@ if __name__ == "__main__":
         "--do-not-split-nonbonded",
         dest="dont_split_nonbonded",
         action="store_true",
-        help="Whether to not split the non-bonded interactions"
-        "Default the reciprocal space force group is the slowest.",
+        help="Whether to not split the non-bonded interactionsDefault the reciprocal space force group is the slowest.",
     )
     args = parser.parse_args()
 

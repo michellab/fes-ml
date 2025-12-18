@@ -58,8 +58,7 @@ class BaseModification(ABC):
             uses the class NAME.
         """
         assert modification_name.count(":") <= 1, (
-            f"Invalid modification_name '{modification_name}': "
-            "it may contain at most one ':' to indicate the alchemical group."
+            f"Invalid modification_name '{modification_name}': it may contain at most one ':' to indicate the alchemical group."
         )
         self.modification_name = modification_name or self.NAME
 
@@ -71,9 +70,7 @@ class BaseModification(ABC):
         """
         super().__init_subclass__(**kwargs)
         if cls.NAME is NotImplemented:
-            raise NotImplementedError(
-                f"Modification {cls.__name__} must override 'NAME' class-level attribute."
-            )
+            raise NotImplementedError(f"Modification {cls.__name__} must override 'NAME' class-level attribute.")
 
     @abstractmethod
     def apply(
@@ -176,11 +173,7 @@ class BaseModification(ABC):
         List[openmm.Force]
             List of forces whose names end with the specified alchemical group.
         """
-        return [
-            force
-            for force in system.getForces()
-            if force.getName().endswith(f":{group}")
-        ]
+        return [force for force in system.getForces() if force.getName().endswith(f":{group}")]
 
     @staticmethod
     def find_force_by_name(system: _mm.System, force_name: str) -> _mm.Force:
@@ -233,9 +226,7 @@ class BaseModificationFactory(ABC):
     """
 
     @abstractmethod
-    def create_modification(
-        self, modification_name: str = None, *args, **kwargs
-    ) -> BaseModification:
+    def create_modification(self, modification_name: str = None, *args, **kwargs) -> BaseModification:
         """
         Create an instance of the modification.
 

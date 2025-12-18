@@ -61,9 +61,7 @@ class IntraMolecularNonBondedExceptionsModification(BaseModification):
 
     NAME = "IntraMolecularNonBondedExceptions"
 
-    def apply(
-        self, system: _mm.System, alchemical_atoms: List[int], *args, **kwargs
-    ) -> _mm.System:
+    def apply(self, system: _mm.System, alchemical_atoms: List[int], *args, **kwargs) -> _mm.System:
         """
         Add exceptions to the NonbondedForce and CustomNonbondedForces.
 
@@ -89,10 +87,7 @@ class IntraMolecularNonBondedExceptionsModification(BaseModification):
                     for j in range(i):
                         force.addException(atom_list[i], atom_list[j], 0, 1, 0, True)
             elif isinstance(force, _mm.CustomNonbondedForce):
-                existing = set(
-                    tuple(force.getExclusionParticles(i))
-                    for i in range(force.getNumExclusions())
-                )
+                existing = set(tuple(force.getExclusionParticles(i)) for i in range(force.getNumExclusions()))
                 for i in range(len(atom_list)):
                     a1 = atom_list[i]
                     for j in range(i):
@@ -154,9 +149,7 @@ class IntraMolecularNonBondedForcesModification(BaseModification):
             energy_expression += f"krf = {krf.value_in_unit(_unit.nanometer**-3)};"
             energy_expression += f"crf = {crf.value_in_unit(_unit.nanometer**-1)}"
         else:
-            energy_expression = (
-                "138.9354558466661*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)"
-            )
+            energy_expression = "138.9354558466661*chargeProd/r + 4*epsilon*((sigma/r)^12-(sigma/r)^6)"
 
         internal_nonbonded = _mm.CustomBondForce(energy_expression)
         internal_nonbonded.addPerBondParameter("chargeProd")
@@ -234,9 +227,7 @@ class IntraMolecularBondedRemovalModification(BaseModification):
         return all(a in atom_set for a in term_atoms) == remove_in_set
 
     @staticmethod
-    def _remove_bonded_interactions(
-        force: _mm.Force, alchemical_atoms: List[int], remove_in_set: bool
-    ) -> _mm.System:
+    def _remove_bonded_interactions(force: _mm.Force, alchemical_atoms: List[int], remove_in_set: bool) -> _mm.System:
         """
         Remove all bonded interactions between atoms in a particular set.
 
@@ -262,32 +253,24 @@ class IntraMolecularBondedRemovalModification(BaseModification):
                 try:
                     # HarmonicBondForce
                     p1, p2, length, k = force.getBondParameters(i)
-                    if IntraMolecularBondedRemovalModification._should_remove(
-                        (p1, p2), atom_set, remove_in_set
-                    ):
+                    if IntraMolecularBondedRemovalModification._should_remove((p1, p2), atom_set, remove_in_set):
                         force.setBondParameters(i, p1, p2, length, 0)
                 except ValueError:
                     # CustomBondForce
                     p1, p2, params = force.getBondParameters(i)
-                    if IntraMolecularBondedRemovalModification._should_remove(
-                        (p1, p2), atom_set, remove_in_set
-                    ):
+                    if IntraMolecularBondedRemovalModification._should_remove((p1, p2), atom_set, remove_in_set):
                         zero_params = [0 for _ in params]
                         force.setBondParameters(i, p1, p2, zero_params)
         if hasattr(force, "addAngle"):
             for i in range(force.getNumAngles()):
                 p1, p2, p3, angle, k = force.getAngleParameters(i)
-                if IntraMolecularBondedRemovalModification._should_remove(
-                    (p1, p2, p3), atom_set, remove_in_set
-                ):
+                if IntraMolecularBondedRemovalModification._should_remove((p1, p2, p3), atom_set, remove_in_set):
                     force.setAngleParameters(i, p1, p2, p3, angle, 0)
 
         if hasattr(force, "addTorsion"):
             for i in range(force.getNumTorsions()):
                 p1, p2, p3, p4, periodicity, phase, k = force.getTorsionParameters(i)
-                if IntraMolecularBondedRemovalModification._should_remove(
-                    (p1, p2, p3, p4), atom_set, remove_in_set
-                ):
+                if IntraMolecularBondedRemovalModification._should_remove((p1, p2, p3, p4), atom_set, remove_in_set):
                     force.setTorsionParameters(i, p1, p2, p3, p4, periodicity, phase, 0)
 
         return force
@@ -323,16 +306,12 @@ class IntraMolecularBondedRemovalModification(BaseModification):
         """
         # Remove bonded interactions between atoms in the set
         for id, force in enumerate(system.getForces()):
-            IntraMolecularBondedRemovalModification._remove_bonded_interactions(
-                force, alchemical_atoms, remove_in_set
-            )
+            IntraMolecularBondedRemovalModification._remove_bonded_interactions(force, alchemical_atoms, remove_in_set)
 
         if remove_constraints:
             for i in range(system.getNumConstraints(), 0, -1):
                 p1, p2, length = system.getConstraintParameters(i - 1)
-                if IntraMolecularBondedRemovalModification._should_remove(
-                    (p1, p2), set(alchemical_atoms), remove_in_set
-                ):
+                if IntraMolecularBondedRemovalModification._should_remove((p1, p2), set(alchemical_atoms), remove_in_set):
                     system.removeConstraint(i - 1)
 
         return system

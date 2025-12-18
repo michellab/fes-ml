@@ -20,9 +20,7 @@ class Alchemist:
     _DEFAULT_ALCHEMICAL_GROUP = ":default"
 
     @staticmethod
-    def register_modification_factory(
-        name: str, factory: BaseModificationFactory
-    ) -> Dict[str, BaseModificationFactory]:
+    def register_modification_factory(name: str, factory: BaseModificationFactory) -> Dict[str, BaseModificationFactory]:
         """Register a new modification factory in the Alchemist class."""
         Alchemist._modification_factories[name] = factory
 
@@ -83,9 +81,7 @@ class Alchemist:
         """Reset the graph of alchemical modifications."""
         self._graph = nx.DiGraph()
 
-    def add_modification_to_graph(
-        self, modification: BaseModification, lambda_value: Optional[float] = 1.0
-    ) -> None:
+    def add_modification_to_graph(self, modification: BaseModification, lambda_value: Optional[float] = 1.0) -> None:
         """
         Add a modification to the graph of alchemical modifications.
 
@@ -101,9 +97,7 @@ class Alchemist:
         if node_name in self._graph.nodes and lambda_value is None:
             lambda_value = self._graph.nodes[node_name].get("lambda_value", None)
 
-        self._graph.add_node(
-            node_name, modification=modification, lambda_value=lambda_value
-        )
+        self._graph.add_node(node_name, modification=modification, lambda_value=lambda_value)
 
         if modification.pre_dependencies is not None:
             for pre_dependency in modification.pre_dependencies:
@@ -116,14 +110,10 @@ class Alchemist:
                     )
 
                 # Check if dependency already exists in graph
-                dep_modification_name = (
-                    f"{pre_dependency}:{modification.alchemical_group}"
-                )
+                dep_modification_name = f"{pre_dependency}:{modification.alchemical_group}"
                 if dep_modification_name not in self._graph.nodes:
                     factory = self._modification_factories[pre_dependency]
-                    pre_modification = factory.create_modification(
-                        modification_name=dep_modification_name
-                    )
+                    pre_modification = factory.create_modification(modification_name=dep_modification_name)
                     # Add edge first (like before), then recursively add dependency
                     self._graph.add_edge(dep_modification_name, node_name)
                     self.add_modification_to_graph(pre_modification, None)
@@ -142,14 +132,10 @@ class Alchemist:
                     )
 
                 # Check if dependency already exists in graph
-                dep_modification_name = (
-                    f"{post_dependency}:{modification.alchemical_group}"
-                )
+                dep_modification_name = f"{post_dependency}:{modification.alchemical_group}"
                 if dep_modification_name not in self._graph.nodes:
                     factory = self._modification_factories[post_dependency]
-                    post_modification = factory.create_modification(
-                        modification_name=dep_modification_name
-                    )
+                    post_modification = factory.create_modification(modification_name=dep_modification_name)
                     # Add edge first (like before), then recursively add dependency
                     self._graph.add_edge(node_name, dep_modification_name)
                     self.add_modification_to_graph(post_modification, None)
@@ -203,20 +189,14 @@ class Alchemist:
 
             if modifications_kwargs is not None and name in modifications_kwargs:
                 if modification_name not in modifications_kwargs:
-                    modifications_kwargs[modification_name] = modifications_kwargs.pop(
-                        name
-                    )
+                    modifications_kwargs[modification_name] = modifications_kwargs.pop(name)
 
             if base_name in Alchemist._modification_factories:
                 factory = self._modification_factories[base_name]
-                modification = factory.create_modification(
-                    modification_name=modification_name
-                )
+                modification = factory.create_modification(modification_name=modification_name)
                 self.add_modification_to_graph(modification, lambda_value=lambda_value)
             else:
-                raise ValueError(
-                    f"Modification {base_name} not found in the factories."
-                )
+                raise ValueError(f"Modification {base_name} not found in the factories.")
 
         if additional_modifications is not None:
             for name in additional_modifications:
@@ -230,24 +210,15 @@ class Alchemist:
 
                 if modifications_kwargs is not None and name in modifications_kwargs:
                     if modification_name in modifications_kwargs:
-                        raise ValueError(
-                            f"Cannot rename '{name}' to '{modification_name}': "
-                            "key already exists in modifications_kwargs."
-                        )
-                    modifications_kwargs[modification_name] = modifications_kwargs.pop(
-                        name
-                    )
+                        raise ValueError(f"Cannot rename '{name}' to '{modification_name}': key already exists in modifications_kwargs.")
+                    modifications_kwargs[modification_name] = modifications_kwargs.pop(name)
 
                 if base_name in Alchemist._modification_factories:
                     factory = self._modification_factories[base_name]
-                    modification = factory.create_modification(
-                        modification_name=modification_name
-                    )
+                    modification = factory.create_modification(modification_name=modification_name)
                     self.add_modification_to_graph(modification, lambda_value=None)
                 else:
-                    raise ValueError(
-                        f"Modification {base_name} not found in the factories."
-                    )
+                    raise ValueError(f"Modification {base_name} not found in the factories.")
 
         # After constructing the graph, remove dependencies to skip
         ref_graph = _deepcopy(self._graph)
@@ -264,13 +235,8 @@ class Alchemist:
         # - Partial overlap: if the alchemical atoms partially overlap, raise an error
         #   (this behavior may be implemented in the future)
         modifications_kwargs = modifications_kwargs or {}
-        redundant_modifications = [
-            name for name in self._graph.nodes if name not in lambda_schedule
-        ]
-        mod_atoms = {
-            name: set(modifications_kwargs.get(name, {}).get("alchemical_atoms", []))
-            for name in redundant_modifications
-        }
+        redundant_modifications = [name for name in self._graph.nodes if name not in lambda_schedule]
+        mod_atoms = {name: set(modifications_kwargs.get(name, {}).get("alchemical_atoms", [])) for name in redundant_modifications}
         to_remove = set()
         for i, name in enumerate(redundant_modifications):
             base_name = name.split(":", 1)[0]
@@ -298,9 +264,7 @@ class Alchemist:
             modification = data["modification"]
 
         logger.debug("Created graph of alchemical modifications:\n")
-        for line in nx.generate_network_text(
-            self._graph, vertical_chains=False, ascii_only=True
-        ):
+        for line in nx.generate_network_text(self._graph, vertical_chains=False, ascii_only=True):
             logger.debug(line)
         logger.debug("")
         return self._graph
@@ -347,9 +311,7 @@ class Alchemist:
             lambda_value = self._graph.nodes[mod]["lambda_value"]
             mod_instance = self._graph.nodes[mod]["modification"]
             # Try both instance name and base name for kwargs lookup
-            mod_kwargs = modifications_kwargs.get(
-                mod, modifications_kwargs.get(mod_instance.NAME, {})
-            )
+            mod_kwargs = modifications_kwargs.get(mod, modifications_kwargs.get(mod_instance.NAME, {}))
 
             if lambda_value is None:
                 logger.debug(f"Applying {mod} modification")

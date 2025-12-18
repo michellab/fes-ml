@@ -35,9 +35,7 @@ class ChargeTransferModification(BaseModification):
     post_dependencies: List[str] = []
 
     @staticmethod
-    def get_is_donor_acceptor(
-        topology: _Topology, alchemical_atoms: List[int], symmetric: bool = False
-    ) -> tuple[list[int], list[int]]:
+    def get_is_donor_acceptor(topology: _Topology, alchemical_atoms: List[int], symmetric: bool = False) -> tuple[list[int], list[int]]:
         """
         Generate per-atom flags for donors and acceptors.
 
@@ -72,11 +70,11 @@ class ChargeTransferModification(BaseModification):
                         break
             # Acceptor: heavy atoms
             elif atom.atomic_number == 8 and (symmetric or idx not in alchemical_atoms):
-                #num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
+                # num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
                 is_acceptor[idx] = 1
             elif atom.atomic_number == 7:
                 # Nitrogen
-                #num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
+                # num_H = sum(b.atomic_number == 1 for b in atom.bonded_atoms)
                 is_acceptor[idx] = 1
                 # if num_H != 1 and num_H != 2:  # optionally exclude primary/secondary amines
                 #    is_acceptor[idx] = 1
@@ -127,9 +125,7 @@ class ChargeTransferModification(BaseModification):
         energy_function = f"-{lambda_value}*donor_acceptor*epsilon*exp(-r/sigma);"
         energy_function += "sigma = sqrt(sigma1*sigma2);"
         energy_function += "epsilon = (epsilon1*epsilon2);"
-        energy_function += (
-            "donor_acceptor = 1;"#isDonor1*isAcceptor2 + isDonor2*isAcceptor1;"
-        )
+        energy_function += "donor_acceptor = 1;"  # isDonor1*isAcceptor2 + isDonor2*isAcceptor1;"
 
         logger.debug(f"Charge transfer function: {energy_function}")
 
@@ -144,29 +140,25 @@ class ChargeTransferModification(BaseModification):
         # Add per-particle parameters to the CustomNonbondedForce
         charge_transfer_force.addPerParticleParameter("sigma")
         charge_transfer_force.addPerParticleParameter("epsilon")
-        #charge_transfer_force.addPerParticleParameter("isDonor")
-        #charge_transfer_force.addPerParticleParameter("isAcceptor")
+        # charge_transfer_force.addPerParticleParameter("isDonor")
+        # charge_transfer_force.addPerParticleParameter("isAcceptor")
 
         # Update the Lennard-Jones parameters in the CustomNonbondedForce
-        #force_field = _ForceField(*original_offxml)
-        #labels = force_field.label_molecules(topology_off)
+        # force_field = _ForceField(*original_offxml)
+        # labels = force_field.label_molecules(topology_off)
 
         # Get atom types
-        #atom_types = [val.id for mol in labels for _, val in mol["vdW"].items()]
+        # atom_types = [val.id for mol in labels for _, val in mol["vdW"].items()]
 
         # Get donor/acceptor flags
-        is_donor, is_acceptor = ChargeTransferModification.get_is_donor_acceptor(
-            topology_off, alchemical_atoms
-        )
+        is_donor, is_acceptor = ChargeTransferModification.get_is_donor_acceptor(topology_off, alchemical_atoms)
 
         # CT force field
         ct_force_field = _ForceField(ct_offxml)
         labels = ct_force_field.label_molecules(topology_off)
         ct_params = {
             p.id: {
-                "epsilon": p.epsilon.to_openmm().value_in_unit(
-                    _unit.kilojoules_per_mole
-                ),
+                "epsilon": p.epsilon.to_openmm().value_in_unit(_unit.kilojoules_per_mole),
                 "sigma": p.sigma.to_openmm().value_in_unit(_unit.nanometer),
             }
             for p in ct_force_field.get_parameter_handler("vdW")
@@ -178,9 +170,9 @@ class ChargeTransferModification(BaseModification):
             charge_transfer_force.addParticle(
                 [
                     ct_params[at_type]["sigma"],
-                    ct_params[at_type]["epsilon"],# * 10.0,
-                    #is_donor[index],
-                    #is_acceptor[index],
+                    ct_params[at_type]["epsilon"],  # * 10.0,
+                    # is_donor[index],
+                    # is_acceptor[index],
                 ]
             )
 

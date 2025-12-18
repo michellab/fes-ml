@@ -53,9 +53,7 @@ if __name__ == "__main__":
     # Multiple time step Langevin integrator
     # Force group 0, 2 steps (fast forces)
     # Force group 1, 1 step (slow forces)
-    integrator = mts.create_integrator(
-        dt=1.0 * unit.femtosecond, groups=[(0, 2), (1, 1)]
-    )
+    integrator = mts.create_integrator(dt=1.0 * unit.femtosecond, groups=[(0, 2), (1, 1)])
 
     # Create the FES object to run the simulations
     fes = FES()

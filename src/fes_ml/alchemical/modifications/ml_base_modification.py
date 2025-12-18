@@ -23,9 +23,7 @@ class MLBaseModification:
         lambda_paramter_name: str = "lambda_interpolate",
         *args,
         **kwargs,
-    ) -> Tuple[
-        _mm.CustomCVForce, List[str], List[str], List[_mm.Force], List[_mm.Force]
-    ]:
+    ) -> Tuple[_mm.CustomCVForce, List[str], List[str], List[_mm.Force], List[_mm.Force]]:
         """
         Create a CustomCVForce that will contain the ML and bonded MM forces.
 
@@ -71,16 +69,10 @@ class MLBaseModification:
         # Add bonded forces to the CV
         bonded_forces = []
         for force in system.getForces():
-            if (
-                hasattr(force, "addBond")
-                or hasattr(force, "addAngle")
-                or hasattr(force, "addTorsion")
-            ):
+            if hasattr(force, "addBond") or hasattr(force, "addAngle") or hasattr(force, "addTorsion"):
                 # Remove bonded interactions between non-alchemical atoms
                 force = _deepcopy(force)
-                IntraMolecularBondedRemovalModification._remove_bonded_interactions(
-                    force, alchemical_atoms, False
-                )
+                IntraMolecularBondedRemovalModification._remove_bonded_interactions(force, alchemical_atoms, False)
                 bonded_forces.append(force)
 
         mm_vars = []

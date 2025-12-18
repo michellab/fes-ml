@@ -90,9 +90,7 @@ if __name__ == "__main__":
         timestep_groups = [(0, 1), (1, intermediate_steps)]
         if inner_steps:
             timestep_groups.append((2, inner_steps))
-        integrator = mts.create_integrator(
-            dt=dt, groups=timestep_groups, temperature=temperature
-        )
+        integrator = mts.create_integrator(dt=dt, groups=timestep_groups, temperature=temperature)
     else:
         # The strategy will know how to create the integrator
         integrator = None

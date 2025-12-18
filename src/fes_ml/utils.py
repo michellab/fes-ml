@@ -57,9 +57,7 @@ def write_system_to_xml(system: _mm.System, filename: str) -> None:
         outfile.write(_mm.XmlSerializer.serialize(system))
 
 
-def plot_lambda_schedule(
-    lambda_schedule: dict, output_file: str = None, *args, **kwargs
-) -> None:
+def plot_lambda_schedule(lambda_schedule: dict, output_file: str = None, *args, **kwargs) -> None:
     """
     Plot the lambda schedule.
 

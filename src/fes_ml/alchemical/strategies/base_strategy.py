@@ -65,9 +65,7 @@ class AlchemicalStateCreationStrategy(ABC):
             Additional keyword arguments to be passed to the Alchemist ``apply_modifications`` method.
         """
         alchemist = Alchemist()
-        alchemist.create_alchemical_graph(
-            lambda_schedule, modifications_kwargs=modifications_kwargs
-        )
+        alchemist.create_alchemical_graph(lambda_schedule, modifications_kwargs=modifications_kwargs)
 
         if modifications_kwargs is None:
             modifications_kwargs = {}
@@ -97,9 +95,7 @@ class AlchemicalStateCreationStrategy(ABC):
         for key, value in dict_to_report.items():
             if isinstance(value, dict):
                 logger.debug(f"{key}:")
-                AlchemicalStateCreationStrategy._report_dict(
-                    value, None, indentation + 4, False
-                )
+                AlchemicalStateCreationStrategy._report_dict(value, None, indentation + 4, False)
             else:
                 logger.debug(f"{' ' * indentation}{key}: {value}")
 
@@ -107,9 +103,7 @@ class AlchemicalStateCreationStrategy(ABC):
             logger.debug("+" + "-" * 98 + "+")
 
     @staticmethod
-    def _has_modification_type(
-        lambda_schedule: Dict[str, Union[float, int]], base_name: str
-    ) -> bool:
+    def _has_modification_type(lambda_schedule: Dict[str, Union[float, int]], base_name: str) -> bool:
         """
         Check if any modification of a given base type exists in the lambda schedule.
 
@@ -125,15 +119,10 @@ class AlchemicalStateCreationStrategy(ABC):
         bool
             True if any modification of the base type exists, False otherwise.
         """
-        return any(
-            key == base_name or key.startswith(f"{base_name}:")
-            for key in lambda_schedule.keys()
-        )
+        return any(key == base_name or key.startswith(f"{base_name}:") for key in lambda_schedule.keys())
 
     @staticmethod
-    def _get_modification_instances(
-        lambda_schedule: Dict[str, Union[float, int]], base_name: str
-    ) -> List[str]:
+    def _get_modification_instances(lambda_schedule: Dict[str, Union[float, int]], base_name: str) -> List[str]:
         """
         Get all modification instance names of a given base type from the lambda schedule.
 
@@ -150,11 +139,7 @@ class AlchemicalStateCreationStrategy(ABC):
             List of all modification instance names matching the base type.
             Examples: ["CustomLJ", "CustomLJ:region1", "CustomLJ:region2"]
         """
-        return [
-            key
-            for key in lambda_schedule.keys()
-            if key == base_name or key.startswith(f"{base_name}:")
-        ]
+        return [key for key in lambda_schedule.keys() if key == base_name or key.startswith(f"{base_name}:")]
 
     @staticmethod
     def _report_energy_decomposition(context, system) -> None:
@@ -172,9 +157,7 @@ class AlchemicalStateCreationStrategy(ABC):
         logger.debug("-" * 100)
         logger.debug("ENERGY DECOMPOSITION")
         logger.debug("-" * 100)
-        logger.debug(
-            f"Total potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}"
-        )
+        logger.debug(f"Total potential energy: {context.getState(getEnergy=True).getPotentialEnergy()}")
         energy_decomp = energy_decomposition(system, context)
         for force, energy in energy_decomp.items():
             logger.debug(f"{force}: {energy}")

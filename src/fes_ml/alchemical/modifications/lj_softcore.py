@@ -100,7 +100,7 @@ class LJSoftCoreModification(BaseModification):
             terms.append(f"-{lambda_value}*4*epsilon*x*fdamp")
 
         energy_expr = " + ".join(terms)
-         
+
         # Full OpenMM expression: E; intermediate definitions follow
         expr = (
             f"{energy_expr}; "
@@ -110,7 +110,7 @@ class LJSoftCoreModification(BaseModification):
             "epsilon=sqrt(epsilon1*epsilon2); "
         )
 
-        # Add damping if needed 
+        # Add damping if needed
         if include_attraction and not include_repulsion:
             expr += (
                 # Tang-Toennies f6(b*r) expansion, truncated to 6th order
@@ -139,9 +139,7 @@ class LJSoftCoreModification(BaseModification):
             self._NON_BONDED_METHODS[3],
             self._NON_BONDED_METHODS[4],
         ]:
-            logger.warning(
-                "The softcore Lennard-Jones interactions are not implemented for Ewald or PME"
-            )
+            logger.warning("The softcore Lennard-Jones interactions are not implemented for Ewald or PME")
             logger.warning("The nonbonded method will be set to CutoffPeriodic")
             soft_core_force.setNonbondedMethod(2)
         else:
@@ -155,9 +153,7 @@ class LJSoftCoreModification(BaseModification):
             # Cannot use long range correction with a force that does not depend on r
             soft_core_force.setUseLongRangeCorrection(False)
         else:
-            soft_core_force.setUseLongRangeCorrection(
-                nb_force.getUseDispersionCorrection()
-            )
+            soft_core_force.setUseLongRangeCorrection(nb_force.getUseDispersionCorrection())
 
         # https://github.com/openmm/openmm/issues/1877
         # Set the values of sigma and epsilon by copying them from the existing NonBondedForce

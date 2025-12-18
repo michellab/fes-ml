@@ -89,20 +89,13 @@ class MLPotentialModification(MLBaseModification, BaseModification):
         if name in self._ANI_POTENTIALS:
             self._create_ani2x(topology, system, alchemical_atoms, *args, **kwargs)
         elif name in self._MACE_POTENTIALS:
-            self._create_mace(
-                name, topology, system, alchemical_atoms, modelPath, *args, **kwargs
-            )
+            self._create_mace(name, topology, system, alchemical_atoms, modelPath, *args, **kwargs)
         else:
-            raise ValueError(
-                f"Unknown ML potential: {name}. "
-                f"Currently supported potentials are {self._ANI_POTENTIALS + self._MACE_POTENTIALS}"
-            )
+            raise ValueError(f"Unknown ML potential: {name}. Currently supported potentials are {self._ANI_POTENTIALS + self._MACE_POTENTIALS}")
 
         return system
 
-    def _create_ani2x(
-        self, topology, system, alchemical_atoms, forceGroup: int = 0, *args, **kwargs
-    ) -> _mm.System:
+    def _create_ani2x(self, topology, system, alchemical_atoms, forceGroup: int = 0, *args, **kwargs) -> _mm.System:
         """
         Add an ANI-2x potential to the System.
 
@@ -172,8 +165,6 @@ class MLPotentialModification(MLBaseModification, BaseModification):
             The modified System.
         """
         macepotiml = macepotential.MACEPotentialImpl(name=name, modelPath=modelPath)
-        macepotiml.addForces(
-            topology, system, alchemical_atoms, forceGroup, *args, **kwargs
-        )
+        macepotiml.addForces(topology, system, alchemical_atoms, forceGroup, *args, **kwargs)
 
         return system
