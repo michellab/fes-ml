@@ -49,6 +49,7 @@ class CustomLJModification(BaseModification):
         lj_offxml: str,
         topology_off: _Topology,
         alchemical_atoms_only: bool = True,
+        non_alchemical_atoms_only: bool = False,
         *args,
         **kwargs,
     ) -> _mm.System:
@@ -71,6 +72,8 @@ class CustomLJModification(BaseModification):
             The topology of the system.
         alchemical_atoms_only : bool
             Whether to only apply the LJ soft core modification to the alchemical atoms.
+        non_alchemical_atoms_only : bool
+            Whether to only apply the LJ soft core modification to the non-alchemical atoms.
         args : tuple
             Additional arguments to be passed to the modification.
         kwargs : dict
@@ -81,74 +84,64 @@ class CustomLJModification(BaseModification):
         openmm.System
             The modified system.
         """
+        if non_alchemical_atoms_only and alchemical_atoms_only:
+            raise ValueError("Cannot set both alchemical_atoms_only and non_alchemical_atoms_only to True.")
+
         # Find the related LJSoftCore force based on instance naming
         alchemical_group = self.alchemical_group
         group_forces = self.find_forces_by_group(system, self.alchemical_group)
-        custom_nb_forces = [
-            force
-            for force in group_forces
-            if force.getName() == f"LJSoftCore:{alchemical_group}"
-        ]
+        custom_nb_forces = [force for force in group_forces if force.getName() == f"LJSoftCore:{alchemical_group}"]
         if not custom_nb_forces:
-            raise ValueError(
-                f"Attempting to modify LJ parameters but no LJSoftCore force found for alchemical group '{alchemical_group}'"
-            )
+            raise ValueError(f"Attempting to modify LJ parameters but no LJSoftCore force found for alchemical group '{alchemical_group}'")
         custom_nb_force = custom_nb_forces[0]
 
         # Create a dictionary with the optimized Lennard-Jones parameters for each atom type
         force_field_opt = _ForceField(lj_offxml)
         opt_params = {
             p.id: {
-                "epsilon": p.epsilon.to_openmm().value_in_unit(
-                    _unit.kilojoules_per_mole
-                ),
+                "epsilon": p.epsilon.to_openmm().value_in_unit(_unit.kilojoules_per_mole),
                 "sigma": p.sigma.to_openmm().value_in_unit(_unit.nanometer),
             }
             for p in force_field_opt.get_parameter_handler("vdW")
         }
 
+        # Get atom types
+        labels_opt = force_field_opt.label_molecules(topology_off)
+
         # Get dictionary with the original Lennard-Jones parameters for each atom type
         force_field = _ForceField(*original_offxml)
         orig_params = {
             p.id: {
-                "epsilon": p.epsilon.to_openmm().value_in_unit(
-                    _unit.kilojoules_per_mole
-                ),
+                "epsilon": p.epsilon.to_openmm().value_in_unit(_unit.kilojoules_per_mole),
                 "sigma": p.sigma.to_openmm().value_in_unit(_unit.nanometer),
             }
             for p in force_field.get_parameter_handler("vdW")
         }
 
         # Get atom types
-        labels = force_field.label_molecules(topology_off)
+        labels_orig = force_field.label_molecules(topology_off)
 
         # Flatten the vdW parameters for all molecules
         opt_vdw_parameters = [
-            (opt_params[val.id]["sigma"], opt_params[val.id]["epsilon"])
-            for mol in labels
-            for _, val in mol["vdW"].items()
+            (opt_params[val.id]["sigma"], opt_params[val.id]["epsilon"]) for mol in labels_opt for _, val in mol["vdW"].items()
         ]
 
         orig_vdw_parameters = [
-            (orig_params[val.id]["sigma"], orig_params[val.id]["epsilon"])
-            for mol in labels
-            for _, val in mol["vdW"].items()
+            (orig_params[val.id]["sigma"], orig_params[val.id]["epsilon"]) for mol in labels_orig for _, val in mol["vdW"].items()
         ]
 
         # Combine original and optimized parameters based on lambda_value
         vdw_parameters = [
             (
-                (1 - lambda_value) * orig_vdw_parameters[i][0]
-                + lambda_value * opt_vdw_parameters[i][0],
-                (1 - lambda_value) * orig_vdw_parameters[i][1]
-                + lambda_value * opt_vdw_parameters[i][1],
+                (1 - lambda_value) * orig_vdw_parameters[i][0] + lambda_value * opt_vdw_parameters[i][0],
+                (1 - lambda_value) * orig_vdw_parameters[i][1] + lambda_value * opt_vdw_parameters[i][1],
             )
             for i in range(len(orig_vdw_parameters))
         ]
 
         # Update the Lennard-Jones parameters in a single loop
         for index, parameters in enumerate(vdw_parameters):
-            if alchemical_atoms_only and index not in alchemical_atoms:
+            if alchemical_atoms_only and index not in alchemical_atoms or non_alchemical_atoms_only and index in alchemical_atoms:
                 continue
             custom_nb_force.setParticleParameters(index, parameters)
 
