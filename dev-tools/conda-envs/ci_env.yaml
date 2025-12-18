@@ -5,7 +5,7 @@ channels:
   - openbiosim/label/emle
 
 dependencies:
-  - python=3.11       
+  - python=3.12  
   - ambertools
   - compilers
   - eigen
