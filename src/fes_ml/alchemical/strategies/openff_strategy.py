@@ -106,9 +106,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         return bool(pattern.search(smiles))
 
     @staticmethod
-    def _apply_hmr(
-        interchange: Any, system: _mm.System, hydrogen_mass: _unit.Quantity
-    ) -> _mm.System:
+    def _apply_hmr(interchange: Any, system: _mm.System, hydrogen_mass: _unit.Quantity) -> _mm.System:
         """
         Apply hydrogen mass repartitioning to the system.
 
@@ -131,9 +129,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         This method assumes that the water molecule is rigid and that the virtual sites are not involved in the HMR.
         Code adapted from https://github.com/openforcefield/openff-interchange/blob/426e3ebc630604b2f15fab014410fac0e48aa514/openff/interchange/interop/openmm/__init__.py#L173-L226.
         """
-        logger.warning(
-            "Applying hydrogen mass repartitioning on a system with virtual sites!"
-        )
+        logger.warning("Applying hydrogen mass repartitioning on a system with virtual sites!")
         logger.warning("Assuming the water molecule is rigid.")
         water = _Molecule.from_smiles("O")
 
@@ -154,9 +150,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
                 # This will need to be wired up through the OpenFF-OpenMM particle index map
                 # when virtual sites + HMR are supported
-                mass_to_transfer = hydrogen_mass - system.getParticleMass(
-                    hydrogen_index
-                )
+                mass_to_transfer = hydrogen_mass - system.getParticleMass(hydrogen_index)
 
                 system.setParticleMass(
                     hydrogen_index,
@@ -239,15 +233,11 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             else:
                 ligand = _Molecule.from_smiles(smiles_ligand)
         else:
-            raise ValueError(
-                "Please provide either an SDF file or a SMARTS pattern for the ligand."
-            )
+            raise ValueError("Please provide either an SDF file or a SMARTS pattern for the ligand.")
         return ligand
 
     @staticmethod
-    def _create_solvent_molecule(
-        sdf_file_solvent: str, smiles_solvent: str
-    ) -> Union[_Molecule, None]:
+    def _create_solvent_molecule(sdf_file_solvent: str, smiles_solvent: str) -> Union[_Molecule, None]:
         """
         Create a solvent molecule from an SDF file or a SMARTS pattern.
 
@@ -319,16 +309,10 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 }
 
             if "number_of_copies" not in packmol_kwargs_local:
-                number_of_copies = [
-                    OpenFFCreationStrategy._N_MOLECULES[mol_name]
-                    for mol_name, mol in molecules.items()
-                    if mol is not None
-                ]
+                number_of_copies = [OpenFFCreationStrategy._N_MOLECULES[mol_name] for mol_name, mol in molecules.items() if mol is not None]
             else:
                 number_of_copies = [
-                    packmol_kwargs_local["number_of_copies"][mol_name]
-                    for mol_name, mol in molecules.items()
-                    if mol is not None
+                    packmol_kwargs_local["number_of_copies"][mol_name] for mol_name, mol in molecules.items() if mol is not None
                 ]
 
                 packmol_kwargs_local.pop("number_of_copies")
@@ -345,9 +329,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         return topology_off
 
     @staticmethod
-    def _get_alchemical_atoms(
-        topology: _app.Topology, alchemical_atoms: Optional[List[int]]
-    ) -> List[int]:
+    def _get_alchemical_atoms(topology: _app.Topology, alchemical_atoms: Optional[List[int]]) -> List[int]:
         """
         Get the alchemical atoms.
 
@@ -364,21 +346,13 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             The alchemical atoms.
         """
         if alchemical_atoms is None:
-            logger.debug(
-                "No alchemical atoms provided. Assuming the whole ligand is alchemical."
-            )
-            alchemical_atoms = [
-                atom.index for atom in list(topology.chains())[0].atoms()
-            ]
+            logger.debug("No alchemical atoms provided. Assuming the whole ligand is alchemical.")
+            alchemical_atoms = [atom.index for atom in list(topology.chains())[0].atoms()]
             if len(alchemical_atoms) > 100:
-                logger.warning(
-                    f"The size of the alchemical region is {len(alchemical_atoms)}. This seems like too much."
-                )
+                logger.warning(f"The size of the alchemical region is {len(alchemical_atoms)}. This seems like too much.")
 
         else:
-            assert isinstance(
-                alchemical_atoms, list
-            ), "Alchemical_atoms must be a list of int."
+            assert isinstance(alchemical_atoms, list), "Alchemical_atoms must be a list of int."
 
         logger.debug(f"Alchemical atoms: {alchemical_atoms}")
         return alchemical_atoms
@@ -435,19 +409,11 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         list : float
             The charges of the system.
         """
-        nb_forces = [
-            force
-            for force in system.getForces()
-            if isinstance(force, _mm.NonbondedForce)
-        ]
+        nb_forces = [force for force in system.getForces() if isinstance(force, _mm.NonbondedForce)]
         if len(nb_forces) > 1:
-            raise ValueError(
-                "The system must not contain more than one NonbondedForce."
-            )
+            raise ValueError("The system must not contain more than one NonbondedForce.")
         elif len(nb_forces) == 0:
-            logger.warning(
-                "The system does not contain a NonbondedForce and therefore no charge scaling will be applied."
-            )
+            logger.warning("The system does not contain a NonbondedForce and therefore no charge scaling will be applied.")
             return system
         else:
             force = nb_forces[0]
@@ -556,17 +522,9 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
 
         # Generate local copies of the system generator kwargs
         if any([sdf_file_solvent, smiles_solvent]):
-            mdconfig_dict = (
-                _deepcopy(self._MDCONFIG_DICT)
-                if mdconfig_dict is None
-                else _deepcopy(mdconfig_dict)
-            )
+            mdconfig_dict = _deepcopy(self._MDCONFIG_DICT) if mdconfig_dict is None else _deepcopy(mdconfig_dict)
         else:
-            mdconfig_dict = (
-                _deepcopy(self._MDCONFIG_DICT_VACUUM)
-                if mdconfig_dict is None
-                else _deepcopy(mdconfig_dict)
-            )
+            mdconfig_dict = _deepcopy(self._MDCONFIG_DICT_VACUUM) if mdconfig_dict is None else _deepcopy(mdconfig_dict)
 
         passed_args = locals()
         passed_args["mdconfig_kwargs"] = mdconfig_dict
@@ -646,9 +604,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 hydrogen_mass=hmr,
             )
         except _UnsupportedExportError as e:
-            logger.warning(
-                "The OpenFF Interchange object cannot apply HMR on models with virtual sites."
-            )
+            logger.warning("The OpenFF Interchange object cannot apply HMR on models with virtual sites.")
             logger.warning(f"OpenFF error: {e}")
 
             system = interchange.to_openmm_system(
@@ -659,9 +615,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             system = self._apply_hmr(interchange, system, hydrogen_mass)
 
         # Create barostat (only if system is periodic)
-        if (
-            topology.getPeriodicBoxVectors() is not None
-        ) or system.usesPeriodicBoundaryConditions():
+        if (topology.getPeriodicBoxVectors() is not None) or system.usesPeriodicBoundaryConditions():
             additional_forces.append(self._create_barostat(pressure, temperature))
 
         # Add additional forces
@@ -688,9 +642,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         modifications_kwargs = _deepcopy(modifications_kwargs) or {}
 
         # Handle EMLEPotential modifications
-        emle_instances = self._get_modification_instances(
-            lambda_schedule, "EMLEPotential"
-        )
+        emle_instances = self._get_modification_instances(lambda_schedule, "EMLEPotential")
         if emle_instances:
             import numpy as _np
             import sire as _sr
@@ -698,9 +650,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             # For now, we apply the same kwargs to all instances
             # In the future, this could be made per-instance specific
             for modification_name in emle_instances:
-                modifications_kwargs[modification_name] = modifications_kwargs.get(
-                    modification_name, {}
-                )
+                modifications_kwargs[modification_name] = modifications_kwargs.get(modification_name, {})
 
             # Write .top and .gro files via the OpenFF interchange
             if _os.path.exists(self._TMP_DIR):
@@ -711,9 +661,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             interchange.to_top(files_prefix + ".top")
 
             # Read back those files using Sire
-            sr_mols = _sr.load(
-                files_prefix + ".top", files_prefix + ".gro", show_warnings=True
-            )
+            sr_mols = _sr.load(files_prefix + ".top", files_prefix + ".gro", show_warnings=True)
 
             # Select the alchemical subsystem
             alchemical_subsystem = sr_mols.atoms(alchemical_atoms)
@@ -733,51 +681,38 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             for modification_name in emle_instances:
                 modifications_kwargs[modification_name]["mols"] = sr_mols
                 modifications_kwargs[modification_name]["parm7"] = alchemical_prm7[0]
-                # modifications_kwargs[modification_name]["top_file"] = files_prefix + ".top"
-                # modifications_kwargs[modification_name]["crd_file"] = files_prefix + ".gro"
+                # TODO: uncomment for EMLE+
+                modifications_kwargs[modification_name]["top_file"] = files_prefix + ".top"
+                modifications_kwargs[modification_name]["crd_file"] = files_prefix + ".gro"
                 modifications_kwargs[modification_name]["mm_charges"] = _np.asarray(
                     [atom.charge().value() for atom in sr_mols.atoms(alchemical_atoms)]
                 )
-                modifications_kwargs[modification_name][
-                    "openmm_charges"
-                ] = openmm_charges
+                modifications_kwargs[modification_name]["openmm_charges"] = openmm_charges
 
         # Handle ML-related modifications
         ml_types = ["MLPotential", "MLInterpolation", "MLCorrection"]
         ml_instances = []
         for ml_type in ml_types:
-            ml_instances.extend(
-                self._get_modification_instances(lambda_schedule, ml_type)
-            )
+            ml_instances.extend(self._get_modification_instances(lambda_schedule, ml_type))
 
         if ml_instances:
-            modifications_kwargs["MLPotential"] = modifications_kwargs.get(
-                "MLPotential", {}
-            )
+            modifications_kwargs["MLPotential"] = modifications_kwargs.get("MLPotential", {})
             modifications_kwargs["MLPotential"]["topology"] = topology
 
         # Handle CustomLJ modifications
-        customlj_instances = self._get_modification_instances(
-            lambda_schedule, "CustomLJ"
-        )
+        customlj_instances = self._get_modification_instances(lambda_schedule, "CustomLJ")
         if customlj_instances:
             for modification_name in customlj_instances:
-                modifications_kwargs[modification_name] = modifications_kwargs.get(
-                    modification_name, {}
-                )
+                modifications_kwargs[modification_name] = modifications_kwargs.get(modification_name, {})
                 modifications_kwargs[modification_name]["original_offxml"] = ffs
                 modifications_kwargs[modification_name]["topology_off"] = topology_off
                 modifications_kwargs[modification_name]["positions"] = positions
 
         # Handle ChargeTransfer modifications
-        chargetransfer_instances = self._get_modification_instances(
-            lambda_schedule, "ChargeTransfer"
-        )
+        chargetransfer_instances = self._get_modification_instances(lambda_schedule, "ChargeTransfer")
         if chargetransfer_instances:
             for modification_name in chargetransfer_instances:
-                modifications_kwargs[modification_name] = modifications_kwargs.get(
-                    modification_name, {}
-                )
+                modifications_kwargs[modification_name] = modifications_kwargs.get(modification_name, {})
                 modifications_kwargs[modification_name]["original_offxml"] = ffs
                 modifications_kwargs[modification_name]["topology_off"] = topology_off
 
@@ -793,9 +728,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
         if integrator is None:
             integrator = self._create_integrator(temperature, friction, timestep)
         else:
-            assert isinstance(
-                integrator, _mm.Integrator
-            ), "integrator must be an OpenMM Integrator."
+            assert isinstance(integrator, _mm.Integrator), "integrator must be an OpenMM Integrator."
             integrator = _deepcopy(integrator)
 
         # Create the simulation
@@ -803,6 +736,7 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             topology=interchange.to_openmm_topology(),
             system=system,
             integrator=integrator,
+            platform=_mm.Platform.getPlatformByName("CUDA"),
         )
 
         # Set the positions

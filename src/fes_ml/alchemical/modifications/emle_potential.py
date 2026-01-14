@@ -189,14 +189,21 @@ class EMLEPotentialModification(BaseModification):
         interpolation_force.setEnergyFunction("0.0")  # No energy contribution.
         system.addForce(interpolation_force)
 
-        # Zero the charges on the atoms within the QM region
+        # Determine if LJ parameters should be zeroed out.
+        disp_mode = kwargs.get("dispersion_mode", None)
+        if disp_mode not in (None, "lj", "c6"):
+            logger.warning(f"dispersion_mode {disp_mode} not recognised. Must be one of None, 'lj', or 'c6'. ")
+        zero_lj = disp_mode in ("lj", "c6")
+
+        # Zero the charges and/or LJ parameters on the atoms within the QM region
+        logger.debug(f"Zeroing charges and{' LJ parameters' if zero_lj else ''} for atoms in QM region: {alchemical_atoms}")
         for force in system.getForces():
             if isinstance(force, _mm.NonbondedForce):
                 for i in alchemical_atoms:
                     try:
                         _, sigma, epsilon = force.getParticleParameters(i)
-                        force.setParticleParameters(i, 0, sigma, epsilon)
+                        force.setParticleParameters(i, 0, sigma, epsilon if not zero_lj else 0)
                     except _mm.OpenMMException:
-                        logger.warning(f"Could not set charge to 0 for atom {i}. Check if this is the expected behaviour.")
+                        logger.warning(f"Could not set charge and/or LJ parameters to 0 for atom {i}. Check if this is the expected behaviour.")
 
         return system
