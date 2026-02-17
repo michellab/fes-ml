@@ -736,7 +736,6 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
             topology=interchange.to_openmm_topology(),
             system=system,
             integrator=integrator,
-            platform=_mm.Platform.getPlatformByName("CUDA"),
         )
 
         # Set the positions
