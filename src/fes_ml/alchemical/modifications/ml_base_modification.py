@@ -57,7 +57,7 @@ class MLBaseModification:
         # Add ML forces to the CV
         ml_forces = []
         for force_id, force in enumerate(system.getForces()):
-            if force.getName() == "TorchForce":
+            if force.getName() == "TorchForce" or force.getName() == "PythonForce":
                 ml_forces.append((force_id, force))
 
         ml_vars = []
