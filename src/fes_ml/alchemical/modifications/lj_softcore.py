@@ -53,6 +53,8 @@ class LJSoftCoreModification(BaseModification):
         lambda_value: Optional[Union[float, int]] = 1.0,
         include_repulsion: bool = True,
         include_attraction: bool = True,
+        useSwitchingFunction: Optional[bool] = None,
+        useLongRangeCorrection: Optional[bool] = None,
         *args,
         **kwargs,
     ) -> _mm.System:
@@ -73,6 +75,12 @@ class LJSoftCoreModification(BaseModification):
         include_attraction : bool, optional
             Whether to include the long-range attractive term (r^-6 component).
             Default is True.
+        useSwitchingFunction : bool, optional
+            Whether to use a switching function for the softcore LJ interactions.
+            If None, the value from the original NonbondedForce will be used.
+        useLongRangeCorrection : bool, optional
+            Whether to use long-range dispersion correction for the softcore LJ interactions.
+            If None, the value from the original NonbondedForce will be used.
         args : tuple
             Additional arguments to be passed to the modification.
         kwargs : dict
@@ -146,14 +154,16 @@ class LJSoftCoreModification(BaseModification):
             soft_core_force.setNonbondedMethod(nb_force.getNonbondedMethod())
 
         soft_core_force.setCutoffDistance(nb_force.getCutoffDistance())
-        soft_core_force.setUseSwitchingFunction(nb_force.getUseSwitchingFunction())
+        soft_core_force.setUseSwitchingFunction(nb_force.getUseSwitchingFunction() if useSwitchingFunction is None else useSwitchingFunction)
         soft_core_force.setSwitchingDistance(nb_force.getSwitchingDistance())
 
         if abs(lambda_value) < 1e-8:
             # Cannot use long range correction with a force that does not depend on r
             soft_core_force.setUseLongRangeCorrection(False)
         else:
-            soft_core_force.setUseLongRangeCorrection(nb_force.getUseDispersionCorrection())
+            soft_core_force.setUseLongRangeCorrection(
+                nb_force.getUseDispersionCorrection() if useLongRangeCorrection is None else useLongRangeCorrection
+            )
 
         # https://github.com/openmm/openmm/issues/1877
         # Set the values of sigma and epsilon by copying them from the existing NonBondedForce
