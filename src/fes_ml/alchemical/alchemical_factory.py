@@ -3,11 +3,8 @@
 import logging
 
 from .alchemical_state import AlchemicalState
-from .strategies import (
-    AlchemicalStateCreationStrategy,
-    OpenFFCreationStrategy,
-    SireCreationStrategy,
-)
+from .strategies import (AlchemicalStateCreationStrategy,
+                         OpenFFCreationStrategy, SireCreationStrategy)
 
 logger = logging.getLogger(__name__)
 

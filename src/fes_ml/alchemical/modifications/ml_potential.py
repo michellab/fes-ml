@@ -7,11 +7,9 @@ import openmm as _mm
 import openmm.app as _app
 
 from .base_modification import BaseModification, BaseModificationFactory
-from .intramolecular import (
-    IntraMolecularBondedRemovalModification,
-    IntraMolecularNonBondedExceptionsModification,
-    IntraMolecularNonBondedForcesModification,
-)
+from .intramolecular import (IntraMolecularBondedRemovalModification,
+                             IntraMolecularNonBondedExceptionsModification,
+                             IntraMolecularNonBondedForcesModification)
 from .ml_base_modification import MLBaseModification
 
 logger = logging.getLogger(__name__)
@@ -81,6 +79,7 @@ class MLPotentialModification(MLBaseModification, BaseModification):
             The modified System.
         """
         from openmmml import MLPotential
+
         mlp = MLPotential(name=name, modelPath=modelPath)
         mlp._impl.addForces(topology, system, alchemical_atoms, forceGroup, *args, **kwargs)
         return system

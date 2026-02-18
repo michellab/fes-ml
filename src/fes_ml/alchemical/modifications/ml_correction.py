@@ -6,12 +6,10 @@ from typing import List
 import openmm as _mm
 
 from .base_modification import BaseModification, BaseModificationFactory
+from .intramolecular import (IntraMolecularBondedRemovalModification,
+                             IntraMolecularNonBondedExceptionsModification)
 from .ml_base_modification import MLBaseModification
 from .ml_potential import MLPotentialModification
-from .intramolecular import (
-    IntraMolecularBondedRemovalModification,
-    IntraMolecularNonBondedExceptionsModification,
-)
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Optional
 import networkx as nx
 import openmm as _mm
 
-from .modifications.base_modification import BaseModification, BaseModificationFactory
+from .modifications.base_modification import (BaseModification,
+                                              BaseModificationFactory)
 
 logger = logging.getLogger(__name__)
 

@@ -7,10 +7,8 @@ import openmm as _mm
 import openmm.app as _app
 
 from .base_modification import BaseModification, BaseModificationFactory
-from .intramolecular import (
-    IntraMolecularNonBondedExceptionsModification,
-    IntraMolecularNonBondedForcesModification,
-)
+from .intramolecular import (IntraMolecularNonBondedExceptionsModification,
+                             IntraMolecularNonBondedForcesModification)
 
 logger = logging.getLogger(__name__)
 

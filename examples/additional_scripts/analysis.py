@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 from MDAnalysis.analysis import rdf as RDF
 from MDAnalysis.analysis.dihedrals import Dihedral
-from MDAnalysis.topology.guessers import guess_angles, guess_bonds, guess_dihedrals
+from MDAnalysis.topology.guessers import (guess_angles, guess_bonds,
+                                          guess_dihedrals)
 from scipy.stats import norm
 
 
