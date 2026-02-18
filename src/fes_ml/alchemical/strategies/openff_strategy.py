@@ -11,17 +11,14 @@ from typing import Any, Dict, List, Optional, Union
 import openmm as _mm
 import openmm.app as _app
 import openmm.unit as _unit
-
 # OpenFF imports
 from openff.interchange.components._packmol import UNIT_CUBE as _UNIT_CUBE
 from openff.interchange.components._packmol import pack_box as _pack_box
 from openff.interchange.components.mdconfig import MDConfig as _MDConfig
-from openff.interchange.exceptions import (
-    UnsupportedExportError as _UnsupportedExportError,
-)
-from openff.interchange.interop.openmm._positions import (
-    to_openmm_positions as _to_openmm_positions,
-)
+from openff.interchange.exceptions import \
+    UnsupportedExportError as _UnsupportedExportError
+from openff.interchange.interop.openmm._positions import \
+    to_openmm_positions as _to_openmm_positions
 from openff.toolkit import Molecule as _Molecule
 from openff.toolkit import Topology as _Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField as _ForceField
@@ -302,10 +299,11 @@ class OpenFFCreationStrategy(AlchemicalStateCreationStrategy):
                 packmol_kwargs_local = _deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)
             else:
                 # Update the packmol_kwargs with the default values
-                # Values in packmol_kwargs take precedence
+                defaults = _deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS)
+                missing_defaults = {k: v for k, v in defaults.items() if k not in packmol_kwargs}
                 packmol_kwargs_local = {
                     **packmol_kwargs,
-                    **_deepcopy(OpenFFCreationStrategy._PACKMOL_KWARGS),
+                    **missing_defaults,
                 }
 
             if "number_of_copies" not in packmol_kwargs_local:
