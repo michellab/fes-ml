@@ -1,15 +1,18 @@
 """Module for the MLPotentialModification class and its factory."""
 
 import logging
+from copy import deepcopy
 from typing import List, Optional
 
 import openmm as _mm
 import openmm.app as _app
 
 from .base_modification import BaseModification, BaseModificationFactory
-from .intramolecular import (IntraMolecularBondedRemovalModification,
-                             IntraMolecularNonBondedExceptionsModification,
-                             IntraMolecularNonBondedForcesModification)
+from .intramolecular import (
+    IntraMolecularBondedRemovalModification,
+    IntraMolecularNonBondedExceptionsModification,
+    IntraMolecularNonBondedForcesModification,
+)
 from .ml_base_modification import MLBaseModification
 
 logger = logging.getLogger(__name__)
@@ -79,7 +82,9 @@ class MLPotentialModification(MLBaseModification, BaseModification):
             The modified System.
         """
         from openmmml import MLPotential
+        kwargs_copy = deepcopy(kwargs)
+        del kwargs_copy["lambda_value"]
 
         mlp = MLPotential(name=name, modelPath=modelPath)
-        mlp._impl.addForces(topology, system, alchemical_atoms, forceGroup, *args, **kwargs)
+        mlp._impl.addForces(topology, system, alchemical_atoms, forceGroup, *args, **kwargs_copy)
         return system
